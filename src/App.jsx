@@ -1933,7 +1933,7 @@ function RiskRadar({ selectedLens = "Overview" }) {
                   className="radar-plane relative mx-auto aspect-square w-full max-w-[500px] overflow-hidden rounded-full border border-slate-800/80 bg-slate-950/45"
                 >
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.14),transparent_18%),radial-gradient(circle_at_center,rgba(124,58,237,0.08),transparent_42%)]" />
-                  <div className="radar-sweep hidden sm:block" />
+                  <div className="radar-sweep" />
                   <div className="absolute inset-[8%] rounded-full border border-slate-700/35" />
                   <div className="absolute inset-[21%] rounded-full border border-slate-800/75" />
                   <div className="absolute inset-[34%] rounded-full border border-slate-800/60" />
@@ -2172,17 +2172,17 @@ function App() {
               ))}
             </div>
 
-            <div className="mt-5 grid max-w-4xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="language-grid mt-5 grid max-w-4xl gap-3">
               {languageItems.map((item) => (
                 <div
                   key={item.language}
-                  className="flex items-center gap-3 rounded-lg bg-slate-950/25 px-3.5 py-3 backdrop-blur"
+                  className="flex min-w-0 items-center gap-3 rounded-lg bg-slate-950/25 px-3.5 py-3 backdrop-blur"
                 >
-                  <div className="language-flag" aria-hidden="true">
+                  <div className="language-flag shrink-0" aria-hidden="true">
                     <span>{item.flag}</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-100">{item.language}</p>
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-semibold text-slate-100">{item.language}</p>
                     <p className="mt-0.5 text-xs text-slate-400">{item.level}</p>
                   </div>
                 </div>
