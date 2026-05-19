@@ -1387,13 +1387,6 @@ function PortfolioAssistant() {
 
   const categoryPrompts = assistantPrompts.filter((prompt) => prompt.categories.includes(selectedCategory));
 
-  const scrollQuestionRail = (direction) => {
-    questionRailRef.current?.scrollBy({
-      left: direction * 260,
-      behavior: "smooth",
-    });
-  };
-
   const handleAssistantSignalClick = (event, signal) => {
     event.preventDefault();
 
@@ -1531,27 +1524,7 @@ function PortfolioAssistant() {
                   </div>
 
                   <div className="mt-6">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Question rail</p>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => scrollQuestionRail(-1)}
-                          aria-label="Scroll questions left"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-800 bg-slate-900/55 text-slate-400 transition hover:border-cyan-300/35 hover:text-cyan-100"
-                        >
-                          <ChevronLeft className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => scrollQuestionRail(1)}
-                          aria-label="Scroll questions right"
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-800 bg-slate-900/55 text-slate-400 transition hover:border-cyan-300/35 hover:text-cyan-100"
-                        >
-                          <ChevronRight className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Question rail</p>
                     <div
                       ref={questionRailRef}
                       className="assistant-question-rail flex gap-2 overflow-x-auto pb-2"
@@ -1938,7 +1911,7 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
                 y={label.y}
                 textAnchor={labelAnchor}
                 dominantBaseline="middle"
-                className={`${isActive ? "fill-cyan-100" : "fill-slate-300"} text-[3.4px] font-medium`}
+                className={`${isActive ? "fill-cyan-100" : "fill-slate-300"} text-[3.75px] font-medium`}
               >
                 {labelLines.map((line, lineIndex) => (
                   <tspan key={line} x={label.x} dy={lineIndex === 0 ? 0 : 4.2}>

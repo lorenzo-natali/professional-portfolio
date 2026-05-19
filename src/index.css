@@ -306,6 +306,15 @@ code {
   transform-origin: center;
 }
 
+@media (max-width: 639px) {
+  .radar-sweep {
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.05) 6deg, rgba(34, 211, 238, 0.2) 20deg, rgba(59, 130, 246, 0.12) 36deg, transparent 56deg);
+    filter: blur(0.25px);
+    animation-duration: 12s;
+    will-change: transform;
+  }
+}
+
 @media (max-width: 359px) {
   .language-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -316,6 +325,7 @@ code {
   .radar-sweep {
     background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.02) 8deg, rgba(34, 211, 238, 0.14) 24deg, rgba(59, 130, 246, 0.08) 38deg, transparent 58deg);
     animation-duration: 18s;
+    will-change: auto;
   }
 }
 
