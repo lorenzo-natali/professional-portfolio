@@ -260,6 +260,42 @@ code {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.codeiak-project-mascot {
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.codeiakMascotVideo {
+  width: min(var(--mascot-size), 92vw);
+  aspect-ratio: 1974 / 797;
+  height: auto;
+  display: grid;
+  place-items: center;
+  background: transparent;
+}
+
+.codeiakMascotVideoMedia {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+  pointer-events: none;
+  background: transparent;
+  filter: drop-shadow(0 12px 24px rgba(2, 6, 23, 0.38)) drop-shadow(0 0 18px rgba(34, 211, 238, 0.14));
+}
+
+.codeiakMascotVideoFallbackText {
+  max-width: 10rem;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(148, 163, 184, 0.78);
+}
+
 .radar-sweep {
   position: absolute;
   inset: 0;
@@ -286,6 +322,20 @@ code {
 @media (min-width: 1024px) {
   .language-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1180px) {
+  .codeiak-project-mascot {
+    position: absolute;
+    top: 2.75rem;
+    right: 0.5rem;
+    margin-top: 0;
+  }
+
+  .codeiakMascotVideo {
+    width: var(--mascot-size);
+    height: auto;
   }
 }
 

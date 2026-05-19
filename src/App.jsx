@@ -13,6 +13,7 @@ import {
   Share2,
   ShieldCheck,
 } from "lucide-react";
+import CodeiakMascotVideo from "./components/CodeiakMascotVideo";
 import "./index.css";
 
 const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -114,9 +115,19 @@ const projects = [
     id: "project-ai-audit-workflow",
     title: "AI-Assisted Audit Workflow",
     status: "Ongoing personal project",
+    stage: "Functional Build",
     text: "Designing an AI-assisted audit knowledge system using local models to extract findings, recommendations and evidence from audit documentation while preserving traceability.",
     tech: ["Python", "Local LLMs", "VLM Models", "AI Agents", "Structured Data Extraction"],
     link: "https://github.com/lorenzo-natali/ai-audit-workflow",
+  },
+  {
+    id: "project-codeiak",
+    title: "CodeIAK — Local AI Coding Agent",
+    status: "Ongoing personal project",
+    stage: "Advanced Iteration",
+    text: "Building a local-first AI coding agent that integrates multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency to help users inspect, modify and validate software projects offline.",
+    tech: ["Local LLMs", "AI Agents", "Multi-Model Orchestration", "OpenClaw Integration", "Offline-First"],
+    repositoryStatus: "Repository coming soon",
   },
   {
     id: "project-esg-audit",
@@ -126,6 +137,8 @@ const projects = [
     tech: ["ESG", "GRI", "Sustainability Reporting", "Audit"],
   },
 ];
+
+const projectStages = ["Concept", "Prototype", "Functional Build", "Advanced Iteration", "Public Release"];
 
 const education = [
   {
@@ -453,7 +466,7 @@ const lensRelevance = {
     capabilities: ["capability-technology-risk", "capability-banking-risk", "capability-international-cross-cultural"],
     credentials: ["credential-cisa"],
     experiences: ["experience-boc"],
-    projects: ["project-ai-audit-workflow"],
+    projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: ["radar-technology-ict-risk", "radar-operational-resilience", "radar-regulatory-compliance-risk"],
     education: [],
     streamItems: [],
@@ -462,13 +475,14 @@ const lensRelevance = {
       "assistant-operational-resilience-dora",
       "assistant-cisa-preparation",
       "assistant-hands-on-technical-skills",
+      "assistant-codeiak-project",
     ],
   },
   "AI Governance": {
     capabilities: ["capability-ai-governance", "capability-technology-risk", "capability-international-cross-cultural"],
     credentials: ["credential-cisa"],
     experiences: ["experience-boc"],
-    projects: ["project-ai-audit-workflow"],
+    projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: ["radar-ai-model-governance", "radar-technology-ict-risk", "radar-control-audit-risk"],
     education: [],
     streamItems: ["Local LLMs", "RAG Workflows", "AI Agents", "LLM Evaluation", "Audit Traceability"],
@@ -477,6 +491,7 @@ const lensRelevance = {
       "assistant-ai-projects-built",
       "assistant-audit-traceability",
       "assistant-too-junior-tech-ai",
+      "assistant-codeiak-project",
     ],
   },
   "Banking Risk": {
@@ -498,7 +513,7 @@ const lensRelevance = {
     capabilities: ["capability-ai-governance", "capability-audit-control"],
     credentials: ["credential-cisa"],
     experiences: ["experience-boc", "experience-prelios"],
-    projects: ["project-ai-audit-workflow"],
+    projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: ["radar-control-audit-risk", "radar-ai-model-governance", "radar-technology-ict-risk"],
     education: [],
     streamItems: ["Python", "pandas", "Data Analysis", "Structured Data Extraction", "Audit Traceability"],
@@ -532,6 +547,11 @@ const signalMap = {
     href: "#experience",
     experiences: ["experience-boc", "experience-prelios"],
   },
+  "bank-of-china-experience": {
+    label: "Experience",
+    href: "#experience",
+    experiences: ["experience-boc"],
+  },
   "learning-roadmap": {
     label: "Learning Roadmap",
     href: "#credentials",
@@ -563,7 +583,7 @@ const signalMap = {
     label: "AI Governance & Data Systems",
     href: "#capabilities",
     capabilities: ["capability-ai-governance"],
-    projects: ["project-ai-audit-workflow"],
+    projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: ["radar-ai-model-governance"],
   },
   "international-cross-cultural-work": {
@@ -618,9 +638,9 @@ const signalMap = {
     label: "AI & Model Governance",
     href: "#risk-radar",
     capabilities: ["capability-ai-governance", "capability-technology-risk"],
-    projects: ["project-ai-audit-workflow"],
+    projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: ["radar-ai-model-governance"],
-    streamItems: ["Local LLMs", "RAG Workflows", "AI Agents", "LLM Evaluation", "Audit Traceability"],
+    streamItems: ["Local LLMs", "RAG Workflows", "AI Agents", "LLM Evaluation", "Audit Traceability", "Multi-Model Orchestration", "Offline-First"],
   },
   "ai-audit-workflow": {
     label: "AI-Assisted Audit Workflow",
@@ -628,6 +648,14 @@ const signalMap = {
     projects: ["project-ai-audit-workflow"],
     capabilities: ["capability-ai-governance", "capability-audit-control"],
     radar: ["radar-ai-model-governance", "radar-control-audit-risk"],
+  },
+  codeiak: {
+    label: "CodeIAK — Local AI Coding Agent",
+    href: "#projects",
+    projects: ["project-codeiak"],
+    capabilities: ["capability-ai-governance", "capability-technology-risk"],
+    radar: ["radar-ai-model-governance", "radar-technology-ict-risk"],
+    streamItems: ["Local LLMs", "AI Agents", "LLM Evaluation", "GitHub"],
   },
   "technology-data-stream": {
     label: "Technology & Data Stream",
@@ -644,7 +672,7 @@ const signalMap = {
     href: "#role-lens",
     lenses: ["Audit Analytics"],
     capabilities: ["capability-ai-governance", "capability-audit-control"],
-    projects: ["project-ai-audit-workflow"],
+    projects: ["project-ai-audit-workflow", "project-codeiak"],
   },
   "cisa-candidate": {
     label: "CISA Candidate",
@@ -711,6 +739,32 @@ const assistantPrompts = [
       { label: "Experience", href: "#experience" },
       { label: "Learning Roadmap", href: "#credentials" },
       { label: "Professional Capabilities", href: "#capabilities" },
+    ],
+  },
+  {
+    id: "assistant-bank-of-china-experience",
+    categories: ["Profile Fit"],
+    question: "What does your experience at Bank of China add to your profile?",
+    answer:
+      "My experience at Bank of China – Milan Branch adds an international and cross-border dimension to my profile. It allows me to work on internal audit, risk management, regulatory frameworks and operational resilience within a banking environment where local European supervisory expectations intersect with the governance of a major global Chinese financial institution.\n\nI see this as particularly relevant for the future of finance and technology: global banking is increasingly shaped by cross-border regulatory coordination, data governance, payment infrastructures and the resilience of interconnected financial systems. Working in this setting strengthens my ability to read risk not only as a control issue, but as something embedded in international business models, technology flows and evolving supervisory expectations.",
+    signalIds: ["bank-of-china-experience", "banking-risk-regulation", "international-cross-cultural-work"],
+    signals: [
+      { label: "Experience", href: "#experience" },
+      { label: "Banking Risk & Regulation", href: "#capabilities" },
+      { label: "International & Cross-Cultural Work", href: "#capabilities" },
+    ],
+  },
+  {
+    id: "assistant-future-career-direction",
+    categories: ["Profile Fit"],
+    question: "Where would you like your career to develop in the future?",
+    answer:
+      "I would like to continue growing in audit and risk-oriented roles within complex international organizations, ideally where finance, technology and governance intersect. Large global banks are a natural environment for this path, particularly in internal audit, IT audit, technology risk and AI governance.\n\nAt the same time, I am also interested in multinational companies beyond banking—such as technology, life sciences or other highly regulated sectors—where digital systems, operational resilience, data governance and emerging AI-related risks create a broader and evolving audit landscape.\n\nWhat attracts me most is working in environments that combine intellectual complexity, international exposure and continuous learning: roles that allow me to engage with different risk domains, collaborate with colleagues from diverse professional and cultural backgrounds, and ideally travel across locations or business contexts.",
+    signalIds: ["technology-risk-resilience", "ai-governance-data-systems", "international-cross-cultural-work"],
+    signals: [
+      { label: "Technology Risk & Resilience", href: "#capabilities" },
+      { label: "AI Governance & Data Systems", href: "#capabilities" },
+      { label: "International & Cross-Cultural Work", href: "#capabilities" },
     ],
   },
   {
@@ -835,12 +889,12 @@ const assistantPrompts = [
     categories: ["Technology & AI"],
     question: "What is your exposure to AI governance?",
     answer:
-      "My focus on AI governance is emerging. I am interested in AI-related risks, audit traceability, model governance, explainability and the controlled use of local LLM workflows in audit and risk contexts.",
-    signalIds: ["ai-governance-data-systems", "ai-model-governance", "ai-audit-workflow"],
+      "My focus on AI governance is emerging. I am interested in AI-related risks, audit traceability, model governance, explainability and the controlled use of local LLM workflows—both in audit contexts and in agentic systems where outputs, tool use and code changes must remain inspectable and reversible.",
+    signalIds: ["ai-governance-data-systems", "ai-model-governance", "codeiak"],
     signals: [
       { label: "AI Governance & Data Systems", href: "#capabilities" },
       { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
+      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
     ],
   },
   {
@@ -848,12 +902,12 @@ const assistantPrompts = [
     categories: ["Technology & AI"],
     question: "What AI-related projects have you built?",
     answer:
-      "I am developing an AI-assisted audit workflow using local LLM/VLM models, structured extraction and audit traceability logic. The project explores how AI can support audit documentation analysis while preserving control over evidence and reasoning.",
-    signalIds: ["ai-audit-workflow", "ai-model-governance", "technology-data-stream"],
+      "I am building two complementary local-AI projects. The AI-Assisted Audit Workflow applies local LLM/VLM models, structured extraction and audit traceability to audit documentation. CodeIAK is a local-first AI coding agent with multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency for offline inspection and validation of software projects. Together they reflect the same control-oriented mindset: useful automation with evidence, reversibility and transparency.",
+    signalIds: ["ai-audit-workflow", "codeiak", "ai-model-governance"],
     signals: [
       { label: "AI-Assisted Audit Workflow", href: "#projects" },
+      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
       { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "Technology & Data Stream", href: "#hero" },
     ],
   },
   {
@@ -887,12 +941,12 @@ const assistantPrompts = [
     categories: ["Technology & AI"],
     question: "What tools and technologies do you use?",
     answer:
-      "I work with Python, pandas, SQL, Advanced Excel, SAP, HFM/Oracle, GitHub and AI-oriented workflows involving local LLMs, RAG concepts, structured data extraction, audit traceability and AI agents.",
-    signalIds: ["technology-data-stream", "ai-audit-workflow", "audit-analytics-lens"],
+      "I work with Python, pandas, SQL, Advanced Excel, SAP, HFM/Oracle, GitHub and AI-oriented workflows involving local LLMs, RAG concepts, multi-model orchestration, structured data extraction, audit traceability and AI agents.",
+    signalIds: ["technology-data-stream", "ai-audit-workflow", "codeiak"],
     signals: [
       { label: "Technology & Data Stream", href: "#hero" },
-      { label: "Project Deck", href: "#projects" },
-      { label: "Audit Analytics lens", href: "#role-lens" },
+      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
+      { label: "AI-Assisted Audit Workflow", href: "#projects" },
     ],
   },
   {
@@ -906,6 +960,19 @@ const assistantPrompts = [
       { label: "AI-Assisted Audit Workflow", href: "#projects" },
       { label: "AI & Model Governance", href: "#risk-radar" },
       { label: "Audit Traceability", href: "#hero" },
+    ],
+  },
+  {
+    id: "assistant-codeiak-project",
+    categories: ["Projects & Learning"],
+    question: "What is CodeIAK?",
+    answer:
+      "CodeIAK is my ongoing personal project to build a local-first AI coding agent. It integrates multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency so users can inspect, modify and validate software projects offline—with an offline-first, control-oriented design rather than opaque automation.",
+    signalIds: ["codeiak", "ai-model-governance", "technology-ict-risk"],
+    signals: [
+      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
+      { label: "AI & Model Governance", href: "#risk-radar" },
+      { label: "Technology & ICT Risk", href: "#risk-radar" },
     ],
   },
   {
@@ -991,12 +1058,12 @@ const assistantPrompts = [
     categories: ["Recruiter Concerns"],
     question: "Do you have hands-on technical skills or only theoretical interest?",
     answer:
-      "My technical profile is developing through practical work with Python, pandas, local AI workflows, structured extraction concepts and GitHub-based projects. It is not purely theoretical, but it is still growing and grounded in audit and risk use cases.",
-    signalIds: ["technology-data-stream", "ai-audit-workflow", "audit-analytics-lens"],
+      "My technical profile is developing through practical work with Python, pandas, local AI workflows, structured extraction and hands-on builds such as the AI-Assisted Audit Workflow and CodeIAK. It is not purely theoretical, but it is still growing and grounded in audit, risk and governance-oriented use cases.",
+    signalIds: ["technology-data-stream", "ai-audit-workflow", "codeiak"],
     signals: [
       { label: "Technology & Data Stream", href: "#hero" },
       { label: "AI-Assisted Audit Workflow", href: "#projects" },
-      { label: "Audit Analytics lens", href: "#role-lens" },
+      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
     ],
   },
 ];
@@ -1256,6 +1323,41 @@ function TickerStream({ stream, selectedLens = "Overview" }) {
             </span>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectStageIndicator({ stage }) {
+  const stageIndex = projectStages.indexOf(stage);
+  if (stageIndex < 0) return null;
+
+  return (
+    <div
+      className="flex items-center gap-2 text-xs text-slate-400"
+      aria-label={`Development stage: ${stage}`}
+      title={`Development stage: ${stage}`}
+    >
+      <span className="font-medium text-slate-500">Development stage</span>
+      <span className="text-slate-700">·</span>
+      <span className="font-medium text-cyan-100/80">{stage}</span>
+      <div className="ml-1 flex items-center gap-1.5" aria-hidden="true">
+        {projectStages.map((item, index) => {
+          const isCurrent = index === stageIndex;
+          const isReached = index <= stageIndex;
+          return (
+            <span
+              key={item}
+              className={`h-1.5 w-5 rounded-full ${
+                isCurrent
+                  ? "bg-cyan-200 shadow-[0_0_10px_rgba(103,232,249,0.28)]"
+                  : isReached
+                    ? "bg-cyan-400/45"
+                    : "bg-slate-700/70"
+              }`}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -1531,6 +1633,7 @@ function ProjectDeck({ selectedLens = "Overview" }) {
   const [activeProject, setActiveProject] = useState(0);
   const [direction, setDirection] = useState(1);
   const project = projects[activeProject];
+  const isCodeiakProject = project.id === "project-codeiak";
 
   const showPrevious = () => {
     setDirection(-1);
@@ -1588,8 +1691,12 @@ function ProjectDeck({ selectedLens = "Overview" }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: direction > 0 ? -80 : 80 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
+            className="relative"
           >
-            <p className="text-sm font-medium text-cyan-300/90">{project.status}</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-cyan-300/90">{project.status}</p>
+              <ProjectStageIndicator stage={project.stage} />
+            </div>
             <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50">{project.title}</h3>
             <p className="mt-5 max-w-3xl leading-7 text-slate-300">{project.text}</p>
 
@@ -1600,6 +1707,12 @@ function ProjectDeck({ selectedLens = "Overview" }) {
                 </span>
               ))}
             </div>
+
+            {isCodeiakProject && (
+              <div className="codeiak-project-mascot">
+                <CodeiakMascotVideo size={336} />
+              </div>
+            )}
 
             <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
@@ -1626,6 +1739,16 @@ function ProjectDeck({ selectedLens = "Overview" }) {
                   <ExternalLink className="h-4 w-4" />
                   View repository
                 </a>
+              )}
+              {!project.link && project.repositoryStatus && (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-slate-700/70 bg-slate-950/45 px-4 py-2.5 text-sm font-medium text-slate-500"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {project.repositoryStatus}
+                </button>
               )}
             </div>
           </motion.div>
