@@ -126,7 +126,7 @@ const projects = [
     status: "Ongoing personal project",
     stage: "Advanced Iteration",
     text: "Building a local-first AI coding agent that integrates multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency to help users inspect, modify and validate software projects offline.",
-    tech: ["Local LLMs", "AI Agents", "Multi-Model Orchestration", "OpenClaw Integration", "Offline-First"],
+    tech: ["Local LLMs", "AI Agents", "Offline-First", "Multi-Model Orchestration", "OpenClaw Integration"],
     repositoryStatus: "Repository coming soon",
   },
   {
@@ -1332,33 +1332,39 @@ function ProjectStageIndicator({ stage }) {
   const stageIndex = projectStages.indexOf(stage);
   if (stageIndex < 0) return null;
 
+  const stageBars = (
+    <div className="flex items-center gap-1.5" aria-hidden="true">
+      {projectStages.map((item, index) => {
+        const isCurrent = index === stageIndex;
+        const isReached = index <= stageIndex;
+        return (
+          <span
+            key={item}
+            className={`h-1.5 w-5 rounded-full ${
+              isCurrent
+                ? "project-stage-current bg-cyan-200"
+                : isReached
+                  ? "bg-cyan-400/45"
+                  : "bg-slate-700/70"
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+
   return (
     <div
-      className="flex items-center gap-2 text-xs text-slate-400"
+      className="flex flex-col items-start gap-1.5 text-xs text-slate-400 sm:flex-row sm:items-center sm:gap-2"
       aria-label={`Development stage: ${stage}`}
       title={`Development stage: ${stage}`}
     >
-      <span className="font-medium text-slate-500">Development stage</span>
-      <span className="text-slate-700">·</span>
-      <span className="font-medium text-cyan-100/80">{stage}</span>
-      <div className="ml-1 flex items-center gap-1.5" aria-hidden="true">
-        {projectStages.map((item, index) => {
-          const isCurrent = index === stageIndex;
-          const isReached = index <= stageIndex;
-          return (
-            <span
-              key={item}
-              className={`h-1.5 w-5 rounded-full ${
-                isCurrent
-                  ? "bg-cyan-200 shadow-[0_0_10px_rgba(103,232,249,0.28)]"
-                  : isReached
-                    ? "bg-cyan-400/45"
-                    : "bg-slate-700/70"
-              }`}
-            />
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="shrink-0 font-medium whitespace-nowrap text-slate-500">Development stage</span>
+        <span className="text-slate-700">·</span>
+        <span className="font-medium text-cyan-100/80">{stage}</span>
       </div>
+      <div className="sm:ml-1">{stageBars}</div>
     </div>
   );
 }
@@ -1410,25 +1416,27 @@ function PortfolioAssistant() {
 
   return (
     <>
-      <aside className="rounded-2xl border border-slate-800/80 bg-slate-900/50 p-5 shadow-2xl shadow-slate-950/30 backdrop-blur">
-        <div className="mb-4 flex items-center gap-3 border-b border-slate-800 pb-4">
+      <aside className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-5">
+        <div className="mb-5 flex items-center gap-4 border-b border-slate-800 pb-5 sm:mb-4 sm:gap-3 sm:pb-4">
           <img
             src={publicAsset("profile.png")}
             alt="Lorenzo Natali"
-            className="h-11 w-11 rounded-full border border-cyan-400/30 object-cover"
+            className="h-16 w-16 shrink-0 rounded-full border border-cyan-400/30 object-cover sm:h-11 sm:w-11"
           />
           <div>
-            <p className="text-sm font-semibold text-slate-50">Portfolio Assistant</p>
+            <p className="text-base font-semibold text-slate-50 sm:text-sm">Portfolio Assistant</p>
           </div>
         </div>
 
-        <p className="text-xs leading-5 text-slate-500">
+        <p className="text-sm leading-6 text-slate-400 sm:text-xs sm:leading-5 sm:text-slate-500">
           Guided answers on my background, projects and professional direction.
         </p>
 
-        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300/75">Example questions</p>
-          <div className="mt-2 min-h-[3rem] overflow-hidden">
+        <div className="mt-5 rounded-lg border border-slate-800 bg-slate-950/35 px-4 py-4 sm:mt-4 sm:px-3 sm:py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/75 sm:text-[11px] sm:tracking-[0.22em]">
+            Example questions
+          </p>
+          <div className="mt-3 min-h-[4.5rem] overflow-hidden sm:mt-2 sm:min-h-[3rem]">
             <AnimatePresence mode="wait">
               <motion.p
                 key={previewQuestion}
@@ -1436,7 +1444,7 @@ function PortfolioAssistant() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.32, ease: "easeOut" }}
-                className="text-xs leading-5 text-slate-300"
+                className="text-sm leading-6 text-slate-200 sm:text-xs sm:leading-5 sm:text-slate-300"
               >
                 {previewQuestion}
               </motion.p>
@@ -1447,7 +1455,7 @@ function PortfolioAssistant() {
         <button
           type="button"
           onClick={() => openAssistant()}
-          className="mt-5 w-full rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15"
+          className="mt-6 w-full rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:mt-5 sm:py-3 sm:text-sm"
         >
           Ask the assistant
         </button>
@@ -1666,20 +1674,12 @@ function ProjectDeck({ selectedLens = "Overview" }) {
             transition={{ duration: 0.35, ease: "easeOut" }}
             className="relative"
           >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
               <p className="text-sm font-medium text-cyan-300/90">{project.status}</p>
               <ProjectStageIndicator stage={project.stage} />
             </div>
-            <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-50">{project.title}</h3>
-            <p className="mt-5 max-w-3xl leading-7 text-slate-300">{project.text}</p>
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              {project.tech.map((tech) => (
-                <span key={tech} className="rounded-md border border-slate-700/70 bg-slate-950/45 px-3 py-1.5 text-xs text-slate-300">
-                  {tech}
-                </span>
-              ))}
-            </div>
+            <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-50 sm:mt-3">{project.title}</h3>
+            <p className="mt-6 max-w-3xl leading-7 text-slate-300 sm:mt-5">{project.text}</p>
 
             {isCodeiakProject && (
               <div className="codeiak-project-mascot">
@@ -1687,7 +1687,15 @@ function ProjectDeck({ selectedLens = "Overview" }) {
               </div>
             )}
 
-            <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-8 flex flex-wrap gap-2 sm:mt-6">
+              {project.tech.map((tech) => (
+                <span key={tech} className="rounded-md border border-slate-700/70 bg-slate-950/45 px-3 py-1.5 text-xs text-slate-300">
+                  {tech}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-col gap-4 sm:mt-7 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 {projects.map((item, index) => (
                   <button
@@ -1911,10 +1919,10 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
                 y={label.y}
                 textAnchor={labelAnchor}
                 dominantBaseline="middle"
-                className={`${isActive ? "fill-cyan-100" : "fill-slate-300"} text-[3.75px] font-medium`}
+                className={`${isActive ? "fill-cyan-100" : "fill-slate-300"} text-[5px] font-medium sm:text-[3.75px]`}
               >
                 {labelLines.map((line, lineIndex) => (
-                  <tspan key={line} x={label.x} dy={lineIndex === 0 ? 0 : 4.2}>
+                  <tspan key={line} x={label.x} dy={lineIndex === 0 ? 0 : 5}>
                     {line}
                   </tspan>
                 ))}
@@ -1951,9 +1959,6 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
           );
         })}
       </svg>
-      <p className="relative z-10 mt-6 max-w-md text-center text-xs leading-5 text-slate-400">
-        Current coverage and target direction across the same risk domains.
-      </p>
     </div>
   );
 }
@@ -2090,7 +2095,7 @@ function RiskRadar({ selectedLens = "Overview" }) {
                           )}
                         </span>
                         <span
-                          className={`max-w-[92px] rounded-md bg-slate-950/55 px-1.5 py-0.5 text-[10px] font-medium leading-4 transition sm:max-w-[130px] sm:text-xs ${
+                          className={`max-w-[92px] text-[10px] font-medium leading-4 transition [text-shadow:0_1px_8px_rgba(2,6,23,0.92)] sm:max-w-[130px] sm:text-xs ${
                             isActive || (isRelevant && !isOverviewLens(selectedLens)) ? "text-slate-50" : "text-slate-400 group-hover:text-slate-200"
                           }`}
                         >
