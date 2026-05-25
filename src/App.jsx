@@ -200,10 +200,26 @@ const credentials = [
 
 const additionalTraining = {
   label: "Additional Training",
-  title: "Healthcare Transport Operator Certification, Basic Life Support",
-  subtitle: "AREU / Green Cross Milano Sempione · Sep–Dec 2015",
-  description:
-    "Training in healthcare transport, basic life support and emergency response.",
+  items: [
+    {
+      id: "additional-training-gdpr-banking",
+      title: "European Data Protection Regulation in Banking",
+      subtitle: "Consilia Business Management Srl · Online training · May 2026",
+      description:
+        "Training course on data protection in the banking sector, with focus on AI applications, automated decision-making, profiling and recent guidance from the Italian Data Protection Authority.",
+      attestation: {
+        label: "View attestation",
+        url: publicAsset("attestations/european-data-protection-banking.pdf"),
+      },
+    },
+    {
+      id: "additional-training-healthcare-transport",
+      title: "Healthcare Transport Operator Certification, Basic Life Support",
+      subtitle: "AREU / Green Cross Milano Sempione · Sep–Dec 2015",
+      description:
+        "Training in healthcare transport, basic life support and emergency response.",
+    },
+  ],
 };
 
 const stackStreams = [
@@ -2415,11 +2431,26 @@ function App() {
         <div className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{additionalTraining.label}</p>
           <div className="mt-3 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-xl border border-slate-800/60 bg-slate-900/25 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur">
-              <h3 className="font-medium leading-6 text-slate-300">{additionalTraining.title}</h3>
-              <p className="mt-1.5 text-xs leading-5 text-cyan-200/55">{additionalTraining.subtitle}</p>
-              <p className="mt-3 text-sm leading-6 text-slate-500">{additionalTraining.description}</p>
-            </div>
+            {additionalTraining.items.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-slate-800/60 bg-slate-900/25 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur"
+              >
+                <h3 className="font-medium leading-6 text-slate-300">{item.title}</h3>
+                <p className="mt-1.5 text-xs leading-5 text-cyan-200/55">{item.subtitle}</p>
+                <p className="mt-3 text-sm leading-6 text-slate-500">{item.description}</p>
+                {item.attestation?.url ? (
+                  <a
+                    href={item.attestation.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex text-xs text-slate-500 underline decoration-slate-700/80 underline-offset-2 transition hover:text-cyan-200/70 hover:decoration-cyan-400/35"
+                  >
+                    {item.attestation.label}
+                  </a>
+                ) : null}
+              </div>
+            ))}
           </div>
         </div>
       </Section>
