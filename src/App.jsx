@@ -199,11 +199,11 @@ const credentials = [
 ];
 
 const additionalTraining = {
-  label: "Additional Training",
+  label: "Continuing Education",
   items: [
     {
       id: "additional-training-gdpr-banking",
-      title: "European Data Protection Regulation in Banking",
+      title: "Banking Data Protection & AI Governance Training",
       subtitle: "Consilia Business Management Srl · Online training · May 2026",
       description:
         "Training course on data protection in the banking sector, with focus on AI applications, automated decision-making, profiling and recent guidance from the Italian Data Protection Authority.",
