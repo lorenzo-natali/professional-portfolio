@@ -199,7 +199,7 @@ const credentials = [
 ];
 
 const additionalTraining = {
-  label: "Continuing Education",
+  label: "Continuing Education & Training",
   items: [
     {
       id: "additional-training-gdpr-banking",
