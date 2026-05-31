@@ -170,7 +170,7 @@ const credentials = [
     title: "CISA Candidate",
     subtitle: "Exam planned end 2026",
     description:
-      "Preparing for the Certified Information Systems Auditor certification, focused on information systems audit, IT governance, control assurance and technology risk.",
+      "Preparing for the Certified Information Systems Auditor certification, focused on information systems audit, IT governance, control assurance and audit evidence over technology-enabled processes.",
     certificate: {
       label: "Certificate",
       text: "Coming soon",
@@ -179,10 +179,10 @@ const credentials = [
   },
   {
     id: "credential-crisc",
-    title: "CRISC Path",
+    title: "CRISC Certification",
     subtitle: "Planned after CISA",
     description:
-      "Planned certification path focused on IT risk management, information systems control, risk response and governance of technology-enabled business processes.",
+      "Planned Certified in Risk and Information Systems Control path, focused on IT risk management, risk response, information systems control and governance of technology-enabled business processes.",
     certificate: {
       label: "Certificate",
       text: "Coming soon",
@@ -194,7 +194,7 @@ const credentials = [
     title: "FRM Certification",
     subtitle: "Planned 2028",
     description:
-      "Longer-term certification path focused on financial risk management, credit risk, market risk, quantitative foundations and model-risk awareness.",
+      "Longer-term Financial Risk Manager certification path, focused on financial risk management, credit risk, market risk, quantitative foundations and model-risk awareness.",
     certificate: {
       label: "Certificate",
       text: "Coming soon",
