@@ -178,11 +178,11 @@ const credentials = [
     },
   },
   {
-    id: "credential-frm",
-    title: "FRM Certification",
-    subtitle: "Planned 2027",
+    id: "credential-crisc",
+    title: "CRISC Path",
+    subtitle: "Planned after CISA",
     description:
-      "Planned Financial Risk Manager certification path, focused on financial risk management, credit risk, market risk and quantitative risk foundations.",
+      "Planned certification path focused on IT risk management, information systems control, risk response and governance of technology-enabled business processes.",
     certificate: {
       label: "Certificate",
       text: "Coming soon",
@@ -190,16 +190,21 @@ const credentials = [
     },
   },
   {
-    id: "credential-chinese-language",
-    title: "Chinese Language Track",
-    subtitle: "HSK3 preparation course · Jan 2024",
+    id: "credential-frm",
+    title: "FRM Certification",
+    subtitle: "Planned 2028",
     description:
-      "Completed HSK3 exam preparation course at the Confucius Institute of Università Cattolica del Sacro Cuore, Milan, supporting a cross-cultural professional profile.",
+      "Longer-term certification path focused on financial risk management, credit risk, market risk, quantitative foundations and model-risk awareness.",
+    certificate: {
+      label: "Certificate",
+      text: "Coming soon",
+      url: null,
+    },
   },
 ];
 
 const additionalTraining = {
-  label: "Continuing Education & Training",
+  label: "Additional Training & Attestations",
   items: [
     {
       id: "additional-training-gdpr-banking",
@@ -211,6 +216,13 @@ const additionalTraining = {
         label: "View attestation",
         url: publicAsset("attestations/european-data-protection-banking.pdf"),
       },
+    },
+    {
+      id: "additional-training-chinese-language",
+      title: "Chinese Language Track",
+      subtitle: "HSK3 preparation course · Jan 2024",
+      description:
+        "Completed HSK3 exam preparation course at the Confucius Institute of Università Cattolica del Sacro Cuore, Milan, supporting a cross-cultural professional profile.",
     },
     {
       id: "additional-training-healthcare-transport",
@@ -464,8 +476,8 @@ const lensRelevance = {
     assistantQuestions: [],
   },
   "IT Audit": {
-    capabilities: ["capability-audit-control", "capability-technology-risk", "capability-international-cross-cultural"],
-    credentials: ["credential-cisa"],
+    capabilities: ["capability-audit-control", "capability-technology-risk"],
+    credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-boc"],
     projects: ["project-ai-audit-workflow"],
     radar: ["radar-control-audit-risk", "radar-technology-ict-risk", "radar-operational-resilience"],
@@ -479,8 +491,8 @@ const lensRelevance = {
     ],
   },
   "Technology Risk": {
-    capabilities: ["capability-technology-risk", "capability-banking-risk", "capability-international-cross-cultural"],
-    credentials: ["credential-cisa"],
+    capabilities: ["capability-technology-risk", "capability-banking-risk"],
+    credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-boc"],
     projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: ["radar-technology-ict-risk", "radar-operational-resilience", "radar-regulatory-compliance-risk"],
@@ -495,7 +507,7 @@ const lensRelevance = {
     ],
   },
   "AI Governance": {
-    capabilities: ["capability-ai-governance", "capability-technology-risk", "capability-international-cross-cultural"],
+    capabilities: ["capability-ai-governance", "capability-technology-risk"],
     credentials: ["credential-cisa"],
     experiences: ["experience-boc"],
     projects: ["project-ai-audit-workflow", "project-codeiak"],
@@ -608,7 +620,7 @@ const signalMap = {
     capabilities: ["capability-international-cross-cultural"],
     experiences: ["experience-boc"],
     education: ["education-languages"],
-    credentials: ["credential-chinese-language"],
+    credentials: ["additional-training-chinese-language"],
   },
   "control-audit-risk": {
     label: "Control & Audit Risk",
@@ -697,6 +709,13 @@ const signalMap = {
     capabilities: ["capability-technology-risk"],
     radar: ["radar-technology-ict-risk"],
   },
+  "crisc-path": {
+    label: "CRISC Path",
+    href: "#credentials",
+    credentials: ["credential-crisc"],
+    capabilities: ["capability-technology-risk"],
+    radar: ["radar-technology-ict-risk"],
+  },
   "frm-certification": {
     label: "FRM Certification",
     href: "#credentials",
@@ -707,14 +726,14 @@ const signalMap = {
   "chinese-language-track": {
     label: "Chinese Language Track",
     href: "#credentials",
-    credentials: ["credential-chinese-language"],
+    credentials: ["additional-training-chinese-language"],
     education: ["education-languages"],
   },
   "hero-languages": {
     label: "Hero Languages",
     href: "#hero",
     education: ["education-languages"],
-    credentials: ["credential-chinese-language"],
+    credentials: ["additional-training-chinese-language"],
   },
   education: {
     label: "Education",
@@ -775,10 +794,11 @@ const assistantPrompts = [
     categories: ["Profile Fit"],
     question: "Where would you like your career to develop in the future?",
     answer:
-      "I would like to continue growing in audit and risk-oriented roles within complex international organizations, ideally where finance, technology and governance intersect. Large global banks are a natural environment for this path, particularly in internal audit, IT audit, technology risk and AI governance.\n\nAt the same time, I am also interested in multinational companies beyond banking—such as technology, life sciences or other highly regulated sectors—where digital systems, operational resilience, data governance and emerging AI-related risks create a broader and evolving audit landscape.\n\nWhat attracts me most is working in environments that combine intellectual complexity, international exposure and continuous learning: roles that allow me to engage with different risk domains, collaborate with colleagues from diverse professional and cultural backgrounds, and ideally travel across locations or business contexts.",
-    signalIds: ["technology-risk-resilience", "ai-governance-data-systems", "international-cross-cultural-work"],
+      "I see a clear direction: from IT and cyber audit into technology risk, then operational resilience and DORA-related areas, and increasingly toward AI governance with model and data controls — with a longer-term horizon in advisory, leadership or product-oriented roles.\n\nLarge international banks are a natural fit, but I am equally open to multinationals in technology, life sciences or other highly regulated sectors, where digital systems, resilience and emerging AI risks shape a broad audit and risk landscape.",
+    signalIds: ["technology-risk-resilience", "operational-resilience", "ai-governance-data-systems", "international-cross-cultural-work"],
     signals: [
       { label: "Technology Risk & Resilience", href: "#capabilities" },
+      { label: "Operational Resilience", href: "#risk-radar" },
       { label: "AI Governance & Data Systems", href: "#capabilities" },
       { label: "International & Cross-Cultural Work", href: "#capabilities" },
     ],
@@ -814,9 +834,10 @@ const assistantPrompts = [
     categories: ["Profile Fit"],
     question: "Why should a recruiter spend time on your profile?",
     answer:
-      "Because my profile sits in a space that is becoming increasingly relevant: audit, technology risk, operational resilience, data and AI governance. I bring a control-oriented mindset and I am actively building the technical layer needed to work on these topics.",
-    signalIds: ["risk-radar", "experience", "learning-roadmap"],
+      "Because my profile sits at the intersection of banking risk, audit & controls and technology / AI governance. I bring a control-oriented mindset from an international banking audit context, and I am actively building the technical layer — IT and technology risk, operational resilience, data and AI controls.",
+    signalIds: ["banking-risk-regulation", "risk-radar", "experience", "learning-roadmap"],
     signals: [
+      { label: "Banking Risk & Regulation", href: "#capabilities" },
       { label: "Risk Radar", href: "#risk-radar" },
       { label: "Experience", href: "#experience" },
       { label: "Learning Roadmap", href: "#credentials" },
@@ -892,12 +913,13 @@ const assistantPrompts = [
     categories: ["Technology & AI"],
     question: "What is your experience in technology risk?",
     answer:
-      "My technology risk profile is developing around IT systems exposure, access controls, operational resilience and DORA-related control areas. My internal audit experience gives me a control-oriented perspective, while my CISA roadmap strengthens the information systems governance angle.",
-    signalIds: ["technology-risk-resilience", "technology-ict-risk", "cisa-candidate"],
+      "My technology risk profile is developing around IT systems exposure, access controls, operational resilience and DORA-related areas. My internal audit background gives me a control-oriented view, and my CISA roadmap — followed by a planned CRISC path — strengthens the information systems governance and IT risk angle.",
+    signalIds: ["technology-risk-resilience", "technology-ict-risk", "cisa-candidate", "crisc-path"],
     signals: [
       { label: "Technology Risk & Resilience", href: "#capabilities" },
       { label: "Technology & ICT Risk", href: "#risk-radar" },
       { label: "CISA Candidate", href: "#credentials" },
+      { label: "CRISC Path", href: "#credentials" },
     ],
   },
   {
@@ -996,11 +1018,11 @@ const assistantPrompts = [
     categories: ["Projects & Learning"],
     question: "Why are you preparing for CISA?",
     answer:
-      "I am preparing for CISA because I want to strengthen my credibility in information systems audit, IT governance, control assurance and technology risk. It fits naturally with my transition from internal audit toward IT and technology risk.",
-    signalIds: ["cisa-candidate", "technology-risk-resilience", "technology-ict-risk"],
+      "I am preparing for CISA because I want to strengthen my credibility in information systems audit, IT governance, control assurance and technology risk. It fits my move from internal audit toward IT and technology risk, and is the first step ahead of a planned CRISC path focused on IT risk and control governance.",
+    signalIds: ["cisa-candidate", "crisc-path", "technology-ict-risk"],
     signals: [
       { label: "CISA Candidate", href: "#credentials" },
-      { label: "Technology Risk & Resilience", href: "#capabilities" },
+      { label: "CRISC Path", href: "#credentials" },
       { label: "Technology & ICT Risk", href: "#risk-radar" },
     ],
   },
@@ -1061,12 +1083,12 @@ const assistantPrompts = [
     categories: ["Recruiter Concerns"],
     question: "Is your profile too broad?",
     answer:
-      "My profile is broad, but not random. The common thread is control over complex systems: banking risk, internal audit, technology dependencies, data workflows and emerging AI risks. The breadth becomes useful where regulation, risk and technology increasingly overlap.",
-    signalIds: ["risk-radar", "role-lens", "professional-capabilities"],
+      "Broad by design, not scattered. It rests on three connected pillars — banking risk, audit & controls, and technology / AI governance — with one common thread: control over complex systems where regulation, risk and technology overlap.",
+    signalIds: ["banking-risk-regulation", "professional-capabilities", "ai-governance-data-systems"],
     signals: [
-      { label: "Risk Radar", href: "#risk-radar" },
-      { label: "Role Lens", href: "#role-lens" },
+      { label: "Banking Risk & Regulation", href: "#capabilities" },
       { label: "Professional Capabilities", href: "#capabilities" },
+      { label: "AI Governance & Data Systems", href: "#capabilities" },
     ],
   },
   {
@@ -2265,7 +2287,7 @@ function App() {
               transition={{ duration: 0.8 }}
               className="mt-5 text-xl font-medium !text-slate-300 sm:text-2xl"
             >
-              Internal Audit | Technology Risk | AI Governance
+              Banking Risk | Audit & Controls | Technology & AI Governance
             </motion.h2>
 
             <div className="h-12" aria-hidden="true" />
@@ -2277,12 +2299,13 @@ function App() {
               className="max-w-3xl space-y-4 text-base leading-8 text-slate-300 sm:text-lg"
             >
               <p>
-                I work across internal audit, banking risk and technology governance, focusing on control effectiveness,
-                operational resilience, regulatory frameworks and emerging AI-related risks.
+                I position my profile at the intersection of banking risk, internal audit and technology governance,
+                combining financial risk awareness, control-oriented audit thinking and a growing focus on IT, cyber,
+                data and AI-related risks.
               </p>
               <p>
-                This interactive portfolio maps my experience, projects, skills and professional direction across audit,
-                risk, data and technology.
+                This interactive portfolio maps my experience, projects, skills and professional direction across
+                financial risk, audit &amp; controls, and technology / AI governance.
               </p>
             </motion.div>
 
@@ -2390,13 +2413,13 @@ function App() {
         </div>
       </Section>
 
-      <Section id="credentials" eyebrow="Certifications & Roadmap" title="Ongoing & Planned Certifications" className="bg-slate-950/80">
-        <div className="grid gap-4 lg:grid-cols-3">
+      <Section id="credentials" eyebrow="Certifications & Roadmap" title="Professional Certifications Roadmap" className="bg-slate-950/80">
+        <div className="credentials-rail -mx-4 -mt-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-2 sm:px-2">
           {credentials.map((credential) => (
             <SurfaceCard
               data-role-lens-id={credential.id}
               key={credential.title}
-              className={`p-5 ${lensSurfaceClass(selectedLens, "credentials", credential.id)}`}
+              className={`flex w-[78%] shrink-0 snap-start flex-col p-5 sm:w-[20rem] ${lensSurfaceClass(selectedLens, "credentials", credential.id)}`}
             >
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cyan-400/25 bg-cyan-400/10 text-cyan-200">
@@ -2434,6 +2457,7 @@ function App() {
             {additionalTraining.items.map((item) => (
               <div
                 key={item.id}
+                data-role-lens-id={item.id}
                 className="rounded-xl border border-slate-800/60 bg-slate-900/25 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur"
               >
                 <h3 className="font-medium leading-6 text-slate-300">{item.title}</h3>
