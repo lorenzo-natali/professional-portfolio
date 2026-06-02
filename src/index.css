@@ -114,45 +114,53 @@ code {
   transform-origin: center;
 }
 
+/* Shared glow clock: a single animation drives --lens-glow on a stable
+   ancestor, and every highlighted element reads the same value so card,
+   panel and Risk Map glows stay perfectly in phase regardless of when each
+   element was highlighted. */
+@property --lens-glow {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+body {
+  animation: lens-glow-clock 2.8s ease-in-out infinite;
+}
+
+@keyframes lens-glow-clock {
+  0%,
+  100% {
+    --lens-glow: 0;
+  }
+
+  50% {
+    --lens-glow: 1;
+  }
+}
+
 .role-lens-highlight-cyan {
-  animation: role-lens-pulse-cyan 2.8s ease-in-out infinite;
   box-shadow:
-    0 0 0 1px rgba(34, 211, 238, 0.34),
-    0 0 34px rgba(34, 211, 238, 0.26),
-    0 18px 40px rgba(2, 6, 23, 0.32);
+    0 0 0 1px rgba(34 211 238 / calc(0.22 + 0.36 * var(--lens-glow, 0))),
+    0 0 calc(28px + 20px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.22 + 0.12 * var(--lens-glow, 0))),
+    0 18px 40px rgba(2 6 23 / calc(0.3 + 0.04 * var(--lens-glow, 0)));
 }
 
 .role-lens-highlight-violet {
-  animation: role-lens-pulse-violet 2.8s ease-in-out infinite;
   box-shadow:
-    0 0 0 1px rgba(167, 139, 250, 0.34),
-    0 0 34px rgba(167, 139, 250, 0.26),
-    0 18px 40px rgba(2, 6, 23, 0.32);
+    0 0 0 1px rgba(167 139 250 / calc(0.22 + 0.36 * var(--lens-glow, 0))),
+    0 0 calc(28px + 20px * var(--lens-glow, 0)) rgba(167 139 250 / calc(0.22 + 0.12 * var(--lens-glow, 0))),
+    0 18px 40px rgba(2 6 23 / calc(0.3 + 0.04 * var(--lens-glow, 0)));
 }
 
 .role-lens-radar-node {
-  animation: role-lens-node-pulse 2.6s ease-in-out infinite;
+  box-shadow:
+    0 0 0 calc(8px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.26 - 0.14 * var(--lens-glow, 0))),
+    0 0 calc(22px + 12px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.28 + 0.14 * var(--lens-glow, 0)));
 }
 
 .role-lens-reset-active {
   animation: role-lens-reset-pulse 3.2s ease-in-out infinite;
-}
-
-@keyframes role-lens-pulse-cyan {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(34, 211, 238, 0.22),
-      0 0 28px rgba(34, 211, 238, 0.22),
-      0 18px 40px rgba(2, 6, 23, 0.3);
-  }
-
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(34, 211, 238, 0.58),
-      0 0 48px rgba(34, 211, 238, 0.34),
-      0 18px 40px rgba(2, 6, 23, 0.34);
-  }
 }
 
 @keyframes assistant-signal-flash {
@@ -206,34 +214,6 @@ code {
     text-shadow:
       0 0 8px rgba(103, 232, 249, 0.34),
       0 0 18px rgba(34, 211, 238, 0.18);
-  }
-}
-
-@keyframes role-lens-pulse-violet {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(167, 139, 250, 0.22),
-      0 0 28px rgba(167, 139, 250, 0.22),
-      0 18px 40px rgba(2, 6, 23, 0.3);
-  }
-
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(167, 139, 250, 0.58),
-      0 0 48px rgba(167, 139, 250, 0.34),
-      0 18px 40px rgba(2, 6, 23, 0.34);
-  }
-}
-
-@keyframes role-lens-node-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.26), 0 0 22px rgba(34, 211, 238, 0.28);
-  }
-
-  50% {
-    box-shadow: 0 0 0 8px rgba(34, 211, 238, 0.12), 0 0 34px rgba(34, 211, 238, 0.42);
   }
 }
 
@@ -377,6 +357,7 @@ code {
     opacity: 0.35;
   }
 
+  body,
   .role-lens-letter,
   .role-lens-reset-active,
   .role-lens-highlight-cyan,
@@ -384,6 +365,25 @@ code {
   .role-lens-radar-node,
   .project-stage-current {
     animation: none;
+  }
+
+  /* Static, non-pulsing glow that matches the previous reduced-motion look. */
+  .role-lens-highlight-cyan {
+    box-shadow:
+      0 0 0 1px rgba(34, 211, 238, 0.34),
+      0 0 34px rgba(34, 211, 238, 0.26),
+      0 18px 40px rgba(2, 6, 23, 0.32);
+  }
+
+  .role-lens-highlight-violet {
+    box-shadow:
+      0 0 0 1px rgba(167, 139, 250, 0.34),
+      0 0 34px rgba(167, 139, 250, 0.26),
+      0 18px 40px rgba(2, 6, 23, 0.32);
+  }
+
+  .role-lens-radar-node {
+    box-shadow: none;
   }
 
   .role-lens-reset-active {
