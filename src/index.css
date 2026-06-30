@@ -292,6 +292,26 @@ body {
   color: rgba(148, 163, 184, 0.78);
 }
 
+.attestation-rail {
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(51, 65, 85, 0.85) transparent;
+  mask-image: linear-gradient(to right, black 0, black calc(100% - 2.5rem), transparent);
+}
+
+.attestation-rail::-webkit-scrollbar {
+  height: 0.45rem;
+}
+
+.attestation-rail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.attestation-rail::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(51, 65, 85, 0.85);
+}
+
 .radar-sweep {
   position: absolute;
   inset: 0;

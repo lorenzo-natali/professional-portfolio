@@ -207,6 +207,17 @@ const additionalTraining = {
   label: "Additional Training & Attestations",
   items: [
     {
+      id: "additional-training-digital-banking-eidas-ai-act",
+      title: "Digital Banking, eIDAS 2 & AI Act Training",
+      subtitle: "Consilia Business Management Srl · Online training · Jun 2026",
+      description:
+        "Training course on digital banking, eIDAS 2 and the EU AI Act, delivered online with focus on regulatory and technology-related developments.",
+      attestation: {
+        label: "View attestation",
+        url: publicAsset("attestations/ATTESTATO - Natali Lorenzo.pdf"),
+      },
+    },
+    {
       id: "additional-training-gdpr-banking",
       title: "Banking Data Protection & AI Governance Training",
       subtitle: "Consilia Business Management Srl · Online training · May 2026",
@@ -2453,12 +2464,12 @@ function App() {
         </div>
         <div className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{additionalTraining.label}</p>
-          <div className="mt-3 grid gap-4 lg:grid-cols-3">
+          <div className="attestation-rail mt-3 flex gap-4 overflow-x-auto pb-3">
             {additionalTraining.items.map((item) => (
               <div
                 key={item.id}
                 data-role-lens-id={item.id}
-                className="rounded-xl border border-slate-800/60 bg-slate-900/25 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur"
+                className="attestation-card group relative min-w-[20rem] snap-start overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900/25 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur transition hover:border-slate-700 hover:bg-slate-900/75 sm:min-w-[23rem] lg:min-w-[24rem]"
               >
                 <h3 className="font-medium leading-6 text-slate-300">{item.title}</h3>
                 <p className="mt-1.5 text-xs leading-5 text-cyan-200/55">{item.subtitle}</p>
