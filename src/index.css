@@ -96,12 +96,14 @@ code {
 }
 
 .assistant-question-rail,
-.credentials-rail {
+.credentials-rail,
+.education-rail {
   scrollbar-width: none;
 }
 
 .assistant-question-rail::-webkit-scrollbar,
-.credentials-rail::-webkit-scrollbar {
+.credentials-rail::-webkit-scrollbar,
+.education-rail::-webkit-scrollbar {
   display: none;
 }
 
@@ -294,22 +296,12 @@ body {
 
 .attestation-rail {
   scroll-snap-type: x proximity;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(51, 65, 85, 0.85) transparent;
+  scrollbar-width: none;
   mask-image: linear-gradient(to right, black 0, black calc(100% - 2.5rem), transparent);
 }
 
 .attestation-rail::-webkit-scrollbar {
-  height: 0.45rem;
-}
-
-.attestation-rail::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.attestation-rail::-webkit-scrollbar-thumb {
-  border-radius: 9999px;
-  background: rgba(51, 65, 85, 0.85);
+  display: none;
 }
 
 .radar-sweep {

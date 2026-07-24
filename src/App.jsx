@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Award,
@@ -10,7 +10,7 @@ import {
   ExternalLink,
   GraduationCap,
   Languages,
-  Share2,
+  Lock,
   ShieldCheck,
 } from "lucide-react";
 import CodeiakMascotVideo from "./components/CodeiakMascotVideo";
@@ -21,27 +21,33 @@ const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
 const expertise = [
   {
     id: "capability-audit-control",
-    title: "Audit & Control Assurance",
+    title: "Internal Audit & Assurance",
     icon: ShieldCheck,
-    text: "Audit documentation, control testing, working papers and analytical reporting to assess control design, effectiveness and governance structures.",
+    text: "Risk-based internal audit, control testing, working papers and analytical reporting to assess control design, effectiveness, risk exposure and governance structures.",
   },
   {
     id: "capability-banking-risk",
     title: "Banking Risk & Regulation",
     icon: BriefcaseBusiness,
-    text: "Analysis of credit risk, IFRS 9 ECL concepts, RAF, ICAAP, ILAAP, Pillar III and supervisory frameworks within regulated banking environments.",
+    text: "Audit and analysis across corporate credit, credit risk and IFRS 9/ECL within a regulated banking environment, alongside supervisory frameworks including RAF, ICAAP/ILAAP, Pillar III, Basel III/IV and CRD VI third-country branch requirements.",
   },
   {
     id: "capability-technology-risk",
-    title: "Technology Risk & Resilience",
+    title: "Technology & ICT Risk",
     icon: Database,
-    text: "Assessment of IT systems, access controls, business continuity, operational resilience and DORA-related risk areas.",
+    text: "Audit exposure to IT systems, access controls and technology-enabled control environments, with a growing focus on ITGC, DORA, operational resilience and ICT third-party risk.",
+  },
+  {
+    id: "capability-information-security",
+    title: "Information Security Governance",
+    icon: Lock,
+    text: "Developing focus on information security governance and control frameworks — ISO/IEC 27001, NIST CSF and COBIT — connecting security controls with audit, assurance and technology risk.",
   },
   {
     id: "capability-ai-governance",
-    title: "AI Governance & Data Systems",
+    title: "AI Governance",
     icon: Brain,
-    text: "Focus on AI-related risks, audit traceability, local LLM workflows, structured data extraction and controlled automation.",
+    text: "Growing focus on AI governance, risk, auditability and traceability, mapped to frameworks such as the EU AI Act, NIST AI RMF and ISO/IEC 42001, supported by hands-on experimentation with local LLM/VLM workflows and AI systems.",
   },
   {
     id: "capability-international-cross-cultural",
@@ -58,19 +64,19 @@ const experiences = [
     company: "Bank of China – Milan Branch · 中国银行米兰分行",
     period: "Oct 2025 – Present",
     points: [
-      "Analyzing credit risk, regulatory frameworks, IFRS 9 ECL methodologies and operational resilience.",
-      "Assessing internal controls, AML/KYC processes and banking governance structures.",
-      "Producing analytical reports and working papers to support control improvements.",
+      "Assessing IT governance, information security controls, DORA and operational resilience across BIA, BCP and DRP frameworks.",
+      "Analyzing corporate credit, syndicated loans, credit risk and IFRS 9/ECL methodologies.",
+      "Evaluating regulatory and risk frameworks including RAF, ICAAP/ILAAP and Pillar III, alongside AML/KYC and internal controls.",
+      "Producing audit reports and working papers to identify risk areas, control weaknesses and opportunities for improvement.",
     ],
     details: [
-      "Analyzed corporate credit and syndicated loan portfolios, assessing credit risk drivers, financial covenants and capital structure exposure.",
-      "Evaluated risk management and regulatory frameworks including RAF, ICAAP, ILAAP and Pillar III, focusing on data flows, control effectiveness and alignment with capital requirements.",
-      "Reviewed IFRS 9 ECL methodologies, analyzing key risk parameters such as PD and LGD and their impact on credit risk provisioning and portfolio quality.",
-      "Assessed IT systems and operational resilience under DORA, including access controls, business continuity processes and system reliability.",
-      "Analyzed AML/KYC processes, identifying risk exposure and evaluating control design in line with ECB and Bank of Italy supervisory expectations.",
-      "Performed regulatory compliance analysis related to the Italian Interbank Deposit Protection Scheme (FITD), assessing internal control processes and governance structures.",
-      "Produced analytical reports and working papers, supporting management in identifying risk areas and strengthening internal control frameworks.",
-      "Operated in a multicultural banking environment requiring confidentiality, analytical rigor and strong regulatory awareness.",
+      "Assessed IT governance, information security controls and digital operational resilience (DORA), reviewing the end-to-end resilience framework across Business Impact Analysis (BIA), Business Continuity Plans (BCP) and Disaster Recovery Plans (DRP), including risk dependencies and supporting controls;",
+      "Analyzed corporate credit and syndicated loan portfolios, assessing credit risk drivers, financial covenants and capital structure exposure;",
+      "Evaluated risk management and regulatory frameworks (RAF, ICAAP, ILAAP, Pillar III), focusing on data flows, control effectiveness and alignment with capital requirements;",
+      "Reviewed IFRS 9 ECL methodologies and key risk parameters (PD, LGD), assessing their impact on credit provisioning and portfolio quality;",
+      "Assessed AML/KYC processes and regulatory compliance, evaluating risk exposure, control design and governance in line with supervisory expectations;",
+      "Performed regulatory analysis related to the Italian Interbank Deposit Protection Scheme (FITD), assessing internal controls and governance processes;",
+      "Produced audit reports and working papers, identifying risk areas, control weaknesses and opportunities to strengthen internal control frameworks.",
     ],
   },
   {
@@ -79,14 +85,14 @@ const experiences = [
     company: "Prelios – Financial Service",
     period: "May 2025 – Oct 2025",
     points: [
-      "Managed accounting lifecycle activities for NPL/UTP portfolios.",
-      "Prepared IFRS financial statements and supported group consolidation.",
-      "Processed and reconciled accounting data across SAP and HFM/Oracle.",
+      "Managed accounting and reporting processes for NPL/UTP portfolios.",
+      "Prepared IFRS financial reporting and supported group consolidation.",
+      "Processed, reconciled and validated financial data across SAP and HFM/Oracle systems.",
     ],
     details: [
-      "Managed the accounting lifecycle of NPL/UTP portfolios.",
-      "Prepared IFRS financial statements and supported group consolidation.",
-      "Processed and reconciled accounting data in SAP and HFM/Oracle.",
+      "Managed accounting and reporting processes for NPL/UTP portfolios;",
+      "Prepared IFRS financial reporting and supported group consolidation;",
+      "Processed, reconciled and validated financial data across SAP and HFM/Oracle systems;",
       "Coordinated with external auditors, Treasury and Tax teams.",
     ],
   },
@@ -97,15 +103,8 @@ const experiences = [
     period: "Jul 2020 – Jul 2025",
     note: "Part-time weekend position held while completing university studies.",
     points: [
-      "Managed daily operations for HNWI residential clients.",
-      "Coordinated vendors, events and real-time client requests.",
-      "Developed stakeholder communication, multitasking and problem-solving skills.",
-    ],
-    details: [
-      "Managed daily operations in a luxury residential building serving HNWI clients.",
-      "Coordinated vendors and exclusive events.",
-      "Handled real-time client requests requiring multitasking and problem-solving.",
-      "Developed stakeholder communication skills in a high-expectation service environment.",
+      "Managed front-office operations and stakeholder relationships in a luxury residential environment serving HNWI clients.",
+      "Coordinated vendors, events and real-time client requests, developing strong stakeholder management and problem-solving capabilities.",
     ],
   },
 ];
@@ -113,12 +112,12 @@ const experiences = [
 const projects = [
   {
     id: "project-ai-audit-workflow",
-    title: "AI-Assisted Audit Workflow",
+    title: "Cognitive Behavior Intelligence — AI Governance Platform",
     status: "Ongoing personal project",
-    stage: "Functional Build",
-    text: "Designing an AI-assisted audit knowledge system using local models to extract findings, recommendations and evidence from audit documentation while preserving traceability.",
-    tech: ["Python", "Local LLMs", "VLM Models", "AI Agents", "Structured Data Extraction"],
-    link: "https://github.com/lorenzo-natali/ai-audit-workflow",
+    stage: "Prototype",
+    text: "Developing an AI governance prototype designed to explore how AI adoption reshapes organizational workflows and identify potential gaps between actual behavior, governance policies and expected controls. Built around privacy-by-design, auditability and traceability, with a governance model informed by the EU AI Act, NIST AI RMF, ISO/IEC 42001 and COBIT.",
+    tech: ["AI Governance", "AI Risk", "Risk & Controls", "Behavioral Analytics", "Privacy by Design"],
+    repositoryStatus: "Repository coming soon",
   },
   {
     id: "project-codeiak",
@@ -128,13 +127,6 @@ const projects = [
     text: "Building a local-first AI coding agent that integrates multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency to help users inspect, modify and validate software projects offline.",
     tech: ["Local LLMs", "AI Agents", "Offline-First", "Multi-Model Orchestration", "OpenClaw Integration"],
     link: "https://github.com/lorenzo-natali/codeiak",
-  },
-  {
-    id: "project-esg-audit",
-    title: "ESG Auditing – Illy Caffè",
-    status: "Academic project",
-    text: "Conducted an ESG audit of Illy Caffè's 2023 sustainability report, assessing compliance with GRI standards and contributing to the audit report.",
-    tech: ["ESG", "GRI", "Sustainability Reporting", "Audit"],
   },
 ];
 
@@ -151,6 +143,7 @@ const education = [
   {
     id: "education-international-cooperation",
     degree: "Master’s Degree in International Cooperation for Development",
+    focus: "Development Economics · Theory of Change · Impact Evaluation",
     school: "Catholic University of Milan",
     period: "Sep 2021 – Dec 2023",
     detail: "Final Grade: 105/110",
@@ -162,13 +155,20 @@ const education = [
     period: "Sep 2017 – Jul 2021",
     detail: "Final Grade: 100/110",
   },
+  {
+    id: "education-banking-sciences",
+    degree: "Banking, Insurance & Financial Sciences",
+    qualifier: "First Year",
+    school: "Catholic University of Milan",
+    period: "Sep 2016 – Sep 2017",
+  },
 ];
 
 const credentials = [
   {
     id: "credential-cisa",
-    title: "CISA Candidate",
-    subtitle: "Exam planned end 2026",
+    title: "CISA — In Progress",
+    subtitle: "Exam planned: end 2026",
     description:
       "Preparing for the Certified Information Systems Auditor certification, focused on information systems audit, IT governance, control assurance and audit evidence over technology-enabled processes.",
     certificate: {
@@ -182,7 +182,19 @@ const credentials = [
     title: "CRISC Certification",
     subtitle: "Planned after CISA",
     description:
-      "Planned Certified in Risk and Information Systems Control path, focused on IT risk management, risk response, information systems control and governance of technology-enabled business processes.",
+      "Planned certification path focused on IT risk management, risk response, information systems controls and the governance of technology-enabled business processes.",
+    certificate: {
+      label: "Certificate",
+      text: "Coming soon",
+      url: null,
+    },
+  },
+  {
+    id: "credential-aair",
+    title: "AAIR Certification",
+    subtitle: "Planned after CRISC",
+    description:
+      "Planned specialization in AI risk and governance, focused on AI systems, controls and risk management, with reference to frameworks such as the EU AI Act, NIST AI RMF and ISO/IEC 42001.",
     certificate: {
       label: "Certificate",
       text: "Coming soon",
@@ -192,7 +204,7 @@ const credentials = [
   {
     id: "credential-frm",
     title: "FRM Certification",
-    subtitle: "Planned 2028",
+    subtitle: "Planned",
     description:
       "Longer-term Financial Risk Manager certification path, focused on financial risk management, credit risk, market risk, quantitative foundations and model-risk awareness.",
     certificate: {
@@ -254,17 +266,16 @@ const stackStreams = [
     items: [
       "Internal Audit",
       "Internal Controls",
+      "SOX Principles",
       "Risk Assessment",
       "Credit Risk",
       "IFRS 9 / ECL",
-      "DORA",
-      "Operational Resilience",
-      "Business Impact Analysis",
-      "Business Continuity Planning",
       "Banking Regulatory Frameworks",
       "ECB Supervision",
       "Basel III / IV",
       "CRD VI",
+      "Third-Country Branch",
+      "RAF",
       "ICAAP / ILAAP",
       "Pillar III",
       "AML / KYC",
@@ -272,11 +283,24 @@ const stackStreams = [
     ],
   },
   {
-    label: "Technology & Data",
-    description: "Tools and workflows for analysis, automation and AI-assisted audit.",
+    label: "Technology, Security & AI",
+    description: "IT governance, information security, resilience frameworks and AI-oriented tooling.",
     accent: "violet",
     direction: "right",
     items: [
+      "COBIT",
+      "ITGC",
+      "ISO/IEC 27001",
+      "NIST CSF",
+      "DORA",
+      "Operational Resilience",
+      "ICT Third-Party Risk",
+      "Business Impact Analysis",
+      "Business Continuity Planning",
+      "Disaster Recovery",
+      "EU AI Act",
+      "ISO/IEC 42001",
+      "NIST AI RMF",
       "Python",
       "pandas",
       "SQL",
@@ -292,9 +316,7 @@ const stackStreams = [
       "Audit Traceability",
       "Structured Data Extraction",
       "GitHub",
-      "Codex",
       "Cursor",
-      "Notion",
     ],
   },
 ];
@@ -309,38 +331,38 @@ const languageItems = [
 const radarDomains = [
   {
     id: "radar-control-audit-risk",
-    title: "Control & Audit Risk",
+    title: "Internal Audit & Assurance",
     maturity: "Primary domain",
-    category: "Control / Assurance",
+    category: "Assurance / Internal Audit",
     x: 50,
-    y: 12,
+    y: 14,
     explanation:
-      "Assessment of internal controls, control design, audit documentation, working papers and governance structures.",
-    signals: ["Internal control systems", "Control testing", "Audit documentation", "Analytical reports and working papers"],
+      "Risk-based internal audit and assurance across internal controls, control design, audit documentation, working papers and governance structures — the connecting backbone of the profile.",
+    signals: ["Risk-based internal audit", "Control testing & effectiveness", "Audit documentation & working papers", "Internal controls & governance review"],
     sections: ["Experience", "Professional Capabilities"],
   },
   {
     id: "radar-credit-risk",
-    title: "Credit Risk",
+    title: "Banking & Credit Risk",
     maturity: "Primary domain",
     category: "Banking / Credit",
-    x: 82,
-    y: 30,
+    x: 78.15,
+    y: 27.55,
     explanation:
-      "Analysis of credit risk drivers, corporate credit portfolios, IFRS 9 ECL concepts, PD/LGD parameters and provisioning impacts.",
-    signals: ["Corporate credit portfolios", "IFRS 9 / ECL", "PD and LGD concepts", "Financial covenants"],
+      "Applied analysis and review of credit risk drivers, corporate and syndicated loan portfolios, IFRS 9 / ECL methodologies and PD/LGD risk parameters, and their impact on provisioning within regulated banking environments.",
+    signals: ["Corporate credit & syndicated loans", "IFRS 9 / ECL", "PD & LGD risk parameters", "Financial covenants & credit-risk drivers"],
     sections: ["Experience", "Professional Capabilities"],
   },
   {
     id: "radar-regulatory-compliance-risk",
-    title: "Regulatory & Compliance Risk",
+    title: "Regulatory & Supervisory Risk",
     maturity: "Primary domain",
-    category: "Regulatory / Compliance",
-    x: 82,
-    y: 70,
+    category: "Regulatory / Supervisory",
+    x: 85.1,
+    y: 58.01,
     explanation:
-      "Assessment of regulatory expectations, governance structures and compliance-related controls within international banking environments.",
-    signals: ["RAF, ICAAP, ILAAP, Pillar III", "AML / KYC processes", "ECB and Bank of Italy expectations", "Basel and CRD VI awareness"],
+      "Direct assessment of prudential and supervisory frameworks (RAF, ICAAP, ILAAP, Pillar III), AML/KYC processes and FITD deposit-protection controls within a regulated banking environment, supported by framework knowledge of Basel III/IV and the CRD VI third-country branch regime.",
+    signals: ["RAF, ICAAP, ILAAP, Pillar III", "AML / KYC processes", "FITD deposit-protection analysis", "Basel III/IV & CRD VI"],
     sections: ["Experience", "Professional Capabilities"],
   },
   {
@@ -348,47 +370,160 @@ const radarDomains = [
     title: "Technology & ICT Risk",
     maturity: "Developing domain",
     category: "Technology / ICT",
-    x: 50,
-    y: 88,
+    x: 65.62,
+    y: 82.44,
     explanation:
-      "Review of IT systems, access controls, information systems governance and technology-enabled control environments.",
-    signals: ["IT systems exposure", "Access controls", "Information systems governance", "CISA-oriented learning path"],
-    sections: ["Professional Capabilities", "Credentials"],
+      "Direct exposure to IT governance, information security controls and access controls within technology-related control environments, with a developing focus on IT general controls (ITGC), ICT third-party risk and broader technology risk.",
+    signals: ["IT governance & information security controls", "IT systems & access controls", "IT general controls (ITGC)", "ICT third-party risk"],
+    sections: ["Experience", "Professional Capabilities", "Credentials"],
+  },
+  {
+    id: "radar-information-security-governance",
+    title: "Information Security Governance",
+    maturity: "Developing domain",
+    category: "Security / Governance",
+    x: 34.38,
+    y: 82.44,
+    explanation:
+      "Information security governance connecting security controls with audit and technology risk: professional exposure to information security controls, supported by framework knowledge of ISO/IEC 27001, NIST CSF and COBIT.",
+    signals: ["Information security controls", "ISO/IEC 27001", "NIST CSF", "COBIT"],
+    sections: ["Professional Capabilities", "Experience"],
   },
   {
     id: "radar-operational-resilience",
-    title: "Operational Resilience",
+    title: "Operational & Digital Resilience",
     maturity: "Developing domain",
     category: "Resilience / Continuity",
-    x: 18,
-    y: 70,
+    x: 14.9,
+    y: 58.01,
     explanation:
-      "Assessment of business continuity, system reliability, outsourcing dependencies and DORA-related resilience areas.",
-    signals: ["DORA", "Business continuity", "System reliability", "Operational resilience"],
+      "Direct professional exposure to digital operational resilience under DORA, including the BIA, BCP and DRP framework, risk dependencies, supporting controls and third-party/outsourcing dependencies.",
+    signals: ["DORA", "BIA / BCP / DRP", "Risk dependencies & supporting controls", "Third-party / outsourcing dependencies"],
     sections: ["Experience", "Professional Capabilities"],
   },
   {
     id: "radar-ai-model-governance",
-    title: "AI & Model Governance",
+    title: "AI Governance",
     maturity: "Emerging focus",
-    category: "AI / Model Governance",
-    x: 18,
-    y: 30,
+    category: "AI / Governance",
+    x: 21.85,
+    y: 27.55,
     explanation:
-      "Developing focus on AI-related risks, model governance, audit traceability, LLM evaluation and controlled automation.",
-    signals: ["AI-assisted audit workflow", "Local LLM/VLM experimentation", "Audit traceability", "Model governance interest"],
-    sections: ["Project Deck", "Credentials"],
+      "An emerging professional direction in AI governance — AI risk, auditability and traceability of AI-enabled workflows — supported by projects, hands-on experimentation and framework knowledge of the EU AI Act, NIST AI RMF and ISO/IEC 42001, rather than direct professional AI-governance experience.",
+    signals: ["Cognitive Behavior Intelligence platform", "Local LLM/VLM experimentation", "EU AI Act, NIST AI RMF, ISO/IEC 42001", "Auditability & traceability"],
+    sections: ["Project Deck", "Credentials", "Professional Capabilities"],
   },
 ];
 
-const profileRadarAxes = [
-  { domainId: "radar-control-audit-risk", value: 65, targetValue: 85 },
-  { domainId: "radar-credit-risk", value: 55, targetValue: 75 },
-  { domainId: "radar-regulatory-compliance-risk", value: 55, targetValue: 80 },
-  { domainId: "radar-technology-ict-risk", value: 50, targetValue: 80 },
-  { domainId: "radar-operational-resilience", value: 50, targetValue: 80 },
-  { domainId: "radar-ai-model-governance", value: 45, targetValue: 75 },
+// Profile Coverage answers "how strongly is the profile supported by evidence?"
+// (kept conceptually separate from the Risk Radar's professional-domain view).
+// Each dimension carries a qualitative evidence-coverage band (STRONG / DEVELOPING /
+// EMERGING) describing the strength and breadth of supporting portfolio evidence —
+// NOT a proficiency, skill or completion score.
+const profileCoverage = [
+  {
+    id: "coverage-experience",
+    label: "Professional Experience",
+    shortLabel: ["Professional", "Experience"],
+    band: "DEVELOPING",
+    definition:
+      "Professional experience supporting the profile across internal audit, banking risk, financial services and control-oriented environments.",
+    evidenceBase: [
+      "Bank of China — Internal Audit",
+      "Prelios — accounting, NPL/UTP portfolios and financial reporting exposure",
+    ],
+    sections: ["Experience", "Professional Capabilities"],
+  },
+  {
+    id: "coverage-regulatory",
+    label: "Regulatory & Supervisory Knowledge",
+    shortLabel: ["Regulatory &", "Supervisory"],
+    band: "STRONG",
+    definition:
+      "Evidence of banking regulatory, prudential and supervisory knowledge developed through direct audit exposure and structured learning.",
+    evidenceBase: [
+      "RAF, ICAAP, ILAAP and Pillar III",
+      "AML / KYC processes",
+      "IFRS 9 / ECL",
+      "FITD deposit-protection analysis",
+      "Basel III/IV and CRD VI framework knowledge",
+    ],
+    sections: ["Experience", "Professional Capabilities"],
+  },
+  {
+    id: "coverage-frameworks",
+    label: "Tech, Security & AI Frameworks",
+    shortLabel: ["Tech, Security", "& AI"],
+    band: "DEVELOPING",
+    definition:
+      "Growing knowledge of technology, information-security and AI governance frameworks supporting the profile's expansion beyond traditional banking audit.",
+    evidenceBase: [
+      "COBIT and ITGC concepts",
+      "ISO/IEC 27001 and NIST CSF",
+      "DORA",
+      "EU AI Act",
+      "ISO/IEC 42001",
+      "NIST AI RMF",
+    ],
+    sections: ["Professional Capabilities", "Project Deck", "Credentials"],
+  },
+  {
+    id: "coverage-technical",
+    label: "Technical & Data Capability",
+    shortLabel: ["Technical &", "Data"],
+    band: "DEVELOPING",
+    definition:
+      "Hands-on technical and data capabilities used to understand, analyze and build control-oriented systems and workflows.",
+    evidenceBase: [
+      "Python and pandas",
+      "SQL and data analysis",
+      "SAP and HFM/Oracle exposure",
+      "Local LLM/VLM experimentation",
+      "AI agents and multi-model workflows",
+      "Structured extraction and automation",
+    ],
+    sections: ["Project Deck", "Professional Capabilities", "Experience"],
+  },
+  {
+    id: "coverage-projects",
+    label: "Projects & Applied Work",
+    shortLabel: ["Projects &", "Applied Work"],
+    band: "DEVELOPING",
+    definition:
+      "Applied, self-directed projects translating AI, governance and technical concepts into working systems and prototypes.",
+    evidenceBase: [
+      "Cognitive Behavior Intelligence — AI Governance Platform (Prototype)",
+      "CodeIAK — Local AI Coding Agent (Advanced Iteration)",
+    ],
+    sections: ["Project Deck", "Professional Capabilities"],
+  },
+  {
+    id: "coverage-certifications",
+    label: "Certifications & Roadmap",
+    shortLabel: ["Certifications", "& Roadmap"],
+    band: "EMERGING",
+    definition:
+      "A structured certification and professional-development path supporting progression across IT audit, technology risk, AI risk and financial risk.",
+    evidenceBase: [
+      "CISA — in progress",
+      "CRISC — planned",
+      "AAIR — planned",
+      "FRM — longer-term roadmap",
+      "Continuing-education attestations",
+    ],
+    sections: ["Credentials"],
+  },
 ];
+
+// Radar magnitudes are discrete visualization values derived from qualitative
+// evidence-coverage bands; they are not proficiency scores.
+const coverageBandMagnitude = { STRONG: 3, DEVELOPING: 2, EMERGING: 1.5 };
+const coverageBandMax = 3;
+const coverageBandText = {
+  STRONG: "Strong evidence",
+  DEVELOPING: "Developing evidence",
+  EMERGING: "Emerging evidence",
+};
 
 const sectionAnchors = {
   Hero: "#hero",
@@ -404,12 +539,23 @@ const sectionAnchors = {
 const roleLenses = [
   {
     name: "Overview",
-    explanation: "Explore the full profile across audit, risk, technology and AI governance.",
+    explanation: "Explore the full profile across audit, banking risk, technology, information security and AI governance.",
     signals: [
       "Internal audit and control assurance",
       "Banking risk and regulatory frameworks",
-      "Technology risk and operational resilience",
-      "AI-assisted audit workflows",
+      "Technology, ICT and information security governance",
+      "AI governance and controls",
+    ],
+  },
+  {
+    name: "Banking Risk",
+    label: "Financial Risk",
+    explanation: "Relevant for roles focused on credit risk, IFRS 9, supervisory frameworks and banking control environments.",
+    signals: [
+      "Credit risk exposure",
+      "IFRS 9 / ECL concepts",
+      "RAF, ICAAP, ILAAP, Pillar III",
+      "Regulatory & Supervisory Risk radar domain",
     ],
   },
   {
@@ -417,50 +563,39 @@ const roleLenses = [
     explanation: "Relevant for roles focused on control assurance, information systems governance and audit documentation.",
     signals: [
       "Internal control assessment",
-      "IT systems and access controls",
+      "IT systems and access controls (ITGC)",
       "CISA-oriented learning path",
       "Working papers and audit reporting",
     ],
   },
   {
     name: "Technology Risk",
-    explanation: "Relevant for roles involving operational resilience, ICT risk, DORA-related controls and technology-enabled environments.",
+    explanation: "Relevant for roles involving ICT risk, operational resilience, DORA-related controls and technology-enabled environments.",
     signals: [
       "DORA and operational resilience",
-      "IT systems exposure",
-      "Access controls and business continuity",
-      "Technology Risk & Resilience capability",
+      "IT systems exposure and access controls",
+      "ICT third-party risk",
+      "Technology & ICT Risk capability",
+    ],
+  },
+  {
+    name: "Information Security Governance",
+    explanation: "Relevant for roles focused on information security governance, security control frameworks and their link to audit and technology risk.",
+    signals: [
+      "Information security controls",
+      "ISO/IEC 27001 and NIST CSF",
+      "COBIT and ITGC",
+      "Information Security Governance radar domain",
     ],
   },
   {
     name: "AI Governance",
-    explanation: "Relevant for roles exploring AI-related risks, model governance, audit traceability and controlled automation.",
+    explanation: "Relevant for roles exploring AI governance, AI risk, auditability and the controls around AI-enabled workflows.",
     signals: [
-      "AI-Assisted Audit Workflow",
+      "Cognitive Behavior Intelligence platform",
       "Local LLM/VLM experimentation",
-      "Audit traceability",
-      "AI & Model Governance radar domain",
-    ],
-  },
-  {
-    name: "Banking Risk",
-    explanation: "Relevant for roles focused on credit risk, IFRS 9, supervisory frameworks and banking control environments.",
-    signals: [
-      "Credit risk exposure",
-      "IFRS 9 / ECL concepts",
-      "RAF, ICAAP, ILAAP, Pillar III",
-      "Regulatory & Compliance Risk radar domain",
-    ],
-  },
-  {
-    name: "Audit Analytics",
-    label: "Data & Audit Analytics",
-    explanation: "Relevant for roles combining audit judgment with data analysis, structured extraction and automation.",
-    signals: [
-      "Python and pandas",
-      "Structured extraction",
-      "Data-oriented audit workflows",
-      "AI-assisted audit project",
+      "EU AI Act, NIST AI RMF, ISO/IEC 42001",
+      "AI Governance radar domain",
     ],
   },
 ];
@@ -470,9 +605,9 @@ const lensOptions = roleLenses.filter((lens) => lens.name !== "Overview");
 const lensSummaries = {
   "IT Audit": "Highlights control assurance, information systems governance and audit documentation signals.",
   "Technology Risk": "Highlights ICT risk, operational resilience, DORA-related controls and technology-enabled environments.",
-  "AI Governance": "Highlights AI-related risks, audit traceability, local LLM workflows and controlled automation.",
+  "Information Security Governance": "Highlights information security controls and frameworks such as ISO/IEC 27001, NIST CSF and COBIT.",
+  "AI Governance": "Highlights AI governance, AI risk, auditability and the controls around AI-enabled workflows.",
   "Banking Risk": "Highlights credit risk, IFRS 9, supervisory frameworks and banking control environments.",
-  "Audit Analytics": "Highlights audit judgment, data analysis, structured extraction and automation signals.",
 };
 
 const lensRelevance = {
@@ -484,644 +619,368 @@ const lensRelevance = {
     radar: [],
     education: [],
     streamItems: [],
-    assistantQuestions: [],
   },
   "IT Audit": {
     capabilities: ["capability-audit-control", "capability-technology-risk"],
     credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-boc"],
-    projects: ["project-ai-audit-workflow"],
+    projects: [],
     radar: ["radar-control-audit-risk", "radar-technology-ict-risk", "radar-operational-resilience"],
     education: [],
-    streamItems: [],
-    assistantQuestions: [
-      "assistant-internal-audit-experience",
-      "assistant-technology-risk-experience",
-      "assistant-cisa-preparation",
-      "assistant-control-areas",
-    ],
+    streamItems: ["Internal Audit", "Internal Controls", "SOX Principles", "ITGC"],
   },
   "Technology Risk": {
-    capabilities: ["capability-technology-risk", "capability-banking-risk"],
+    capabilities: ["capability-technology-risk", "capability-information-security"],
     credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-boc"],
-    projects: ["project-ai-audit-workflow", "project-codeiak"],
-    radar: ["radar-technology-ict-risk", "radar-operational-resilience", "radar-regulatory-compliance-risk"],
+    projects: [],
+    radar: ["radar-technology-ict-risk", "radar-operational-resilience", "radar-information-security-governance"],
     education: [],
-    streamItems: [],
-    assistantQuestions: [
-      "assistant-technology-risk-experience",
-      "assistant-operational-resilience-dora",
-      "assistant-cisa-preparation",
-      "assistant-hands-on-technical-skills",
-      "assistant-codeiak-project",
-    ],
+    streamItems: ["DORA", "Operational Resilience", "ICT Third-Party Risk", "ITGC", "COBIT"],
+  },
+  "Information Security Governance": {
+    capabilities: ["capability-information-security", "capability-technology-risk"],
+    credentials: ["credential-cisa", "credential-crisc"],
+    experiences: ["experience-boc"],
+    projects: [],
+    radar: ["radar-information-security-governance", "radar-technology-ict-risk", "radar-operational-resilience"],
+    education: [],
+    streamItems: ["ISO/IEC 27001", "NIST CSF", "COBIT", "ITGC"],
   },
   "AI Governance": {
     capabilities: ["capability-ai-governance", "capability-technology-risk"],
-    credentials: ["credential-cisa"],
-    experiences: ["experience-boc"],
+    credentials: ["credential-aair"],
+    experiences: [],
     projects: ["project-ai-audit-workflow", "project-codeiak"],
-    radar: ["radar-ai-model-governance", "radar-technology-ict-risk", "radar-control-audit-risk"],
+    radar: ["radar-ai-model-governance", "radar-technology-ict-risk", "radar-information-security-governance", "radar-control-audit-risk"],
     education: [],
-    streamItems: ["Local LLMs", "RAG Workflows", "AI Agents", "LLM Evaluation", "Audit Traceability"],
-    assistantQuestions: [
-      "assistant-ai-governance-exposure",
-      "assistant-ai-projects-built",
-      "assistant-audit-traceability",
-      "assistant-too-junior-tech-ai",
-      "assistant-codeiak-project",
-    ],
+    streamItems: ["EU AI Act", "ISO/IEC 42001", "NIST AI RMF", "Local LLMs", "AI Agents", "LLM Evaluation"],
   },
   "Banking Risk": {
-    capabilities: ["capability-banking-risk", "capability-audit-control", "capability-international-cross-cultural"],
-    credentials: ["credential-frm", "credential-cisa"],
+    capabilities: ["capability-banking-risk", "capability-audit-control"],
+    credentials: ["credential-frm"],
     experiences: ["experience-boc", "experience-prelios"],
     projects: [],
     radar: ["radar-credit-risk", "radar-regulatory-compliance-risk", "radar-control-audit-risk"],
     education: [],
     streamItems: ["IFRS 9 / ECL", "Credit Risk", "ICAAP / ILAAP", "Pillar III", "Basel III / IV", "CRD VI"],
-    assistantQuestions: [
-      "assistant-credit-risk-exposure",
-      "assistant-banking-regulation-exposure",
-      "assistant-frm-planning",
-      "assistant-control-areas",
-    ],
-  },
-  "Audit Analytics": {
-    capabilities: ["capability-ai-governance", "capability-audit-control"],
-    credentials: ["credential-cisa"],
-    experiences: ["experience-boc", "experience-prelios"],
-    projects: ["project-ai-audit-workflow", "project-codeiak"],
-    radar: ["radar-control-audit-risk", "radar-ai-model-governance", "radar-technology-ict-risk"],
-    education: [],
-    streamItems: ["Python", "pandas", "Data Analysis", "Structured Data Extraction", "Audit Traceability"],
-    assistantQuestions: [
-      "assistant-python-data-analysis",
-      "assistant-audit-traceability",
-      "assistant-ai-audit-workflow-project",
-      "assistant-hands-on-technical-skills",
-    ],
   },
 };
 
 const signalMap = {
-  "role-lens": {
-    label: "Role Lens",
-    href: "#role-lens",
-    lenses: ["IT Audit", "Technology Risk", "AI Governance", "Banking Risk", "Audit Analytics"],
-  },
-  "professional-capabilities": {
-    label: "Professional Capabilities",
-    href: "#capabilities",
-    capabilities: expertise.map((item) => item.id),
-  },
-  "risk-radar": {
-    label: "Professional Risk Map",
-    href: "#risk-radar",
-    radar: radarDomains.map((domain) => domain.id),
-  },
-  experience: {
-    label: "Experience",
-    href: "#experience",
-    experiences: ["experience-boc", "experience-prelios"],
-  },
-  "bank-of-china-experience": {
-    label: "Experience",
-    href: "#experience",
-    experiences: ["experience-boc"],
-  },
-  "learning-roadmap": {
-    label: "Learning Roadmap",
-    href: "#credentials",
-    credentials: credentials.map((item) => item.id),
-  },
-  "audit-control-assurance": {
-    label: "Audit & Control Assurance",
-    href: "#capabilities",
-    capabilities: ["capability-audit-control"],
-    experiences: ["experience-boc"],
-    radar: ["radar-control-audit-risk"],
-  },
-  "banking-risk-regulation": {
-    label: "Banking Risk & Regulation",
-    href: "#capabilities",
-    capabilities: ["capability-banking-risk"],
-    experiences: ["experience-boc"],
-    radar: ["radar-credit-risk", "radar-regulatory-compliance-risk"],
-  },
-  "technology-risk-resilience": {
-    label: "Technology Risk & Resilience",
-    href: "#capabilities",
-    capabilities: ["capability-technology-risk"],
-    credentials: ["credential-cisa"],
-    experiences: ["experience-boc"],
-    radar: ["radar-technology-ict-risk", "radar-operational-resilience"],
-  },
-  "ai-governance-data-systems": {
-    label: "AI Governance & Data Systems",
-    href: "#capabilities",
-    capabilities: ["capability-ai-governance"],
-    projects: ["project-ai-audit-workflow", "project-codeiak"],
-    radar: ["radar-ai-model-governance"],
-  },
-  "international-cross-cultural-work": {
-    label: "International & Cross-Cultural Work",
-    href: "#capabilities",
-    capabilities: ["capability-international-cross-cultural"],
-    experiences: ["experience-boc"],
-    education: ["education-languages"],
-    credentials: ["additional-training-chinese-language"],
-  },
-  "control-audit-risk": {
-    label: "Control & Audit Risk",
-    href: "#risk-radar",
-    capabilities: ["capability-audit-control"],
-    experiences: ["experience-boc"],
-    radar: ["radar-control-audit-risk"],
-  },
-  "credit-risk": {
-    label: "Credit Risk",
-    href: "#risk-radar",
-    capabilities: ["capability-banking-risk"],
-    experiences: ["experience-boc", "experience-prelios"],
-    credentials: ["credential-frm"],
-    radar: ["radar-credit-risk"],
-    streamItems: ["Credit Risk", "IFRS 9 / ECL"],
-  },
-  "regulatory-compliance-risk": {
-    label: "Regulatory & Compliance Risk",
-    href: "#risk-radar",
-    capabilities: ["capability-banking-risk", "capability-audit-control"],
-    experiences: ["experience-boc"],
-    radar: ["radar-regulatory-compliance-risk"],
-    streamItems: ["Banking Regulatory Frameworks", "ECB Supervision", "ICAAP / ILAAP", "Pillar III", "AML / KYC"],
-  },
-  "technology-ict-risk": {
-    label: "Technology & ICT Risk",
-    href: "#risk-radar",
-    capabilities: ["capability-technology-risk"],
-    credentials: ["credential-cisa"],
-    experiences: ["experience-boc"],
-    radar: ["radar-technology-ict-risk"],
-  },
-  "operational-resilience": {
-    label: "Operational Resilience",
-    href: "#risk-radar",
-    capabilities: ["capability-technology-risk"],
-    experiences: ["experience-boc"],
-    radar: ["radar-operational-resilience"],
-    streamItems: ["DORA", "Operational Resilience", "Business Impact Analysis", "Business Continuity Planning"],
-  },
-  "ai-model-governance": {
-    label: "AI & Model Governance",
-    href: "#risk-radar",
-    capabilities: ["capability-ai-governance", "capability-technology-risk"],
-    projects: ["project-ai-audit-workflow", "project-codeiak"],
-    radar: ["radar-ai-model-governance"],
-    streamItems: ["Local LLMs", "RAG Workflows", "AI Agents", "LLM Evaluation", "Audit Traceability", "Multi-Model Orchestration", "Offline-First"],
-  },
-  "ai-audit-workflow": {
-    label: "AI-Assisted Audit Workflow",
-    href: "#projects",
-    projects: ["project-ai-audit-workflow"],
-    capabilities: ["capability-ai-governance", "capability-audit-control"],
-    radar: ["radar-ai-model-governance", "radar-control-audit-risk"],
-  },
-  codeiak: {
-    label: "CodeIAK — Local AI Coding Agent",
-    href: "#projects",
-    projects: ["project-codeiak"],
-    capabilities: ["capability-ai-governance", "capability-technology-risk"],
-    radar: ["radar-ai-model-governance", "radar-technology-ict-risk"],
-    streamItems: ["Local LLMs", "AI Agents", "LLM Evaluation", "GitHub"],
-  },
-  "technology-data-stream": {
-    label: "Technology & Data Stream",
-    href: "#hero",
-    streamItems: ["Python", "pandas", "SQL", "Data Analysis", "Local LLMs", "RAG Workflows", "AI Agents", "Audit Traceability", "Structured Data Extraction"],
-  },
-  "risk-regulatory-stream": {
-    label: "Risk & Regulatory Stream",
-    href: "#hero",
-    streamItems: ["Internal Audit", "Internal Controls", "Credit Risk", "IFRS 9 / ECL", "DORA", "Operational Resilience"],
-  },
-  "audit-analytics-lens": {
-    label: "Data & Audit Analytics lens",
-    href: "#role-lens",
-    lenses: ["Audit Analytics"],
-    capabilities: ["capability-ai-governance", "capability-audit-control"],
-    projects: ["project-ai-audit-workflow", "project-codeiak"],
-  },
-  "cisa-candidate": {
-    label: "CISA Candidate",
-    href: "#credentials",
-    credentials: ["credential-cisa"],
-    capabilities: ["capability-technology-risk"],
-    radar: ["radar-technology-ict-risk"],
-  },
-  "crisc-path": {
-    label: "CRISC Path",
-    href: "#credentials",
-    credentials: ["credential-crisc"],
-    capabilities: ["capability-technology-risk"],
-    radar: ["radar-technology-ict-risk"],
-  },
-  "frm-certification": {
-    label: "FRM Certification",
-    href: "#credentials",
-    credentials: ["credential-frm"],
-    capabilities: ["capability-banking-risk"],
-    radar: ["radar-credit-risk"],
-  },
-  "chinese-language-track": {
-    label: "Chinese Language Track",
-    href: "#credentials",
-    credentials: ["additional-training-chinese-language"],
-    education: ["education-languages"],
-  },
-  "hero-languages": {
-    label: "Hero Languages",
-    href: "#hero",
-    education: ["education-languages"],
-    credentials: ["additional-training-chinese-language"],
-  },
-  education: {
-    label: "Education",
-    href: "#education",
-    education: education.map((item) => item.id),
-  },
-  "audit-traceability": {
-    label: "Audit Traceability",
-    href: "#hero",
-    streamItems: ["Audit Traceability", "Structured Data Extraction"],
-    projects: ["project-ai-audit-workflow"],
-    radar: ["radar-ai-model-governance"],
-  },
+  "role-lens": { label: "Role Lens", href: "#role-lens", target: { type: "section", id: "role-lens" } },
+  "risk-radar": { label: "Risk Radar", href: "#risk-radar", target: { type: "section", id: "risk-radar" } },
+  "cap-internal-audit": { label: "Internal Audit & Assurance", href: "#capabilities", target: { type: "capability", id: "capability-audit-control" } },
+  "cap-banking-risk": { label: "Banking Risk & Regulation", href: "#capabilities", target: { type: "capability", id: "capability-banking-risk" } },
+  "cap-technology-risk": { label: "Technology & ICT Risk", href: "#capabilities", target: { type: "capability", id: "capability-technology-risk" } },
+  "cap-information-security": { label: "Information Security Governance", href: "#capabilities", target: { type: "capability", id: "capability-information-security" } },
+  "cap-ai-governance": { label: "AI Governance", href: "#capabilities", target: { type: "capability", id: "capability-ai-governance" } },
+  "exp-boc": { label: "Bank of China — Internal Audit", href: "#experience", target: { type: "experience", id: "experience-boc" } },
+  "project-cbi": { label: "Cognitive Behavior Intelligence", href: "#projects", target: { type: "project", id: "project-ai-audit-workflow" } },
+  "project-codeiak": { label: "CodeIAK", href: "#projects", target: { type: "project", id: "project-codeiak" } },
+  "cred-cisa": { label: "CISA (In Progress)", href: "#credentials", target: { type: "credential", id: "credential-cisa" } },
+  "cred-crisc": { label: "CRISC Certification", href: "#credentials", target: { type: "credential", id: "credential-crisc" } },
+  "cred-aair": { label: "AAIR Certification", href: "#credentials", target: { type: "credential", id: "credential-aair" } },
+  "cred-frm": { label: "FRM Certification", href: "#credentials", target: { type: "credential", id: "credential-frm" } },
+  "radar-internal-audit": { label: "Risk Radar: Internal Audit", href: "#risk-radar", target: { type: "radar", id: "radar-control-audit-risk" } },
+  "radar-credit": { label: "Risk Radar: Banking & Credit Risk", href: "#risk-radar", target: { type: "radar", id: "radar-credit-risk" } },
+  "radar-regulatory": { label: "Risk Radar: Regulatory & Supervisory", href: "#risk-radar", target: { type: "radar", id: "radar-regulatory-compliance-risk" } },
+  "radar-technology": { label: "Risk Radar: Technology & ICT", href: "#risk-radar", target: { type: "radar", id: "radar-technology-ict-risk" } },
+  "radar-information-security": { label: "Risk Radar: Information Security", href: "#risk-radar", target: { type: "radar", id: "radar-information-security-governance" } },
+  "radar-operational-resilience": { label: "Risk Radar: Operational Resilience", href: "#risk-radar", target: { type: "radar", id: "radar-operational-resilience" } },
+  "radar-ai-governance": { label: "Risk Radar: AI Governance", href: "#risk-radar", target: { type: "radar", id: "radar-ai-model-governance" } },
 };
 
 const assistantPrompts = [
   {
     id: "assistant-role-orientation",
-    categories: ["Profile Fit"],
+    categories: ["Profile & Career Direction"],
     question: "What kind of roles are you oriented toward?",
     answer:
-      "I am oriented toward roles at the intersection of internal audit, technology risk, banking regulation, data-driven control systems and AI governance. I am particularly interested in environments where risk, systems and regulatory expectations overlap.",
-    signalIds: ["role-lens", "professional-capabilities", "risk-radar", "international-cross-cultural-work"],
-    signals: [
-      { label: "Role Lens", href: "#role-lens" },
-      { label: "Professional Capabilities", href: "#capabilities" },
-      { label: "Risk Radar", href: "#risk-radar" },
-    ],
+      "I am primarily oriented toward IT Audit, Technology Risk, Information Security Governance, AI Governance and Financial Risk roles.\n\nMy profile sits at the intersection of risk, controls and technology, with internal audit and assurance providing the methodological backbone connecting these areas. I am particularly interested in regulated environments where financial risk, technology, information security and emerging AI risks increasingly converge.",
+    signalIds: ["role-lens", "risk-radar", "cap-internal-audit"],
   },
   {
     id: "assistant-strongest-profile",
-    categories: ["Profile Fit"],
+    categories: ["Profile & Career Direction"],
     question: "What is the strongest part of your profile?",
     answer:
-      "My strongest point is the combination of audit discipline, banking risk exposure and growing technical orientation. I am not positioned only as an auditor, but as someone developing toward risk, systems and governance-oriented work.",
-    signalIds: ["experience", "learning-roadmap", "professional-capabilities"],
-    signals: [
-      { label: "Experience", href: "#experience" },
-      { label: "Learning Roadmap", href: "#credentials" },
-      { label: "Professional Capabilities", href: "#capabilities" },
-    ],
+      "My strongest point is the combination of banking risk exposure, audit and control discipline, and a growing specialization in technology governance.\n\nI have developed a practical foundation across credit risk, regulatory frameworks, internal controls and operational resilience, while progressively expanding toward IT Audit, Technology Risk, Information Security Governance and AI-related risks. This allows me to approach technology not in isolation, but through the lens of risk, controls and governance.",
+    signalIds: ["exp-boc", "cap-banking-risk", "cap-internal-audit"],
   },
   {
     id: "assistant-bank-of-china-experience",
-    categories: ["Profile Fit"],
+    categories: ["Profile & Career Direction"],
     question: "What does your experience at Bank of China add to your profile?",
     answer:
-      "My experience at Bank of China – Milan Branch adds an international and cross-border dimension to my profile. It allows me to work on internal audit, risk management, regulatory frameworks and operational resilience within a banking environment where local European supervisory expectations intersect with the governance of a major global Chinese financial institution.\n\nI see this as particularly relevant for the future of finance and technology: global banking is increasingly shaped by cross-border regulatory coordination, data governance, payment infrastructures and the resilience of interconnected financial systems. Working in this setting strengthens my ability to read risk not only as a control issue, but as something embedded in international business models, technology flows and evolving supervisory expectations.",
-    signalIds: ["bank-of-china-experience", "banking-risk-regulation", "international-cross-cultural-work"],
-    signals: [
-      { label: "Experience", href: "#experience" },
-      { label: "Banking Risk & Regulation", href: "#capabilities" },
-      { label: "International & Cross-Cultural Work", href: "#capabilities" },
-    ],
-  },
-  {
-    id: "assistant-future-career-direction",
-    categories: ["Profile Fit"],
-    question: "Where would you like your career to develop in the future?",
-    answer:
-      "I see a clear direction: from IT and cyber audit into technology risk, then operational resilience and DORA-related areas, and increasingly toward AI governance with model and data controls — with a longer-term horizon in advisory, leadership or product-oriented roles.\n\nLarge international banks are a natural fit, but I am equally open to multinationals in technology, life sciences or other highly regulated sectors, where digital systems, resilience and emerging AI risks shape a broad audit and risk landscape.",
-    signalIds: ["technology-risk-resilience", "operational-resilience", "ai-governance-data-systems", "international-cross-cultural-work"],
-    signals: [
-      { label: "Technology Risk & Resilience", href: "#capabilities" },
-      { label: "Operational Resilience", href: "#risk-radar" },
-      { label: "AI Governance & Data Systems", href: "#capabilities" },
-      { label: "International & Cross-Cultural Work", href: "#capabilities" },
-    ],
+      "My experience at Bank of China – Milan Branch gives me exposure to internal audit within an international and cross-border banking environment.\n\nI have worked across corporate credit and syndicated loans, IFRS 9/ECL, regulatory and supervisory frameworks, AML/KYC, internal controls, IT governance and operational resilience. This has helped me develop a risk perspective that connects financial, regulatory, operational and increasingly technological dimensions.",
+    signalIds: ["exp-boc", "cap-banking-risk", "cap-technology-risk"],
   },
   {
     id: "assistant-different-from-standard-audit",
-    categories: ["Profile Fit"],
+    categories: ["Profile & Career Direction"],
     question: "What makes your profile different from a standard internal audit profile?",
     answer:
-      "My audit background is combined with an active interest in technology risk, data workflows and AI-related governance. I try to connect control assessment with how systems, data and automation actually shape risk in modern organizations.",
-    signalIds: ["technology-data-stream", "ai-model-governance", "ai-audit-workflow"],
-    signals: [
-      { label: "Technology & Data Stream", href: "#hero" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-    ],
+      "My background in internal audit is combined with a deliberate move toward technology and emerging risk domains.\n\nBeyond traditional audit and banking risk, I am developing capabilities in IT and technology risk, information security governance, operational resilience and AI governance, supported by technical experimentation with Python, data analysis and AI systems.\n\nWhat differentiates my direction is the attempt to connect financial risk, technology, controls and governance rather than treating them as separate disciplines.",
+    signalIds: ["project-codeiak", "cap-technology-risk", "cap-ai-governance"],
+  },
+  {
+    id: "assistant-future-career-direction",
+    categories: ["Profile & Career Direction"],
+    question: "Where do you want your career to develop?",
+    answer:
+      "My career direction builds from banking risk and internal audit toward IT Audit, Technology Risk and Information Security Governance, with AI Governance as an emerging specialization.\n\nOver time, I aim to develop a profile capable of connecting financial risk, technology, information security, controls and AI within complex regulated organizations. I see financial institutions as a particularly strong fit, while remaining open to other highly regulated sectors where technology and governance are becoming increasingly interconnected.",
+    signalIds: ["role-lens", "risk-radar", "cap-technology-risk"],
   },
   {
     id: "assistant-business-or-technical",
-    categories: ["Profile Fit"],
-    question: "Are you more business-oriented or technical?",
+    categories: ["Profile & Career Direction"],
+    question: "Is your profile more business-oriented or technical?",
     answer:
-      "I am currently more risk and business-control oriented, with a growing technical profile. My technical learning is not abstract: I focus on Python, data analysis, local AI workflows and structured extraction in audit and risk use cases.",
-    signalIds: ["professional-capabilities", "technology-data-stream", "ai-audit-workflow"],
-    signals: [
-      { label: "Professional Capabilities", href: "#capabilities" },
-      { label: "Technology & Data Stream", href: "#hero" },
-      { label: "Project Deck", href: "#projects" },
-    ],
-  },
-  {
-    id: "assistant-recruiter-spend-time",
-    categories: ["Profile Fit"],
-    question: "Why should a recruiter spend time on your profile?",
-    answer:
-      "Because my profile sits at the intersection of banking risk, audit & controls and technology / AI governance. I bring a control-oriented mindset from an international banking audit context, and I am actively building the technical layer — IT and technology risk, operational resilience, data and AI controls.",
-    signalIds: ["banking-risk-regulation", "risk-radar", "experience", "learning-roadmap"],
-    signals: [
-      { label: "Banking Risk & Regulation", href: "#capabilities" },
-      { label: "Risk Radar", href: "#risk-radar" },
-      { label: "Experience", href: "#experience" },
-      { label: "Learning Roadmap", href: "#credentials" },
-    ],
+      "My foundation is currently stronger on the risk, audit and business-control side, while I am deliberately building greater technical depth.\n\nI use Python, data analysis and AI-oriented tools in personal projects and experimentation, while developing my understanding of information systems, technology risk and governance frameworks. My objective is not to become a software engineer, but to understand technology deeply enough to assess its risks, challenge its controls and contribute to its governance.",
+    signalIds: ["project-codeiak", "cap-internal-audit", "cap-technology-risk"],
   },
   {
     id: "assistant-internal-audit-experience",
-    categories: ["Audit & Risk"],
+    categories: ["Audit, Banking & Financial Risk"],
     question: "What is your experience in internal audit?",
     answer:
-      "I work in internal audit within an international banking environment, supporting reviews on credit risk, regulatory frameworks, internal controls, AML/KYC processes, operational resilience and audit documentation.",
-    signalIds: ["experience", "audit-control-assurance", "control-audit-risk", "international-cross-cultural-work"],
-    signals: [
-      { label: "Experience", href: "#experience" },
-      { label: "Audit & Control Assurance", href: "#capabilities" },
-      { label: "Control & Audit Risk", href: "#risk-radar" },
-    ],
+      "I work in Internal Audit at Bank of China – Milan Branch, within an international banking environment.\n\nMy experience includes audit activities across corporate credit and syndicated loans, credit risk, regulatory and supervisory frameworks, AML/KYC, internal controls, IT governance and operational resilience. I contribute to control assessment, working papers and audit reporting, identifying risk areas, control weaknesses and opportunities for improvement.",
+    signalIds: ["exp-boc", "cap-internal-audit", "radar-internal-audit"],
   },
   {
     id: "assistant-credit-risk-exposure",
-    categories: ["Audit & Risk"],
-    question: "What is your exposure to credit risk?",
+    categories: ["Audit, Banking & Financial Risk"],
+    question: "What is your exposure to credit and financial risk?",
     answer:
-      "I have exposure to corporate credit and syndicated loan portfolios, including credit risk drivers, financial covenants, capital structure exposure and IFRS 9 ECL concepts such as PD, LGD and provisioning impacts.",
-    signalIds: ["banking-risk-regulation", "credit-risk", "experience"],
-    signals: [
-      { label: "Banking Risk & Regulation", href: "#capabilities" },
-      { label: "Credit Risk", href: "#risk-radar" },
-      { label: "Experience", href: "#experience" },
-    ],
+      "My experience includes the analysis of corporate credit and syndicated loan portfolios, with attention to credit risk drivers, financial covenants and capital structure exposure.\n\nI have also reviewed IFRS 9/ECL methodologies and key risk parameters such as PD and LGD, assessing their implications for credit provisioning and portfolio quality. This provides the practical banking-risk foundation that I intend to strengthen over time through broader financial and model risk knowledge.",
+    signalIds: ["exp-boc", "cap-banking-risk", "radar-credit"],
   },
   {
     id: "assistant-banking-regulation-exposure",
-    categories: ["Audit & Risk"],
-    question: "What is your exposure to banking regulation?",
+    categories: ["Audit, Banking & Financial Risk"],
+    question: "What is your exposure to banking regulation and supervisory frameworks?",
     answer:
-      "I have worked around banking supervisory frameworks such as RAF, ICAAP, ILAAP, Pillar III, IFRS 9/ECL, AML/KYC and regulatory expectations from ECB and Bank of Italy perspectives.",
-    signalIds: ["banking-risk-regulation", "regulatory-compliance-risk", "risk-regulatory-stream"],
-    signals: [
-      { label: "Banking Risk & Regulation", href: "#capabilities" },
-      { label: "Regulatory & Compliance Risk", href: "#risk-radar" },
-      { label: "Risk & Regulatory Stream", href: "#hero" },
-    ],
-  },
-  {
-    id: "assistant-operational-resilience-dora",
-    categories: ["Audit & Risk"],
-    question: "What is your exposure to operational resilience and DORA?",
-    answer:
-      "My exposure includes IT systems, access controls, business continuity processes, system reliability and DORA-related risk areas. I see operational resilience as a bridge between technology, governance and internal control.",
-    signalIds: ["technology-risk-resilience", "operational-resilience", "experience"],
-    signals: [
-      { label: "Technology Risk & Resilience", href: "#capabilities" },
-      { label: "Operational Resilience", href: "#risk-radar" },
-      { label: "Experience", href: "#experience" },
-    ],
+      "I have worked with banking risk and regulatory frameworks including RAF, ICAAP, ILAAP and Pillar III, assessing areas such as governance, data flows, control effectiveness and alignment with regulatory requirements.\n\nMy broader exposure also includes Basel III/IV, CRD VI, AML/KYC requirements and supervisory expectations relevant to the operation of a third-country banking branch within the European regulatory environment.",
+    signalIds: ["exp-boc", "cap-banking-risk", "radar-regulatory"],
   },
   {
     id: "assistant-control-areas",
-    categories: ["Audit & Risk"],
-    question: "What control areas have you worked on?",
+    categories: ["Audit, Banking & Financial Risk"],
+    question: "How do you approach risk assessment and internal controls?",
     answer:
-      "I have worked around internal controls, governance structures, audit documentation, working papers, AML/KYC control design, credit risk controls and regulatory compliance-related processes.",
-    signalIds: ["audit-control-assurance", "control-audit-risk", "experience"],
-    signals: [
-      { label: "Audit & Control Assurance", href: "#capabilities" },
-      { label: "Control & Audit Risk", href: "#risk-radar" },
-      { label: "Experience", href: "#experience" },
-    ],
+      "I approach risk assessment by connecting risk exposure, control design, evidence and governance rather than looking at controls in isolation.\n\nFrom an audit perspective, I consider whether key risks have been identified, whether controls are appropriately designed and implemented, whether supporting evidence is reliable and traceable, and whether weaknesses could affect the organization's risk profile or regulatory compliance.\n\nThis control-oriented approach is the methodological foundation I also bring to technology and emerging-risk domains.",
+    signalIds: ["exp-boc", "cap-internal-audit", "radar-internal-audit"],
   },
   {
     id: "assistant-technology-risk-experience",
-    categories: ["Technology & AI"],
-    question: "What is your experience in technology risk?",
+    categories: ["Technology Risk & Operational Resilience"],
+    question: "What is your experience with Technology Risk and IT controls?",
     answer:
-      "My technology risk profile is developing around IT systems exposure, access controls, operational resilience and DORA-related areas. My internal audit background gives me a control-oriented view, and my CISA roadmap — followed by a planned CRISC path — strengthens the information systems governance and IT risk angle.",
-    signalIds: ["technology-risk-resilience", "technology-ict-risk", "cisa-candidate", "crisc-path"],
-    signals: [
-      { label: "Technology Risk & Resilience", href: "#capabilities" },
-      { label: "Technology & ICT Risk", href: "#risk-radar" },
-      { label: "CISA Candidate", href: "#credentials" },
-      { label: "CRISC Path", href: "#credentials" },
-    ],
+      "My exposure to Technology Risk comes primarily through internal audit, where I have worked on IT governance, information security controls, access controls and technology-related control environments within a regulated banking context.\n\nI am progressively developing this foundation toward a broader understanding of IT controls, ICT risk, operational resilience and technology governance, supported by my CISA preparation and planned CRISC path.",
+    signalIds: ["exp-boc", "cap-technology-risk", "cred-cisa"],
+  },
+  {
+    id: "assistant-operational-resilience-dora",
+    categories: ["Technology Risk & Operational Resilience"],
+    question: "What is your exposure to DORA and operational resilience?",
+    answer:
+      "My professional exposure includes DORA-related operational resilience, particularly through the review of Business Impact Analysis (BIA), Business Continuity Plans (BCP) and Disaster Recovery Plans (DRP), including risk dependencies and supporting controls.\n\nThis experience has strengthened my understanding of how technology, business continuity, governance and internal controls interact to support the resilience of critical operations.",
+    signalIds: ["exp-boc", "cap-technology-risk", "radar-operational-resilience"],
+  },
+  {
+    id: "assistant-ict-third-party-risk",
+    categories: ["Technology Risk & Operational Resilience"],
+    question: "What is your exposure to ICT third-party risk?",
+    answer:
+      "My exposure to ICT third-party risk is developing within the broader context of DORA, outsourcing and operational resilience.\n\nI am particularly interested in how financial institutions identify critical ICT dependencies, assess provider-related risks, establish appropriate contractual and monitoring controls, and maintain accountability when technology services are outsourced. I see this as an increasingly important area at the intersection of Technology Risk, governance and operational resilience.",
+    signalIds: ["cap-technology-risk", "radar-operational-resilience", "exp-boc"],
+  },
+  {
+    id: "assistant-why-technology-risk",
+    categories: ["Technology Risk & Operational Resilience"],
+    question: "Why are you interested in Technology Risk?",
+    answer:
+      "Technology increasingly underpins critical business processes, financial models, data flows, regulatory reporting and operational resilience. For me, Technology Risk is therefore a natural extension of my background in internal audit and banking risk.\n\nIt applies the same fundamental logic of risk identification, control assessment, evidence and accountability to increasingly technology-dependent organizations. This makes Technology Risk one of the central directions of my professional development.",
+    signalIds: ["cap-technology-risk", "radar-technology", "cap-internal-audit"],
+  },
+  {
+    id: "assistant-information-security-governance",
+    categories: ["Information Security & AI Governance"],
+    question: "What is your exposure to Information Security Governance?",
+    answer:
+      "My exposure is developing at the intersection of internal audit, technology risk and information security controls. I am building my understanding of governance and control frameworks including COBIT, ISO/IEC 27001 and NIST CSF, with particular interest in how organizations translate security requirements into governance, accountability, controls and assurance.\n\nMy focus is on Information Security Governance rather than technical cybersecurity operations, connecting security-related risks and controls with the broader governance and risk framework of the organization.",
+    signalIds: ["cap-information-security", "radar-information-security", "cap-technology-risk"],
   },
   {
     id: "assistant-ai-governance-exposure",
-    categories: ["Technology & AI"],
-    question: "What is your exposure to AI governance?",
+    categories: ["Information Security & AI Governance"],
+    question: "What is your exposure to AI Governance?",
     answer:
-      "My focus on AI governance is emerging. I am interested in AI-related risks, audit traceability, model governance, explainability and the controlled use of local LLM workflows—both in audit contexts and in agentic systems where outputs, tool use and code changes must remain inspectable and reversible.",
-    signalIds: ["ai-governance-data-systems", "ai-model-governance", "codeiak"],
-    signals: [
-      { label: "AI Governance & Data Systems", href: "#capabilities" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
-    ],
+      "My focus on AI Governance is emerging through independent study, framework analysis and applied projects, rather than direct professional experience in a dedicated AI Governance role.\n\nI am developing knowledge around AI risk, controls, accountability, auditability and traceability, with reference to frameworks including the EU AI Act, ISO/IEC 42001 and NIST AI RMF. I am particularly interested in how organizations can govern the gap between formal AI policies, expected controls and the way AI systems are actually used.",
+    signalIds: ["project-cbi", "cap-ai-governance", "cred-aair"],
   },
   {
-    id: "assistant-ai-projects-built",
-    categories: ["Technology & AI"],
-    question: "What AI-related projects have you built?",
+    id: "assistant-why-ai-governance",
+    categories: ["Information Security & AI Governance"],
+    question: "Why are you interested in AI Governance?",
     answer:
-      "I am building two complementary local-AI projects. The AI-Assisted Audit Workflow applies local LLM/VLM models, structured extraction and audit traceability to audit documentation. CodeIAK is a local-first AI coding agent with multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency for offline inspection and validation of software projects. Together they reflect the same control-oriented mindset: useful automation with evidence, reversibility and transparency.",
-    signalIds: ["ai-audit-workflow", "codeiak", "ai-model-governance"],
-    signals: [
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-    ],
+      "AI introduces risks that do not fit neatly within traditional technology or compliance frameworks. Its adoption raises questions around accountability, data, model behavior, human oversight, explainability, privacy and control effectiveness.\n\nI see AI Governance as a natural evolution of my interest in risk and controls: as AI becomes embedded in organizational processes, governance must evolve to ensure that these systems remain understandable, accountable, traceable and appropriately controlled.",
+    signalIds: ["cap-ai-governance", "radar-ai-governance", "cap-internal-audit"],
   },
   {
-    id: "assistant-python-data-analysis",
-    categories: ["Technology & AI"],
-    question: "How do you use Python and data analysis?",
+    id: "assistant-infosec-ai-governance-connection",
+    categories: ["Information Security & AI Governance"],
+    question: "How do Information Security Governance and AI Governance connect?",
     answer:
-      "I use Python and pandas mainly for data analysis, automation and risk-oriented workflows. My aim is not generic coding, but applying technical tools to audit evidence, structured extraction and control-oriented analysis.",
-    signalIds: ["technology-data-stream", "audit-analytics-lens", "ai-audit-workflow"],
-    signals: [
-      { label: "Technology & Data Stream", href: "#hero" },
-      { label: "Audit Analytics lens", href: "#role-lens" },
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-    ],
+      "Both disciplines address how organizations maintain control and accountability over increasingly complex technology environments.\n\nInformation Security Governance provides an established foundation around risk ownership, controls, resilience and accountability, while AI Governance introduces additional challenges related to model behavior, data, human oversight and evolving forms of technology use. I am interested in this convergence because AI risk increasingly needs to be understood within the broader technology and information governance environment rather than as an isolated discipline.",
+    signalIds: ["cap-information-security", "cap-ai-governance", "radar-ai-governance"],
   },
   {
-    id: "assistant-audit-traceability",
-    categories: ["Technology & AI"],
-    question: "What do you mean by audit traceability?",
+    id: "assistant-ai-governance-perspective",
+    categories: ["Information Security & AI Governance"],
+    question: "What perspective do you bring to AI Governance?",
     answer:
-      "By audit traceability I mean the ability to link findings, supporting evidence, recommendations and regulatory references in a clear and verifiable way. In audit, an answer is only useful if its evidence path can be reconstructed.",
-    signalIds: ["ai-audit-workflow", "ai-model-governance", "technology-data-stream"],
-    signals: [
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "Technology & Data Stream", href: "#hero" },
-    ],
+      "I approach AI Governance primarily from a risk, controls and assurance perspective, complemented by hands-on experimentation with AI technologies.\n\nMy audit background leads me to focus on questions such as whether risks are identifiable, controls are effective, responsibilities are clear and decisions can be traced to reliable evidence. At the same time, working with local LLMs, AI agents and model evaluation helps me develop a practical understanding of the systems being governed rather than approaching AI Governance only from a regulatory perspective.",
+    signalIds: ["project-codeiak", "cap-ai-governance", "cap-internal-audit"],
   },
   {
-    id: "assistant-tools-technologies",
-    categories: ["Technology & AI"],
-    question: "What tools and technologies do you use?",
+    id: "assistant-cbi-project",
+    categories: ["Projects & Technical Skills"],
+    question: "What is Cognitive Behavior Intelligence?",
     answer:
-      "I work with Python, pandas, SQL, Advanced Excel, SAP, HFM/Oracle, GitHub and AI-oriented workflows involving local LLMs, RAG concepts, multi-model orchestration, structured data extraction, audit traceability and AI agents.",
-    signalIds: ["technology-data-stream", "ai-audit-workflow", "codeiak"],
-    signals: [
-      { label: "Technology & Data Stream", href: "#hero" },
-      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-    ],
-  },
-  {
-    id: "assistant-ai-audit-workflow-project",
-    categories: ["Projects & Learning"],
-    question: "What is the AI-Assisted Audit Workflow project?",
-    answer:
-      "I am building it as a personal project to support the preparation and analysis of audit documentation. The goal is to extract findings, recommendations, evidence and regulatory references while maintaining traceability between documents and outputs.",
-    signalIds: ["ai-audit-workflow", "ai-model-governance", "audit-traceability"],
-    signals: [
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "Audit Traceability", href: "#hero" },
-    ],
+      "Cognitive Behavior Intelligence (CBI) is an ongoing AI Governance project exploring how AI adoption can reshape organizational workflows and create gaps between formal policies, expected controls and actual technology use.\n\nThe project focuses on identifying behavioral and governance signals related to AI use, with particular attention to AI risk, controls, auditability, traceability and privacy, informed by frameworks including the EU AI Act, ISO/IEC 42001 and NIST AI RMF.",
+    signalIds: ["project-cbi", "cap-ai-governance", "radar-ai-governance"],
   },
   {
     id: "assistant-codeiak-project",
-    categories: ["Projects & Learning"],
+    categories: ["Projects & Technical Skills"],
     question: "What is CodeIAK?",
     answer:
-      "CodeIAK is my ongoing personal project to build a local-first AI coding agent. It integrates multi-model orchestration, structured agentic workflows, reviewable and reversible code changes, and live execution transparency so users can inspect, modify and validate software projects offline—with an offline-first, control-oriented design rather than opaque automation.",
-    signalIds: ["codeiak", "ai-model-governance", "technology-ict-risk"],
-    signals: [
-      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "Technology & ICT Risk", href: "#risk-radar" },
-    ],
+      "CodeIAK is my ongoing local-first AI coding agent project, designed around multi-model orchestration, AI agents, reviewable and reversible code changes, and transparent execution.\n\nBeyond the application itself, the project gives me hands-on exposure to how AI agents interact with models, tools and software environments, helping me better understand the technical systems underlying emerging AI risks and governance challenges.",
+    signalIds: ["project-codeiak", "cap-ai-governance", "cap-technology-risk"],
+  },
+  {
+    id: "assistant-ai-projects-complement",
+    categories: ["Projects & Technical Skills"],
+    question: "How do your two AI projects complement each other?",
+    answer:
+      "The two projects approach AI from complementary perspectives. Cognitive Behavior Intelligence focuses on the governance problem — how AI adoption affects organizational behavior, controls and accountability — while CodeIAK provides hands-on technical exposure to AI agents, local models, orchestration and model evaluation.\n\nTogether, they reflect my objective of understanding AI both as a technology to work with and a system that needs to be governed, controlled and assessed.",
+    signalIds: ["project-cbi", "project-codeiak", "cap-ai-governance"],
+  },
+  {
+    id: "assistant-python-data-analysis",
+    categories: ["Projects & Technical Skills"],
+    question: "How do you use Python and data analysis?",
+    answer:
+      "I use Python and pandas primarily for data analysis, automation and structured workflows, particularly in risk, audit and AI-oriented use cases.\n\nMy objective is not generic software development, but using technical tools to improve how information is structured, analyzed, validated and made traceable, while building greater technical fluency for Technology Risk and AI Governance.",
+    signalIds: ["project-codeiak", "cap-technology-risk", "cap-ai-governance"],
+  },
+  {
+    id: "assistant-tools-technologies",
+    categories: ["Projects & Technical Skills"],
+    question: "What tools and technologies do you work with?",
+    answer:
+      "My core tools include Python, pandas and Advanced Excel for analysis and automation, alongside enterprise systems such as SAP and HFM/Oracle from my professional experience.\n\nThrough personal projects, I also work with local LLMs, AI agents, multi-model orchestration, LLM evaluation and structured data extraction, using GitHub and AI-assisted development tools to build and experiment with practical AI workflows.",
+    signalIds: ["project-codeiak", "project-cbi", "cap-technology-risk"],
+  },
+  {
+    id: "assistant-hands-on-technical-skills",
+    categories: ["Projects & Technical Skills"],
+    question: "How technical is your hands-on experience?",
+    answer:
+      "My technical profile is applied and developing rather than software-engineering focused. I build and experiment with Python-based data analysis, local LLMs, AI agents, multi-model systems and LLM/model evaluation to understand how these technologies operate in practice. I do not position myself as a software engineer or technical cybersecurity specialist.\n\nThis hands-on work complements my background in audit and risk: my goal is to develop enough technical depth to understand systems, assess their risks, challenge their controls and contribute effectively to their governance.",
+    signalIds: ["project-codeiak", "cap-ai-governance", "cap-technology-risk"],
   },
   {
     id: "assistant-cisa-preparation",
-    categories: ["Projects & Learning"],
+    categories: ["Professional Development"],
     question: "Why are you preparing for CISA?",
     answer:
-      "I am preparing for CISA because I want to strengthen my credibility in information systems audit, IT governance, control assurance and technology risk. It fits my move from internal audit toward IT and technology risk, and is the first step ahead of a planned CRISC path focused on IT risk and control governance.",
-    signalIds: ["cisa-candidate", "crisc-path", "technology-ict-risk"],
-    signals: [
-      { label: "CISA Candidate", href: "#credentials" },
-      { label: "CRISC Path", href: "#credentials" },
-      { label: "Technology & ICT Risk", href: "#risk-radar" },
-    ],
+      "I am preparing for CISA because it directly supports my development toward IT Audit, information systems governance and technology-related controls.\n\nIt builds naturally on my internal audit background while strengthening the information systems dimension of my profile. I see CISA as the first formal step in consolidating the transition from broader banking audit toward more specialized technology-oriented risk and assurance roles.",
+    signalIds: ["cred-cisa", "cap-technology-risk", "radar-technology"],
+  },
+  {
+    id: "assistant-certification-roadmap",
+    categories: ["Professional Development"],
+    question: "What is your certification roadmap?",
+    answer:
+      "My roadmap follows the progression I want to build professionally: CISA → CRISC → AAIR → FRM.\n\nCISA strengthens information systems audit and assurance, CRISC extends that foundation into Technology Risk and information systems controls, AAIR develops specialization in AI risk and governance, while FRM represents a longer-term path toward deeper financial and model risk knowledge.",
+    signalIds: ["cred-cisa", "cred-crisc", "cred-aair"],
+  },
+  {
+    id: "assistant-crisc-rationale",
+    categories: ["Professional Development"],
+    question: "Why are you planning CRISC after CISA?",
+    answer:
+      "I see CISA and CRISC as complementary. CISA strengthens my ability to assess information systems, governance and controls from an audit and assurance perspective, while CRISC extends that foundation toward IT risk identification, assessment, response and control.\n\nThis progression reflects my objective of moving beyond technology assurance alone toward a broader understanding of how organizations govern technology-related risk.",
+    signalIds: ["cred-crisc", "cred-cisa", "cap-technology-risk"],
+  },
+  {
+    id: "assistant-aair-rationale",
+    categories: ["Professional Development"],
+    question: "Why are you interested in an AI risk certification such as AAIR?",
+    answer:
+      "AI Governance and AI Risk are emerging areas in my professional direction, and AAIR represents a way to develop a more structured understanding of the risks, controls and governance challenges associated with AI systems.\n\nI see it as complementary to CISA and CRISC: as organizations increasingly integrate AI into business and decision-making processes, technology risk and assurance professionals will need to understand how traditional governance and control principles evolve in response to AI-specific risks.",
+    signalIds: ["cred-aair", "cap-ai-governance", "radar-ai-governance"],
   },
   {
     id: "assistant-frm-planning",
-    categories: ["Projects & Learning"],
-    question: "Why are you planning the FRM?",
+    categories: ["Professional Development"],
+    question: "Why is FRM part of your longer-term roadmap?",
     answer:
-      "I am planning the FRM to strengthen my understanding of financial risk management, especially credit risk, market risk and quantitative risk foundations. It complements my banking audit exposure and supports a broader risk profile.",
-    signalIds: ["frm-certification", "credit-risk", "banking-risk-regulation"],
-    signals: [
-      { label: "FRM Certification", href: "#credentials" },
-      { label: "Credit Risk", href: "#risk-radar" },
-      { label: "Banking Risk & Regulation", href: "#capabilities" },
-    ],
-  },
-  {
-    id: "assistant-languages",
-    categories: ["Projects & Learning"],
-    question: "What languages do you speak?",
-    answer:
-      "I speak Italian as my native language, English at C2 level, French at B1 level and Mandarin Chinese at B1 level. My academic background in languages supports my ability to work in international and multicultural environments.",
-    signalIds: ["hero-languages", "education", "chinese-language-track", "international-cross-cultural-work"],
-    signals: [
-      { label: "Hero Languages", href: "#hero" },
-      { label: "Education", href: "#education" },
-      { label: "Learning Roadmap", href: "#credentials" },
-    ],
+      "Financial risk remains an important foundation of my profile, particularly through my exposure to credit risk, IFRS 9/ECL and banking risk frameworks.\n\nI see FRM as a longer-term path to deepen my understanding of financial risk, quantitative foundations and model risk, complementing rather than replacing my specialization in technology and governance. My objective is to preserve the connection between financial risk and the increasingly technological systems through which it is measured, managed and controlled.",
+    signalIds: ["cred-frm", "cap-banking-risk", "radar-credit"],
   },
   {
     id: "assistant-limited-seniority",
     categories: ["Recruiter Concerns"],
-    question: "Why should we consider you if you do not have high seniority yet?",
+    question: "What value can you bring at your current level of experience?",
     answer:
-      "I do not position myself as a senior specialist. My value lies in the combination of audit discipline, banking risk exposure, regulatory awareness and a growing technical profile. I can contribute to structured analysis, documentation quality, control assessment and technology-oriented risk work while developing quickly.",
-    signalIds: ["experience", "professional-capabilities", "learning-roadmap"],
-    signals: [
-      { label: "Experience", href: "#experience" },
-      { label: "Professional Capabilities", href: "#capabilities" },
-      { label: "Learning Roadmap", href: "#credentials" },
-    ],
+      "At my current level, I bring hands-on internal audit experience, direct exposure to banking and regulatory environments, and a structured risk and control mindset.\n\nI can contribute immediately to control assessment, analytical work and technology-oriented risk topics, while continuing to build deeper specialization in IT Audit, Technology Risk, Information Security Governance and emerging AI-related risks.",
+    signalIds: ["exp-boc", "cap-internal-audit", "risk-radar"],
   },
   {
     id: "assistant-too-junior-tech-ai",
     categories: ["Recruiter Concerns"],
-    question: "Are you too junior for technology risk or AI governance roles?",
+    question: "What makes you ready to move into Technology Risk or AI Governance roles?",
     answer:
-      "I am not presenting myself as a senior AI governance or technology risk expert. I am building toward those areas from an audit, control and risk perspective. I am suitable for roles where analytical discipline, regulatory awareness and willingness to grow are important.",
-    signalIds: ["technology-risk-resilience", "ai-model-governance", "cisa-candidate"],
-    signals: [
-      { label: "Technology Risk & Resilience", href: "#capabilities" },
-      { label: "AI & Model Governance", href: "#risk-radar" },
-      { label: "CISA Candidate", href: "#credentials" },
-    ],
+      "My readiness is built on a solid foundation in internal audit, risk, controls and regulated banking. Technology Risk is a natural extension of that foundation, applying the same control and assurance thinking to IT systems, resilience and third-party dependencies.\n\nAI Governance is an emerging specialization I am actively developing through framework knowledge, applied projects and hands-on technical experimentation. This makes me well suited to roles where my existing foundation can create value now, while I continue to develop deeper specialization and take on progressively greater responsibility.",
+    signalIds: ["exp-boc", "cred-cisa", "cap-ai-governance"],
   },
   {
     id: "assistant-profile-too-broad",
     categories: ["Recruiter Concerns"],
-    question: "Is your profile too broad?",
+    question: "How do the different parts of your profile fit together?",
     answer:
-      "Broad by design, not scattered. It rests on three connected pillars — banking risk, audit & controls, and technology / AI governance — with one common thread: control over complex systems where regulation, risk and technology overlap.",
-    signalIds: ["banking-risk-regulation", "professional-capabilities", "ai-governance-data-systems"],
-    signals: [
-      { label: "Banking Risk & Regulation", href: "#capabilities" },
-      { label: "Professional Capabilities", href: "#capabilities" },
-      { label: "AI Governance & Data Systems", href: "#capabilities" },
-    ],
+      "The different parts of my profile build on each other in a clear progression.\n\nBanking and financial risk provide the domain foundation; internal audit provides the control and assurance methodology; IT Audit and Technology Risk extend that foundation into technology; Information Security and AI Governance represent the emerging governance layer.\n\nThe common thread is understanding, assessing and controlling risk in increasingly complex and technology-dependent systems.",
+    signalIds: ["role-lens", "risk-radar", "cap-internal-audit"],
   },
   {
-    id: "assistant-hands-on-technical-skills",
+    id: "assistant-why-move-to-technology",
     categories: ["Recruiter Concerns"],
-    question: "Do you have hands-on technical skills or only theoretical interest?",
+    question: "Why move toward technology if your background is mainly banking and audit?",
     answer:
-      "My technical profile is developing through practical work with Python, pandas, local AI workflows, structured extraction and hands-on builds such as the AI-Assisted Audit Workflow and CodeIAK. It is not purely theoretical, but it is still growing and grounded in audit, risk and governance-oriented use cases.",
-    signalIds: ["technology-data-stream", "ai-audit-workflow", "codeiak"],
-    signals: [
-      { label: "Technology & Data Stream", href: "#hero" },
-      { label: "AI-Assisted Audit Workflow", href: "#projects" },
-      { label: "CodeIAK — Local AI Coding Agent", href: "#projects" },
-    ],
+      "I see this as an evolution rather than a career change. Banking processes, risk models, regulatory reporting, controls and critical operations increasingly depend on technology, data and third-party systems.\n\nMoving toward IT Audit and Technology Risk allows me to build on my existing audit and banking foundation while developing expertise in the technological layer that increasingly determines how risks emerge, are measured and are controlled.",
+    signalIds: ["exp-boc", "cap-technology-risk", "radar-technology"],
+  },
+  {
+    id: "assistant-ideal-environment",
+    categories: ["Recruiter Concerns"],
+    question: "What kind of environment would allow you to perform at your best?",
+    answer:
+      "I perform best in environments that combine clear accountability with intellectual autonomy, where people are expected to question constructively, take initiative and develop beyond narrowly defined responsibilities.\n\nI am particularly attracted to organizations that treat audit and risk as functions that help improve decision-making and governance, and that provide exposure to technology, complex regulatory challenges and continuous professional development.",
+    signalIds: ["exp-boc", "role-lens", "cap-internal-audit"],
   },
 ];
 
 const assistantCategories = [
-  "Profile Fit",
-  "Audit & Risk",
-  "Technology & AI",
-  "Projects & Learning",
+  "Profile & Career Direction",
+  "Audit, Banking & Financial Risk",
+  "Technology Risk & Operational Resilience",
+  "Information Security & AI Governance",
+  "Projects & Technical Skills",
+  "Professional Development",
   "Recruiter Concerns",
 ];
 
@@ -1135,47 +994,36 @@ function isLensRelevant(selectedLens, group, value) {
 }
 
 function getAssistantSignals(prompt) {
-  if (prompt.signalIds?.length) {
-    return prompt.signalIds.map((signalId) => {
-      const signal = signalMap[signalId];
-      if (!signal) {
-        return {
-          id: signalId,
-          label: signalId,
-          missing: true,
-        };
-      }
-
-      return {
-        id: signalId,
-        ...signal,
-      };
-    });
+  if (!prompt.signalIds?.length) {
+    return [];
   }
 
-  return prompt.signals.map((signal) => ({ ...signal, id: signal.label }));
+  return prompt.signalIds.map((signalId) => {
+    const signal = signalMap[signalId];
+    if (!signal) {
+      return {
+        id: signalId,
+        label: signalId,
+        missing: true,
+      };
+    }
+
+    return {
+      id: signalId,
+      ...signal,
+    };
+  });
 }
 
 function getSignalTargetElement(signal) {
-  const targetIds = [
-    ...(signal.capabilities ?? []),
-    ...(signal.credentials ?? []),
-    ...(signal.experiences ?? []),
-    ...(signal.projects ?? []),
-    ...(signal.radar ?? []),
-    ...(signal.education ?? []),
-  ];
+  const target = signal.target;
+  if (!target) return null;
 
-  for (const targetId of targetIds) {
-    const target = document.querySelector(`[data-role-lens-id="${targetId}"]`);
-    if (target) return target;
+  if (target.type === "section") {
+    return document.getElementById(target.id);
   }
 
-  if (signal.href?.startsWith("#")) {
-    return document.getElementById(signal.href.slice(1));
-  }
-
-  return null;
+  return document.querySelector(`[data-role-lens-id="${target.id}"]`);
 }
 
 function highlightSignalTarget(target) {
@@ -1183,24 +1031,6 @@ function highlightSignalTarget(target) {
   window.setTimeout(() => {
     target.classList.remove("assistant-signal-target");
   }, 1800);
-}
-
-async function copyCurrentPageUrl() {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(window.location.href);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = window.location.href;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  textarea.style.pointerEvents = "none";
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
 }
 
 function lensSurfaceClass(selectedLens, group, value, accent = "cyan") {
@@ -1240,6 +1070,95 @@ function SurfaceCard({ children, className = "", ...props }) {
   );
 }
 
+// Minimal, self-positioning academic-focus info indicator. Opens above the
+// trigger by default, flips below when there is not enough room, and shifts
+// horizontally to stay within the viewport. Hover, keyboard focus and tap all
+// reveal the contextual tooltip.
+function AcademicFocusInfo({ id, text, label = "Academic focus" }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ side: "top", shiftX: 0 });
+  const btnRef = useRef(null);
+  const tipRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+
+    const reposition = () => {
+      const btn = btnRef.current;
+      const tip = tipRef.current;
+      if (!btn || !tip) return;
+      const b = btn.getBoundingClientRect();
+      const t = tip.getBoundingClientRect();
+      const margin = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      // Prefer opening above; flip below only if there is not enough room above
+      // but enough room below.
+      let side = "top";
+      if (b.top - t.height - margin < 0 && b.bottom + t.height + margin <= vh) {
+        side = "bottom";
+      }
+
+      // Center horizontally on the trigger, then clamp inside the viewport.
+      const centerX = b.left + b.width / 2;
+      const desiredLeft = centerX - t.width / 2;
+      const clampedLeft = Math.max(margin, Math.min(desiredLeft, vw - t.width - margin));
+      setPos({ side, shiftX: clampedLeft - desiredLeft });
+    };
+
+    reposition();
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, [open]);
+
+  const close = () => {
+    setOpen(false);
+    btnRef.current?.blur();
+  };
+
+  return (
+    <span
+      className="relative ml-1 inline-flex align-middle"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      <button
+        ref={btnRef}
+        type="button"
+        aria-label="Show academic focus"
+        aria-describedby={open ? id : undefined}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") close();
+        }}
+        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-200 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      >
+        <span aria-hidden="true" className="font-serif text-[14px] italic leading-none">
+          i
+        </span>
+      </button>
+      <span
+        ref={tipRef}
+        id={id}
+        role="tooltip"
+        style={{ transform: `translateX(calc(-50% + ${pos.shiftX}px))` }}
+        className={`absolute left-1/2 z-30 w-56 max-w-[calc(100vw-2rem)] rounded-md border border-slate-800 bg-slate-950/95 px-3 py-2 text-left shadow-md shadow-slate-950/40 transition-opacity duration-150 ${
+          open ? "opacity-100" : "pointer-events-none opacity-0"
+        } ${pos.side === "top" ? "bottom-full mb-2" : "top-full mt-2"}`}
+      >
+        <span className="block text-[11px] font-medium text-slate-500">{label}</span>
+        <span className="mt-0.5 block text-sm font-normal leading-6 text-slate-300">{text}</span>
+      </span>
+    </span>
+  );
+}
+
 function getRadarTone(maturity) {
   if (maturity === "Primary domain") {
     return {
@@ -1267,6 +1186,33 @@ function getRadarTone(maturity) {
     activeDot: "border-amber-100 bg-amber-300 shadow-[0_0_24px_rgba(252,211,77,0.28)]",
     pulsePrimary: "border-amber-300/40 shadow-[0_0_18px_rgba(252,211,77,0.18)]",
     pulseSecondary: "border-amber-200/22",
+    badge: "border-amber-400/25 bg-amber-400/10 text-amber-100",
+    dot: "bg-amber-300",
+    link: "text-amber-100 hover:text-amber-50",
+  };
+}
+
+// Evidence-coverage tone for the Profile Coverage panel. Deliberately distinct
+// wording ("Strong/Developing/Emerging evidence") from Risk Map maturity, while
+// reusing the portfolio's existing colour language.
+function getCoverageTone(band) {
+  if (band === "STRONG") {
+    return {
+      badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-100",
+      dot: "bg-cyan-300",
+      link: "text-cyan-100 hover:text-cyan-50",
+    };
+  }
+
+  if (band === "DEVELOPING") {
+    return {
+      badge: "border-violet-400/25 bg-violet-400/10 text-violet-100",
+      dot: "bg-violet-300",
+      link: "text-violet-100 hover:text-violet-50",
+    };
+  }
+
+  return {
     badge: "border-amber-400/25 bg-amber-400/10 text-amber-100",
     dot: "bg-amber-300",
     link: "text-amber-100 hover:text-amber-50",
@@ -1445,21 +1391,45 @@ function PortfolioAssistant() {
   const handleAssistantSignalClick = (event, signal) => {
     event.preventDefault();
 
-    if (signal.missing || !signal.href) {
+    const target = signal.target;
+    if (signal.missing || !target) {
       console.warn("Missing Portfolio Assistant signal mapping:", signal.id);
       return;
     }
 
-    const target = getSignalTargetElement(signal);
-    if (!target) {
-      console.warn("Missing Portfolio Assistant signal target:", signal.id, signal.href);
+    setIsDrawerOpen(false);
+
+    const scrollToTarget = () => {
+      const element = getSignalTargetElement(signal);
+      if (!element) return false;
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      highlightSignalTarget(element);
+      return true;
+    };
+
+    // Project cards render one at a time in a carousel: activate the requested
+    // project first, then scroll once its card has mounted.
+    if (target.type === "project") {
+      window.dispatchEvent(
+        new CustomEvent("assistant:activate-project", { detail: target.id })
+      );
+      let attempts = 0;
+      const attemptScroll = () => {
+        if (scrollToTarget()) return;
+        if (attempts++ < 14) {
+          window.setTimeout(attemptScroll, 70);
+        } else {
+          console.warn("Missing Portfolio Assistant signal target:", signal.id);
+        }
+      };
+      window.setTimeout(attemptScroll, 120);
       return;
     }
 
-    setIsDrawerOpen(false);
     window.setTimeout(() => {
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-      highlightSignalTarget(target);
+      if (!scrollToTarget()) {
+        console.warn("Missing Portfolio Assistant signal target:", signal.id);
+      }
     }, 160);
   };
 
@@ -1681,6 +1651,18 @@ function ProjectDeck({ selectedLens = "Overview" }) {
     setActiveProject(index);
   };
 
+  useEffect(() => {
+    const handleActivateProject = (event) => {
+      const index = projects.findIndex((item) => item.id === event.detail);
+      if (index < 0) return;
+      setDirection(1);
+      setActiveProject(index);
+    };
+    window.addEventListener("assistant:activate-project", handleActivateProject);
+    return () =>
+      window.removeEventListener("assistant:activate-project", handleActivateProject);
+  }, []);
+
   const projectLensClass = lensSurfaceClass(selectedLens, "projects", project.id, "cyan");
 
   return (
@@ -1875,20 +1857,12 @@ function RoleLens({ selectedLens, onSelectLens }) {
   );
 }
 
-function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
+function ProfileRadarChart({ activeId, onSelect }) {
   const centerX = 80;
   const centerY = 72;
   const maxRadius = 28;
   const labelRadius = 45;
-  const labelLinesByDomain = {
-    "radar-control-audit-risk": ["Control & Audit", "Risk"],
-    "radar-credit-risk": ["Credit Risk"],
-    "radar-regulatory-compliance-risk": ["Regulatory &", "Compliance Risk"],
-    "radar-technology-ict-risk": ["Technology & ICT", "Risk"],
-    "radar-operational-resilience": ["Operational", "Resilience"],
-    "radar-ai-model-governance": ["AI & Model", "Governance"],
-  };
-  const angleFor = (index) => (-90 + index * (360 / profileRadarAxes.length)) * (Math.PI / 180);
+  const angleFor = (index) => (-90 + index * (360 / profileCoverage.length)) * (Math.PI / 180);
   const pointFor = (index, radius) => {
     const angle = angleFor(index);
     return {
@@ -1896,15 +1870,15 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
       y: centerY + Math.sin(angle) * radius,
     };
   };
-  const currentPolygonPoints = profileRadarAxes
+  // Radar magnitudes are discrete visualization values derived from qualitative
+  // evidence-coverage bands; they are not proficiency scores.
+  // Headroom keeps the strongest spike just inside the outer ring: STRONG lands
+  // on the second-outermost grid ring (0.8) rather than touching the edge.
+  const spikeHeadroom = 0.8;
+  const radiusForBand = (band) => (coverageBandMagnitude[band] / coverageBandMax) * maxRadius * spikeHeadroom;
+  const coveragePolygonPoints = profileCoverage
     .map((axis, index) => {
-      const point = pointFor(index, (axis.value / 100) * maxRadius);
-      return `${point.x},${point.y}`;
-    })
-    .join(" ");
-  const targetPolygonPoints = profileRadarAxes
-    .map((axis, index) => {
-      const point = pointFor(index, (axis.targetValue / 100) * maxRadius);
+      const point = pointFor(index, radiusForBand(axis.band));
       return `${point.x},${point.y}`;
     })
     .join(" ");
@@ -1915,18 +1889,14 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
       <div className="relative z-10 mb-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-slate-400">
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-cyan-300/80" />
-          Current coverage
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full border border-violet-300/70" />
-          Target direction
+          Evidence coverage
         </span>
       </div>
-      <svg className="relative z-10 aspect-[160/130] w-full max-w-[560px] overflow-visible" viewBox="0 0 160 130" role="img" aria-label="Indicative profile coverage chart">
+      <svg className="relative z-10 aspect-[160/130] w-full max-w-[560px] overflow-visible" viewBox="0 0 160 130" role="img" aria-label="Indicative profile evidence coverage chart">
         {[0.2, 0.4, 0.6, 0.8, 1].map((level) => (
           <polygon
             key={level}
-            points={profileRadarAxes
+            points={profileCoverage
               .map((_, index) => {
                 const point = pointFor(index, maxRadius * level);
                 return `${point.x},${point.y}`;
@@ -1937,24 +1907,24 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
             strokeWidth="0.35"
           />
         ))}
-        {profileRadarAxes.map((axis, index) => {
+        {profileCoverage.map((axis, index) => {
           const outer = pointFor(index, maxRadius);
-          const domain = radarDomains.find((item) => item.id === axis.domainId);
-          const isActive = selectedDomainId === axis.domainId;
+          const isActive = activeId === axis.id;
           const label = pointFor(index, labelRadius);
           const labelAnchor = label.x > centerX + 8 ? "start" : label.x < centerX - 8 ? "end" : "middle";
-          const labelLines = labelLinesByDomain[axis.domainId] ?? [domain?.title];
           return (
             <g
-              key={axis.domainId}
+              key={axis.id}
               role="button"
               tabIndex="0"
+              aria-label={`${axis.label}: ${coverageBandText[axis.band]}`}
+              aria-pressed={isActive}
               className="cursor-pointer outline-none"
-              onClick={() => onSelectDomain(axis.domainId)}
+              onClick={() => onSelect(axis.id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
-                  onSelectDomain(axis.domainId);
+                  onSelect(axis.id);
                 }
               }}
             >
@@ -1973,7 +1943,7 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
                 dominantBaseline="middle"
                 className={`${isActive ? "fill-cyan-100" : "fill-slate-300"} text-[5px] font-medium sm:text-[3.75px]`}
               >
-                {labelLines.map((line, lineIndex) => (
+                {axis.shortLabel.map((line, lineIndex) => (
                   <tspan key={line} x={label.x} dy={lineIndex === 0 ? 0 : 5}>
                     {line}
                   </tspan>
@@ -1983,34 +1953,32 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
           );
         })}
         <polygon
-          points={targetPolygonPoints}
-          fill="rgba(167,139,250,0.035)"
-          stroke="rgba(167,139,250,0.52)"
-          strokeWidth="0.55"
-          strokeDasharray="2 2"
-        />
-        <polygon
-          points={currentPolygonPoints}
+          points={coveragePolygonPoints}
           fill="rgba(34,211,238,0.16)"
           stroke="rgba(103,232,249,0.78)"
           strokeWidth="0.65"
         />
-        {profileRadarAxes.map((axis, index) => {
-          const point = pointFor(index, (axis.value / 100) * maxRadius);
-          const isActive = selectedDomainId === axis.domainId;
+        {profileCoverage.map((axis, index) => {
+          const point = pointFor(index, radiusForBand(axis.band));
+          const isActive = activeId === axis.id;
           return (
             <circle
-              key={axis.domainId}
+              key={axis.id}
               cx={point.x}
               cy={point.y}
               r={isActive ? "1.45" : "1.05"}
               fill={isActive ? "rgba(224,251,255,0.98)" : "rgba(165,243,252,0.94)"}
               className="cursor-pointer drop-shadow-[0_0_8px_rgba(34,211,238,0.28)]"
-              onClick={() => onSelectDomain(axis.domainId)}
+              onClick={() => onSelect(axis.id)}
             />
           );
         })}
       </svg>
+      <div className="relative z-10 mt-1 min-h-[32px] w-full max-w-[460px] px-2 text-center">
+        <p className="text-[11px] leading-5 text-slate-500">
+          Coverage reflects the strength and breadth of supporting portfolio evidence, not a proficiency score.
+        </p>
+      </div>
     </div>
   );
 }
@@ -2018,25 +1986,22 @@ function ProfileRadarChart({ selectedDomainId, onSelectDomain }) {
 function RiskRadar({ selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
   const [mapView, setMapView] = useState("risk-map");
+  const [activeCoverageId, setActiveCoverageId] = useState(profileCoverage[0].id);
   const selectedDomain = radarDomains[activeDomain];
   const selectedTone = getRadarTone(selectedDomain.maturity);
-  const selectDomainById = (domainId) => {
-    const nextIndex = radarDomains.findIndex((domain) => domain.id === domainId);
-    if (nextIndex >= 0) setActiveDomain(nextIndex);
-  };
-
+  const selectedCoverage = profileCoverage.find((axis) => axis.id === activeCoverageId) ?? profileCoverage[0];
+  const selectedCoverageTone = getCoverageTone(selectedCoverage.band);
   return (
     <section id="risk-radar" className="border-t border-slate-800/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-7 max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Risk & Competence Map</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight !text-slate-50 sm:text-3xl">
-            Professional Risk Map
+          <h2 className="text-2xl font-semibold tracking-tight !text-slate-50 sm:text-3xl">
+            Professional Risk & Evidence Map.
           </h2>
           <p className="mt-4 leading-7 text-slate-300">
-            Explore the risk and governance domains where my profile is developing.
+            Explore the risk domains shaping my profile and the evidence supporting its development.
           </p>
-          {mapView === "risk-map" ? (
+          {mapView === "risk-map" && (
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
               <span className="font-semibold uppercase tracking-[0.2em] text-slate-400">Domain status:</span>
               <div className="flex flex-wrap gap-x-3 gap-y-1.5">
@@ -2045,10 +2010,6 @@ function RiskRadar({ selectedLens = "Overview" }) {
                 <span><span className="text-amber-200/80">Emerging</span> · forward-looking focus</span>
               </div>
             </div>
-          ) : (
-            <p className="mt-4 max-w-2xl text-xs leading-5 text-slate-500">
-              Indicative view of my current coverage across the same risk domains.
-            </p>
           )}
         </div>
 
@@ -2087,21 +2048,30 @@ function RiskRadar({ selectedLens = "Overview" }) {
                 >
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.14),transparent_18%),radial-gradient(circle_at_center,rgba(124,58,237,0.08),transparent_42%)]" />
                   <div className="radar-sweep" />
-                  <div className="absolute inset-[8%] rounded-full border border-slate-700/35" />
-                  <div className="absolute inset-[21%] rounded-full border border-slate-800/75" />
-                  <div className="absolute inset-[34%] rounded-full border border-slate-800/60" />
+                  <div className="absolute inset-[14%] rounded-full border border-slate-700/35" />
+                  <div className="absolute inset-[26%] rounded-full border border-slate-800/75" />
+                  <div className="absolute inset-[38%] rounded-full border border-slate-800/60" />
                   <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100">
-                    {radarDomains.map((domain) => (
-                      <line
-                        key={domain.title}
-                        x1="50"
-                        y1="50"
-                        x2={domain.x}
-                        y2={domain.y}
-                        stroke="rgba(148, 163, 184, 0.12)"
-                        strokeWidth="0.25"
-                      />
-                    ))}
+                    {radarDomains.map((domain) => {
+                      // Extend each spoke past its node so it crosses the
+                      // outermost ring (the dish edge at radius 50) instead of
+                      // stopping at the node ring.
+                      const dx = domain.x - 50;
+                      const dy = domain.y - 50;
+                      const dist = Math.hypot(dx, dy) || 1;
+                      const factor = 49 / dist;
+                      return (
+                        <line
+                          key={domain.title}
+                          x1="50"
+                          y1="50"
+                          x2={50 + dx * factor}
+                          y2={50 + dy * factor}
+                          stroke="rgba(148, 163, 184, 0.12)"
+                          strokeWidth="0.25"
+                        />
+                      );
+                    })}
                   </svg>
 
                   <div className="absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/35 bg-slate-950/90 px-3 text-center text-[11px] font-semibold leading-4 text-slate-100 shadow-[0_0_34px_rgba(34,211,238,0.18)] sm:h-24 sm:w-24 sm:text-xs">
@@ -2165,7 +2135,7 @@ function RiskRadar({ selectedLens = "Overview" }) {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: "easeOut" }}
                 >
-                  <ProfileRadarChart selectedDomainId={selectedDomain.id} onSelectDomain={selectDomainById} />
+                  <ProfileRadarChart activeId={activeCoverageId} onSelect={setActiveCoverageId} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -2173,48 +2143,93 @@ function RiskRadar({ selectedLens = "Overview" }) {
 
           <SurfaceCard className="min-h-[380px] p-5 sm:p-6">
             <AnimatePresence mode="wait">
-              <motion.div
-                key={selectedDomain.title}
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-              >
-                <div className="border-b border-slate-800 pb-5">
-                  <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${selectedTone.badge}`}>
-                    {selectedDomain.maturity}
-                  </span>
-                  <h3 className="mt-4 text-2xl font-semibold text-slate-50">{selectedDomain.title}</h3>
-                  <p className="mt-2 text-sm font-medium text-slate-400">{selectedDomain.category}</p>
-                  <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">{selectedDomain.explanation}</p>
-                </div>
-
-                <div className="mt-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Expertise Areas</p>
-                  <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
-                    {selectedDomain.signals.map((signal) => (
-                      <li key={signal} className="flex gap-3">
-                        <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${selectedTone.dot}`} />
-                        <span>{signal}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="mt-6 border-t border-slate-800 pt-4">
-                  <p className="text-sm text-slate-400">Related portfolio sections:</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                    {selectedDomain.sections.map((section, index) => (
-                      <span key={section} className="inline-flex items-center gap-2">
-                        <a href={sectionAnchors[section]} className={`font-medium transition ${selectedTone.link}`}>
-                          {section}
-                        </a>
-                        {index < selectedDomain.sections.length - 1 && <span className="text-slate-600">·</span>}
-                      </span>
-                    ))}
+              {mapView === "risk-map" ? (
+                <motion.div
+                  key={`domain-${selectedDomain.title}`}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <div className="border-b border-slate-800 pb-5">
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${selectedTone.badge}`}>
+                      {selectedDomain.maturity}
+                    </span>
+                    <h3 className="mt-4 text-2xl font-semibold text-slate-50">{selectedDomain.title}</h3>
+                    <p className="mt-2 text-sm font-medium text-slate-400">{selectedDomain.category}</p>
+                    <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">{selectedDomain.explanation}</p>
                   </div>
-                </div>
-              </motion.div>
+
+                  <div className="mt-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Focus Areas</p>
+                    <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
+                      {selectedDomain.signals.map((signal) => (
+                        <li key={signal} className="flex gap-3">
+                          <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${selectedTone.dot}`} />
+                          <span>{signal}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="mt-6 border-t border-slate-800 pt-4">
+                    <p className="text-sm text-slate-400">Related portfolio sections:</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                      {selectedDomain.sections.map((section, index) => (
+                        <span key={section} className="inline-flex items-center gap-2">
+                          <a href={sectionAnchors[section]} className={`font-medium transition ${selectedTone.link}`}>
+                            {section}
+                          </a>
+                          {index < selectedDomain.sections.length - 1 && <span className="text-slate-600">·</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={`coverage-${selectedCoverage.id}`}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <div className="border-b border-slate-800 pb-5">
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${selectedCoverageTone.badge}`}>
+                      {coverageBandText[selectedCoverage.band]}
+                    </span>
+                    <h3 className="mt-4 text-2xl font-semibold text-slate-50">{selectedCoverage.label}</h3>
+                    <p className="mt-2 text-sm font-medium text-slate-400">Evidence coverage</p>
+                    <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">{selectedCoverage.definition}</p>
+                  </div>
+
+                  <div className="mt-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Evidence Base</p>
+                    <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
+                      {selectedCoverage.evidenceBase.map((item) => (
+                        <li key={item} className="flex gap-3">
+                          <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${selectedCoverageTone.dot}`} />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="mt-6 border-t border-slate-800 pt-4">
+                    <p className="text-sm text-slate-400">Explore supporting evidence:</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                      {selectedCoverage.sections.map((section, index) => (
+                        <span key={section} className="inline-flex items-center gap-2">
+                          <a href={sectionAnchors[section]} className={`font-medium transition ${selectedCoverageTone.link}`}>
+                            {section}
+                          </a>
+                          {index < selectedCoverage.sections.length - 1 && <span className="text-slate-600">·</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
           </SurfaceCard>
         </div>
@@ -2222,9 +2237,6 @@ function RiskRadar({ selectedLens = "Overview" }) {
         <div className="mt-14 border-t border-slate-800 pt-7 text-sm leading-6 text-slate-500">
           <p className="font-medium text-slate-400">Lorenzo Natali</p>
           <p className="mt-2">
-            Designed as a static professional portfolio at the intersection of audit, risk, data and technology.
-          </p>
-          <p className="mt-1">
             Built with React, Vite and Codex-assisted development. No personal data is collected through this website.
           </p>
           <p className="mt-1">
@@ -2245,24 +2257,6 @@ function App() {
       ...current,
       [experienceId]: !current[experienceId],
     }));
-  };
-
-  const handleSharePortfolio = async () => {
-    const shareData = {
-      title: "Lorenzo Natali — Risk, Audit & Technology Portfolio",
-      text: "Professional portfolio at the intersection of audit, risk, data and technology.",
-      url: window.location.href,
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await copyCurrentPageUrl();
-      }
-    } catch (error) {
-      if (error?.name === "AbortError") return;
-    }
   };
 
   return (
@@ -2298,7 +2292,9 @@ function App() {
               transition={{ duration: 0.8 }}
               className="mt-5 text-xl font-medium !text-slate-300 sm:text-2xl"
             >
-              Banking Risk | Audit & Controls | Technology & AI Governance
+              Banking Risk &amp; Controls | Technology &amp; Information Security Governance |
+              <br />
+              AI Governance
             </motion.h2>
 
             <div className="h-12" aria-hidden="true" />
@@ -2310,13 +2306,13 @@ function App() {
               className="max-w-3xl space-y-4 text-base leading-8 text-slate-300 sm:text-lg"
             >
               <p>
-                I position my profile at the intersection of banking risk, internal audit and technology governance,
-                combining financial risk awareness, control-oriented audit thinking and a growing focus on IT, cyber,
-                data and AI-related risks.
+                I position my profile at the intersection of banking risk, technology &amp; information security
+                governance and AI governance, with internal audit and assurance as the connecting backbone that ties
+                financial risk, control thinking and emerging technology risks together.
               </p>
               <p>
-                This interactive portfolio maps my experience, projects, skills and professional direction across
-                financial risk, audit &amp; controls, and technology / AI governance.
+                This interactive portfolio maps my experience, projects, skills and professional direction, showing how
+                these areas connect and evolve across my career.
               </p>
             </motion.div>
 
@@ -2372,19 +2368,6 @@ function App() {
                   <span className="mt-1 text-xs font-normal text-slate-400">View projects and code</span>
                 </span>
               </a>
-              <div className="group/share relative flex items-center sm:items-center">
-                <button
-                  type="button"
-                  onClick={handleSharePortfolio}
-                  aria-label="Share portfolio"
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-cyan-300/20 bg-slate-950/45 text-cyan-100/80 shadow-lg shadow-cyan-950/10 transition hover:border-cyan-300/45 hover:bg-cyan-950/25 hover:text-cyan-50 hover:shadow-cyan-950/25 focus:outline-none focus:ring-2 focus:ring-cyan-300/35"
-                >
-                  <Share2 className="h-4.5 w-4.5 shrink-0" />
-                </button>
-                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-800 bg-slate-950/95 px-2 py-1 text-[11px] font-medium text-slate-300 opacity-0 shadow-lg shadow-slate-950/40 transition group-hover/share:opacity-100 group-focus-within/share:opacity-100">
-                  Share portfolio
-                </span>
-              </div>
             </div>
           </div>
 
@@ -2394,7 +2377,7 @@ function App() {
 
       <RoleLens selectedLens={selectedLens} onSelectLens={setSelectedLens} />
 
-      <Section id="capabilities" eyebrow="Capability Map" title="Professional Capabilities">
+      <Section id="capabilities" title="Professional Capabilities">
         <div className="grid gap-5 sm:grid-cols-2 lg:gap-6">
           {expertise.map((item) => {
             const Icon = item.icon;
@@ -2424,7 +2407,7 @@ function App() {
         </div>
       </Section>
 
-      <Section id="credentials" eyebrow="Certifications & Roadmap" title="Professional Certifications Roadmap" className="bg-slate-950/80">
+      <Section id="credentials" title="Professional Certifications Roadmap" className="bg-slate-950/80">
         <div className="credentials-rail -mx-4 -mt-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-2 sm:px-2">
           {credentials.map((credential) => (
             <SurfaceCard
@@ -2490,12 +2473,13 @@ function App() {
         </div>
       </Section>
 
-      <Section id="experience" eyebrow="Professional Track" title="Experience" className="bg-slate-950/80">
+      <Section id="experience" title="Professional Experience" className="bg-slate-950/80">
         <div className="relative max-w-5xl">
           <div className="absolute bottom-0 left-3 top-2 w-px bg-slate-800 sm:left-4" />
           <div className="space-y-6">
             {experiences.map((exp) => {
-              const isExpanded = Boolean(expandedExperiences[exp.id]);
+              const hasDetails = Array.isArray(exp.details) && exp.details.length > 0;
+              const isExpanded = hasDetails && Boolean(expandedExperiences[exp.id]);
 
               return (
                 <motion.article
@@ -2530,9 +2514,11 @@ function App() {
                           transition={{ duration: 0.22, ease: "easeOut" }}
                           className="mt-4 space-y-2 overflow-hidden text-sm leading-6 text-slate-300 sm:text-base"
                         >
-                          <li className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300/60">
-                            Summary
-                          </li>
+                          {hasDetails && (
+                            <li className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300/60">
+                              Summary
+                            </li>
+                          )}
                           {exp.points.map((point) => (
                             <li key={point} className="flex gap-3">
                               <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/70" />
@@ -2543,6 +2529,7 @@ function App() {
                       )}
                     </AnimatePresence>
 
+                    {hasDetails && (
                     <div className="mt-5 border-t border-slate-800/80 pt-4">
                       {!isExpanded && (
                         <button
@@ -2588,6 +2575,7 @@ function App() {
                         )}
                       </AnimatePresence>
                     </div>
+                    )}
                   </SurfaceCard>
                 </motion.article>
               );
@@ -2596,19 +2584,31 @@ function App() {
         </div>
       </Section>
 
-      <Section id="projects" eyebrow="Hands-on Work" title="Projects & Applied Work">
+      <Section id="projects" title="Projects & Applied Work">
         <ProjectDeck selectedLens={selectedLens} />
       </Section>
 
-      <Section id="education" eyebrow="Academic Foundation" title="Education" className="bg-slate-950/80">
-        <div className="grid gap-5 lg:grid-cols-3">
+      <Section id="education" title="Education" className="bg-slate-950/80">
+        <div className="education-rail -mx-4 -mt-2 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-2 sm:px-2">
           {education.map((item) => (
-            <SurfaceCard key={item.degree} data-role-lens-id={item.id} className="p-5">
+            <SurfaceCard
+              key={item.degree}
+              data-role-lens-id={item.id}
+              className="flex w-[78%] shrink-0 snap-start flex-col p-5 sm:w-[20rem]"
+            >
               <GraduationCap className="mb-4 h-5 w-5 text-cyan-300" />
               <p className="text-sm font-medium text-slate-400">{item.period}</p>
-              <h3 className="mt-3 text-base font-semibold leading-6 text-slate-50">{item.degree}</h3>
+              <h3 className="mt-3 text-base font-semibold leading-6 text-slate-50">
+                {item.degree}
+                {item.focus && <AcademicFocusInfo id={`${item.id}-focus`} text={item.focus} />}
+              </h3>
+              {item.qualifier && (
+                <p className="mt-1.5 text-sm font-medium text-slate-400">{item.qualifier}</p>
+              )}
               <p className="mt-3 text-sm leading-6 text-slate-300">{item.school}</p>
-              <p className="mt-4 border-t border-slate-800 pt-3 text-sm text-slate-400">{item.detail}</p>
+              {item.detail && (
+                <p className="mt-4 border-t border-slate-800 pt-3 text-sm text-slate-400">{item.detail}</p>
+              )}
             </SurfaceCard>
           ))}
         </div>
