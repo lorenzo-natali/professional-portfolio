@@ -117,7 +117,7 @@ const projects = [
     stage: "Prototype",
     text: "Developing an AI governance prototype designed to explore how AI adoption reshapes organizational workflows and identify potential gaps between actual behavior, governance policies and expected controls. Built around privacy-by-design, auditability and traceability, with a governance model informed by the EU AI Act, NIST AI RMF, ISO/IEC 42001 and COBIT.",
     tech: ["AI Governance", "AI Risk", "Risk & Controls", "Behavioral Analytics", "Privacy by Design"],
-    repositoryStatus: "Repository coming soon",
+    link: "https://github.com/lorenzo-natali/cognitive-behavior-intelligence",
   },
   {
     id: "project-codeiak",
