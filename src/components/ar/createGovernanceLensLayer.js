@@ -2,27 +2,37 @@ import { createDocumentPlane } from "./arDocumentPlane";
 import { resolveZonePoint } from "./cvSemanticZones";
 import {
   ACTIVATION_CUE,
+  CALLOUT_MARK_RADIUS,
   IDENTITY_PATH,
+  LENS_COLORS,
   LENS_SEQUENCE,
   LENS_Z,
   LENS_Z_LABEL,
   LENS_Z_LINE,
   MAX_GOVERNANCE_NODES,
   MAX_INTERPRETATION_CALLOUTS,
-  TRAJECTORY_EDGES,
+  MAX_VISIBLE_LABELS,
+  NODE_RADIUS,
   getGovernanceNodes,
   getInterpretationCallouts,
 } from "./governanceLensConfig";
 import { createLabelMesh, disposeObject3DResources } from "./arLabelTexture";
+
+/** Labels with opacity at or above this count as "visible" for the production cap. */
+export const VISIBLE_LABEL_OPACITY = 0.4;
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+/**
+ * Single placement flow:
+ * semantic zone → additive normalized offset → document-plane conversion → world position.
+ */
 function zoneToWorld(plane, zoneId, offset, z) {
-  const { u, vTop } = resolveZonePoint(zoneId, offset);
-  return plane.toWorldFromTopLeft(u, vTop, z);
+  const { u, vTop } = resolveZonePoint(zoneId, offset ?? { u: 0, vTop: 0 });
+  return { ...plane.toWorldFromTopLeft(u, vTop, z), u, vTop };
 }
 
 function setOpacity(object, opacity) {
@@ -35,7 +45,7 @@ function setOpacity(object, opacity) {
   });
 }
 
-function createLine(THREE, points, color = 0xa5f3fc, opacity = 0) {
+function createLine(THREE, points, color = LENS_COLORS.cyan, opacity = 0) {
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   const material = new THREE.LineBasicMaterial({
     color,
@@ -48,10 +58,10 @@ function createLine(THREE, points, color = 0xa5f3fc, opacity = 0) {
   return line;
 }
 
-function createNodeMarker(THREE) {
-  const geometry = new THREE.CircleGeometry(0.012, 20);
+function createNodeMarker(THREE, radius = NODE_RADIUS) {
+  const geometry = new THREE.CircleGeometry(radius, 24);
   const material = new THREE.MeshBasicMaterial({
-    color: 0x67e8f9,
+    color: LENS_COLORS.cyan,
     transparent: true,
     opacity: 0,
     depthWrite: false,
@@ -59,6 +69,8 @@ function createNodeMarker(THREE) {
   });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.userData.disposables = [geometry, material];
+  mesh.userData.kind = "ar-node-marker";
+  mesh.userData.nodeDiameter = radius * 2;
   return mesh;
 }
 
@@ -93,95 +105,100 @@ export function createGovernanceLensLayer(THREE, options = {}) {
   let hasCompleted = false;
   let progress = 0; // 0..1 composition reveal progress for restore
 
+  const labelPlate = "rgba(10, 18, 24, 0.62)";
+  const labelColor = "#ffffff";
+
   // --- Activation cue ---
   const activation = createLabelMesh(THREE, ACTIVATION_CUE.text, {
-    worldHeight: 0.03,
-    background: "rgba(2, 6, 23, 0.5)",
+    worldHeight: ACTIVATION_CUE.labelHeight,
+    background: labelPlate,
+    color: labelColor,
   });
   activation.name = "ar-lens-activation";
   {
     const p = zoneToWorld(plane, ACTIVATION_CUE.zoneId, ACTIVATION_CUE.offset, LENS_Z_LABEL);
     activation.position.set(p.x, p.y, p.z);
+    activation.userData.uv = { u: p.u, vTop: p.vTop };
   }
   group.add(activation);
 
-  // --- Identity path ---
+  // --- Identity path (photo → name → headline) ---
   const identityPoints = IDENTITY_PATH.points.map((pt) => {
     const w = zoneToWorld(plane, pt.zoneId, pt.offset, LENS_Z_LINE);
     return new THREE.Vector3(w.x, w.y, w.z);
   });
-  const identityLine = createLine(THREE, identityPoints, 0xa5f3fc, 0);
+  const identityLine = createLine(THREE, identityPoints, LENS_COLORS.cyan, 0);
   identityLine.name = "ar-lens-identity-path";
   group.add(identityLine);
 
-  const identityLabel = createLabelMesh(THREE, IDENTITY_PATH.label, {
-    worldHeight: 0.028,
-    background: "rgba(2, 6, 23, 0.45)",
+  const identityLabel = createLabelMesh(THREE, IDENTITY_PATH.labelText, {
+    worldHeight: IDENTITY_PATH.labelHeight,
+    background: labelPlate,
+    color: labelColor,
   });
   identityLabel.name = "ar-lens-identity-label";
   {
-    const mid = identityPoints[1] || identityPoints[0];
-    const offset = IDENTITY_PATH.labelOffset;
-    const w = zoneToWorld(plane, "header", offset, LENS_Z_LABEL);
-    identityLabel.position.set(w.x, mid.y + 0.02, w.z);
+    const w = zoneToWorld(plane, IDENTITY_PATH.labelZoneId, IDENTITY_PATH.labelOffset, LENS_Z_LABEL);
+    identityLabel.position.set(w.x, w.y, w.z);
+    identityLabel.userData.uv = { u: w.u, vTop: w.vTop };
   }
   group.add(identityLabel);
 
-  // --- Governance nodes ---
+  // --- Governance nodes (no trajectory edges; no Technology Risk / Emerging Specialization) ---
   const nodeMeshes = new Map();
   nodesConfig.forEach((node) => {
-    const marker = createNodeMarker(THREE);
+    const marker = createNodeMarker(THREE, NODE_RADIUS);
     marker.name = `ar-lens-node:${node.id}`;
-    const label = createLabelMesh(THREE, node.label, {
-      worldHeight: 0.026,
-      background: "rgba(2, 6, 23, 0.5)",
+    const label = createLabelMesh(THREE, node.text, {
+      worldHeight: node.labelHeight,
+      background: labelPlate,
+      color: labelColor,
     });
     label.name = `ar-lens-node-label:${node.id}`;
-    const w = zoneToWorld(plane, node.zoneId, node.offset, LENS_Z);
-    marker.position.set(w.x, w.y, w.z);
-    label.position.set(w.x + 0.04, w.y + 0.018, LENS_Z_LABEL);
+
+    const markerWorld = zoneToWorld(plane, node.zoneId, node.offset, LENS_Z);
+    const labelWorld = zoneToWorld(plane, node.zoneId, node.labelOffset, LENS_Z_LABEL);
+    marker.position.set(markerWorld.x, markerWorld.y, markerWorld.z);
+    label.position.set(labelWorld.x, labelWorld.y, labelWorld.z);
+    marker.userData.uv = { u: markerWorld.u, vTop: markerWorld.vTop };
+    label.userData.uv = { u: labelWorld.u, vTop: labelWorld.vTop };
+
     group.add(marker);
     group.add(label);
-    nodeMeshes.set(node.id, { marker, label, world: w });
+    nodeMeshes.set(node.id, { marker, label, world: markerWorld });
   });
 
-  // --- Trajectory edges ---
-  const trajectoryLines = TRAJECTORY_EDGES.map(([fromId, toId], index) => {
-    const from = nodeMeshes.get(fromId)?.world;
-    const to = nodeMeshes.get(toId)?.world;
-    if (!from || !to) return null;
-    const line = createLine(
-      THREE,
-      [new THREE.Vector3(from.x, from.y, LENS_Z_LINE), new THREE.Vector3(to.x, to.y, LENS_Z_LINE)],
-      0x67e8f9,
-      0,
-    );
-    line.name = `ar-lens-trajectory:${index}`;
-    group.add(line);
-    return line;
-  }).filter(Boolean);
-
-  // --- Interpretation callouts ---
+  // --- Interpretation callouts (leaders from evidence → gutter labels) ---
   const calloutItems = calloutsConfig.map((callout) => {
-    const label = createLabelMesh(THREE, callout.label, {
-      worldHeight: 0.024,
-      background: "rgba(2, 6, 23, 0.48)",
+    const label = createLabelMesh(THREE, callout.text, {
+      worldHeight: callout.labelHeight,
+      background: labelPlate,
+      color: labelColor,
     });
     label.name = `ar-lens-callout:${callout.id}`;
-    const tip = zoneToWorld(plane, callout.zoneId, callout.offset, LENS_Z_LABEL);
-    const anchor = zoneToWorld(plane, callout.zoneId, callout.anchorOffset, LENS_Z_LINE);
+
+    const evidence = zoneToWorld(plane, callout.zoneId, callout.evidenceOffset, LENS_Z);
+    const tip = zoneToWorld(plane, callout.zoneId, callout.labelOffset, LENS_Z_LABEL);
+
     label.position.set(tip.x, tip.y, tip.z);
+    label.userData.uv = { u: tip.u, vTop: tip.vTop };
+
     const leader = createLine(
       THREE,
-      [new THREE.Vector3(anchor.x, anchor.y, LENS_Z_LINE), new THREE.Vector3(tip.x, tip.y, LENS_Z_LINE)],
-      0x94a3b8,
+      [
+        new THREE.Vector3(evidence.x, evidence.y, LENS_Z_LINE),
+        new THREE.Vector3(tip.x, tip.y, LENS_Z_LINE),
+      ],
+      LENS_COLORS.cyan,
       0,
     );
     leader.name = `ar-lens-callout-leader:${callout.id}`;
-    const mark = createNodeMarker(THREE);
-    mark.scale.setScalar(0.55);
+
+    const mark = createNodeMarker(THREE, CALLOUT_MARK_RADIUS);
     mark.name = `ar-lens-callout-mark:${callout.id}`;
-    mark.position.set(anchor.x, anchor.y, LENS_Z);
+    mark.position.set(evidence.x, evidence.y, LENS_Z);
+    mark.userData.uv = { u: evidence.u, vTop: evidence.vTop };
+
     group.add(mark);
     group.add(leader);
     group.add(label);
@@ -206,19 +223,31 @@ export function createGovernanceLensLayer(THREE, options = {}) {
     timers.push(id);
   }
 
+  function collectLabelMeshes() {
+    const labels = [];
+    group.traverse((node) => {
+      if (node.userData?.kind === "ar-label") labels.push(node);
+    });
+    return labels;
+  }
+
+  function countVisibleLabels(threshold = VISIBLE_LABEL_OPACITY) {
+    return collectLabelMeshes().filter((mesh) => (mesh.material?.opacity ?? 0) >= threshold).length;
+  }
+
   function applyFinalComposition() {
+    // Cue settles faint so readable labels stay within MAX_VISIBLE_LABELS.
     setOpacity(activation, ACTIVATION_CUE.settledOpacity);
-    setOpacity(identityLine, 0.7);
-    setOpacity(identityLabel, 0.85);
+    setOpacity(identityLine, 0.65);
+    setOpacity(identityLabel, 0.9);
     nodeMeshes.forEach(({ marker, label }) => {
       setOpacity(marker, 0.9);
-      setOpacity(label, 0.88);
+      setOpacity(label, 0.9);
     });
-    trajectoryLines.forEach((line) => setOpacity(line, 0.55));
     calloutItems.forEach(({ label, leader, mark }) => {
-      setOpacity(label, 0.86);
-      setOpacity(leader, 0.5);
-      setOpacity(mark, 0.75);
+      setOpacity(label, 0.9);
+      setOpacity(leader, 0.55);
+      setOpacity(mark, 0.8);
     });
     progress = 1;
     phase = "complete";
@@ -227,22 +256,28 @@ export function createGovernanceLensLayer(THREE, options = {}) {
 
   /** Restore opacities for the furthest stage already reached (no replay). */
   function applyProgressState(value) {
-    setOpacity(activation, value >= 0.25 ? ACTIVATION_CUE.settledOpacity : value >= 0.15 ? ACTIVATION_CUE.activeOpacity : 0);
-    setOpacity(identityLine, value >= 0.4 ? 0.7 : 0);
-    setOpacity(identityLabel, value >= 0.4 ? 0.85 : 0);
+    setOpacity(
+      activation,
+      value >= 0.25
+        ? ACTIVATION_CUE.settledOpacity
+        : value >= 0.15
+          ? ACTIVATION_CUE.activeOpacity
+          : 0,
+    );
+    setOpacity(identityLine, value >= 0.4 ? 0.65 : 0);
+    setOpacity(identityLabel, value >= 0.4 ? 0.9 : 0);
     nodesConfig.forEach((node, index) => {
       const shown = value >= 0.45 + index * 0.08;
       const entry = nodeMeshes.get(node.id);
       if (!entry) return;
       setOpacity(entry.marker, shown ? 0.9 : 0);
-      setOpacity(entry.label, shown ? 0.88 : 0);
+      setOpacity(entry.label, shown ? 0.9 : 0);
     });
-    trajectoryLines.forEach((line) => setOpacity(line, value >= 0.75 ? 0.55 : 0));
     calloutItems.forEach((item, index) => {
-      const shown = value >= 0.8 + index * 0.05;
-      setOpacity(item.mark, shown ? 0.75 : 0);
-      setOpacity(item.leader, shown ? 0.5 : 0);
-      setOpacity(item.label, shown ? 0.86 : 0);
+      const shown = value >= 0.75 + index * 0.06;
+      setOpacity(item.mark, shown ? 0.8 : 0);
+      setOpacity(item.leader, shown ? 0.55 : 0);
+      setOpacity(item.label, shown ? 0.9 : 0);
     });
   }
 
@@ -255,7 +290,6 @@ export function createGovernanceLensLayer(THREE, options = {}) {
       return;
     }
 
-    // Reset to invisible before staging (first play only).
     if (progress === 0) {
       setOpacity(activation, 0);
       setOpacity(identityLine, 0);
@@ -264,7 +298,6 @@ export function createGovernanceLensLayer(THREE, options = {}) {
         setOpacity(marker, 0);
         setOpacity(label, 0);
       });
-      trajectoryLines.forEach((line) => setOpacity(line, 0));
       calloutItems.forEach(({ label, leader, mark }) => {
         setOpacity(label, 0);
         setOpacity(leader, 0);
@@ -283,8 +316,8 @@ export function createGovernanceLensLayer(THREE, options = {}) {
     });
 
     schedule(LENS_SEQUENCE.identityPath, () => {
-      setOpacity(identityLine, 0.7);
-      setOpacity(identityLabel, 0.85);
+      setOpacity(identityLine, 0.65);
+      setOpacity(identityLabel, 0.9);
       progress = Math.max(progress, 0.4);
     });
 
@@ -293,24 +326,19 @@ export function createGovernanceLensLayer(THREE, options = {}) {
         const entry = nodeMeshes.get(node.id);
         if (!entry) return;
         setOpacity(entry.marker, 0.9);
-        setOpacity(entry.label, 0.88);
+        setOpacity(entry.label, 0.9);
         progress = Math.max(progress, 0.45 + index * 0.08);
       });
-    });
-
-    schedule(LENS_SEQUENCE.trajectory, () => {
-      trajectoryLines.forEach((line) => setOpacity(line, 0.55));
-      progress = Math.max(progress, 0.75);
     });
 
     calloutsConfig.forEach((callout, index) => {
       schedule(LENS_SEQUENCE.calloutsStart + index * LENS_SEQUENCE.calloutStagger, () => {
         const item = calloutItems[index];
         if (!item) return;
-        setOpacity(item.mark, 0.75);
-        setOpacity(item.leader, 0.5);
-        setOpacity(item.label, 0.86);
-        progress = Math.max(progress, 0.8 + index * 0.05);
+        setOpacity(item.mark, 0.8);
+        setOpacity(item.leader, 0.55);
+        setOpacity(item.label, 0.9);
+        progress = Math.max(progress, 0.75 + index * 0.06);
         if (index === calloutsConfig.length - 1) {
           phase = "complete";
           hasCompleted = true;
@@ -324,7 +352,7 @@ export function createGovernanceLensLayer(THREE, options = {}) {
     if (disposed) return;
     if (phase === "paused") {
       // Restore calmly: keep composition, do not replay the staged intro.
-      if (hasCompleted || progress >= 0.75) {
+      if (hasCompleted || progress >= 0.7) {
         applyFinalComposition();
       } else {
         applyProgressState(Math.max(progress, 0.4));
@@ -346,7 +374,7 @@ export function createGovernanceLensLayer(THREE, options = {}) {
     if (phase === "playing" || phase === "complete") {
       phase = "paused";
     }
-    // Visibility of anchor.group is handled by MindAR; we only pause timers.
+    // Anchor visibility is handled by MindAR; we only pause timers / sequence.
   }
 
   function dispose() {
@@ -370,6 +398,9 @@ export function createGovernanceLensLayer(THREE, options = {}) {
     getCalloutCount: () => calloutItems.length,
     getMaxNodeCount: () => MAX_GOVERNANCE_NODES,
     getMaxCalloutCount: () => MAX_INTERPRETATION_CALLOUTS,
+    getMaxVisibleLabels: () => MAX_VISIBLE_LABELS,
+    countVisibleLabels,
+    collectLabelMeshes,
     applyFinalComposition,
   };
 }

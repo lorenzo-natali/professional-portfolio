@@ -67,6 +67,20 @@ export function createDocumentPlane({
     toWorldFromTopLeft(u, v, z = 0) {
       return this.toWorld(u, 1 - v, z);
     },
+
+    /**
+     * Inverse of toWorldFromTopLeft for calibration / overlap tests.
+     * @param {number} x
+     * @param {number} y
+     */
+    toTopLeftFromWorld(x, y) {
+      const u = (x - (-halfW + mx)) / contentWidth;
+      const vBottom = (y - (-halfH + my)) / contentHeight;
+      return {
+        u: Math.min(Math.max(u, 0), 1),
+        vTop: Math.min(Math.max(1 - vBottom, 0), 1),
+      };
+    },
   };
 }
 
