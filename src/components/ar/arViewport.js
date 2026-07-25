@@ -13,6 +13,7 @@ export function syncArViewportShell(shell) {
   const offsetTop = Math.round(vv?.offsetTop ?? 0);
 
   shell.style.position = "fixed";
+  // Set longhand inset properties only — never `inset` shorthand (it clobbers left/top).
   shell.style.left = `${offsetLeft}px`;
   shell.style.top = `${offsetTop}px`;
   shell.style.right = "auto";
@@ -24,7 +25,6 @@ export function syncArViewportShell(shell) {
   shell.style.margin = "0";
   shell.style.transform = "none";
   shell.style.overflow = "hidden";
-  shell.style.inset = "auto";
 }
 
 /**

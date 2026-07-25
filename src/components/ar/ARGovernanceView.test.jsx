@@ -41,6 +41,43 @@ describe("ARGovernanceView entry flow", () => {
     expect(document.querySelectorAll("[data-ar-viewport-shell='true']")).toHaveLength(1);
   });
 
+  it("keeps the shell viewport-anchored with intro content inside the visible shell", async () => {
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: {
+        width: 390,
+        height: 700,
+        offsetLeft: 0,
+        offsetTop: 0,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+    });
+
+    const main = document.createElement("main");
+    // Tall portfolio sibling so a static-positioned shell would fall below the fold.
+    main.style.height = "4000px";
+    document.getElementById("root").appendChild(main);
+
+    render(<ARGovernanceView open onClose={vi.fn()} />, { container: main });
+
+    const shell = document.querySelector("[data-ar-viewport-shell='true']");
+    expect(shell).toBeTruthy();
+    expect(shell.style.left).toBe("0px");
+    expect(shell.style.top).toBe("0px");
+    expect(shell.style.right).toBe("auto");
+    expect(shell.style.bottom).toBe("auto");
+    expect(shell.style.width).toBe("390px");
+    expect(shell.style.height).toBe("700px");
+    expect(shell.style.inset).toBe("");
+    expect(shell.style.cssText).not.toMatch(/(?:^|;)\s*inset\s*:/);
+
+    const introTitle = await screen.findByRole("heading", { name: "AR Governance View" });
+    expect(shell.contains(introTitle)).toBe(true);
+    expect(await screen.findByRole("button", { name: "Back to portfolio" })).toBeInTheDocument();
+    expect(shell.contains(screen.getByRole("button", { name: "Back to portfolio" }))).toBe(true);
+  });
+
   it("locks the portfolio root against pointer interaction while open", () => {
     const root = document.getElementById("root");
     render(<ARGovernanceView open onClose={vi.fn()} />);

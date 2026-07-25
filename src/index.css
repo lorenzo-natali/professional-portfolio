@@ -399,13 +399,13 @@ body {
   overflow: visible;
 }
 
-/* Single portaled AR viewport shell — sized by visualViewport JS (arViewport.js). */
+/* Single portaled AR viewport shell — CSS pins to viewport; JS may override with visualViewport. */
 .ar-viewport-shell {
   position: fixed;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   margin: 0;
   padding: 0;
   overflow: hidden;
