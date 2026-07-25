@@ -13,9 +13,11 @@
     "@tailwindcss/vite": "^4.2.4",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
+    "mind-ar": "^1.2.5",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "tailwindcss": "^4.2.4"
+    "tailwindcss": "^4.2.4",
+    "three": "^0.150.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

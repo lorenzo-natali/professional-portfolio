@@ -6,4 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: ['mind-ar'],
+  },
+  build: {
+    commonjsOptions: {
+      include: [/mind-ar/, /node_modules/],
+    },
+  },
 })

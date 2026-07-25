@@ -14,6 +14,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import CodeiakMascotVideo from "./components/CodeiakMascotVideo";
+import ARGovernanceCard from "./components/ar/ARGovernanceCard";
+import ARGovernanceView from "./components/ar/ARGovernanceView";
 import "./index.css";
 
 const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -1455,7 +1457,8 @@ function PortfolioAssistant() {
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/75 sm:text-[11px] sm:tracking-[0.22em]">
             Example questions
           </p>
-          <div className="mt-3 min-h-[4.5rem] overflow-hidden sm:mt-2 sm:min-h-[3rem]">
+          {/* Fixed height sized for the longest showcase questions — avoids card resize on rotate. */}
+          <div className="mt-3 h-[6rem] overflow-hidden sm:mt-2 sm:h-[5rem]">
             <AnimatePresence mode="wait">
               <motion.p
                 key={previewQuestion}
@@ -2336,6 +2339,7 @@ function PortfolioIntro({ onComplete }) {
 function App() {
   const [selectedLens, setSelectedLens] = useState("Overview");
   const [expandedExperiences, setExpandedExperiences] = useState({});
+  const [arOpen, setArOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -2365,8 +2369,8 @@ function App() {
 
   return (
     <>
-    <main className="min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-      <section id="hero" className="relative overflow-hidden bg-slate-950 px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+    <main className="min-h-screen overflow-x-hidden bg-slate-950 text-slate-100">
+      <section id="hero" className="relative overflow-x-hidden bg-slate-950 px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(15,23,42,0.9),transparent_42%)]" />
         <div className="absolute inset-0 bg-slate-950/60" />
@@ -2476,9 +2480,14 @@ function App() {
             </div>
           </div>
 
-          <PortfolioAssistant />
+          <div className="flex w-full flex-col gap-14 lg:w-[320px]">
+            <ARGovernanceCard onLaunch={() => setArOpen(true)} />
+            <PortfolioAssistant />
+          </div>
         </div>
       </section>
+
+      <ARGovernanceView open={arOpen} onClose={() => setArOpen(false)} />
 
       <RoleLens selectedLens={selectedLens} onSelectLens={setSelectedLens} />
 
