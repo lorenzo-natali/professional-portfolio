@@ -1,15 +1,5 @@
 import { AR_TARGET_SRC } from "../arConfig";
-
-async function targetExists(url) {
-  try {
-    const response = await fetch(url, { method: "GET", cache: "no-store" });
-    if (!response.ok) return false;
-    const buffer = await response.arrayBuffer();
-    return buffer.byteLength > 64;
-  } catch {
-    return false;
-  }
-}
+import { checkArTargetAvailable } from "../checkArTargetAvailable";
 
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
@@ -26,9 +16,9 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
     async start(container, callbacks = {}) {
       if (running) await this.stop();
 
-      const available = await targetExists(targetSrc);
+      const available = await checkArTargetAvailable(targetSrc);
       if (!available) {
-        callbacks.onUnsupported?.("Image target is not available.");
+        callbacks.onUnsupported?.("target-unavailable");
         return;
       }
 

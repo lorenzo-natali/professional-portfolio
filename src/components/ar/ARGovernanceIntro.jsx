@@ -1,4 +1,25 @@
-export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
+import { useEffect, useState } from "react";
+import { checkArTargetAvailable } from "./checkArTargetAvailable";
+
+/**
+ * Mobile entry screen. Primary CTA is chosen only after the .mind target probe.
+ * Camera permission is never requested here — only after “Activate Camera”.
+ */
+export default function ARGovernanceIntro({ onActivateCamera, onExploreBrief, onBack }) {
+  const [targetState, setTargetState] = useState("checking"); // checking | available | unavailable
+
+  useEffect(() => {
+    let cancelled = false;
+
+    checkArTargetAvailable().then((available) => {
+      if (!cancelled) setTargetState(available ? "available" : "unavailable");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="flex h-full items-center justify-center bg-slate-950 px-5 py-8 text-slate-100">
       <div className="w-full max-w-lg rounded-xl border border-slate-700 bg-slate-950/90 p-6 shadow-xl">
@@ -23,17 +44,35 @@ export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
           </li>
         </ul>
 
-        <button
-          type="button"
-          onClick={onActivateCamera}
-          className="mt-6 w-full rounded-md border border-cyan-400/40 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100"
-        >
-          Activate Camera
-        </button>
+        {targetState === "available" && (
+          <button
+            type="button"
+            onClick={onActivateCamera}
+            className="mt-6 w-full rounded-md border border-cyan-400/40 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100"
+          >
+            Activate Camera
+          </button>
+        )}
+
+        {targetState === "unavailable" && (
+          <>
+            <button
+              type="button"
+              onClick={onExploreBrief}
+              className="mt-6 w-full rounded-md border border-cyan-400/40 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100"
+            >
+              Explore 2D Governance Brief
+            </button>
+            <p className="mt-3 text-center text-[11px] leading-5 text-slate-500">
+              The AR recognition experience is not currently available.
+            </p>
+          </>
+        )}
+
         <button
           type="button"
           onClick={onBack}
-          className="mt-2 w-full rounded-md border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300"
+          className={`${targetState === "checking" ? "mt-6" : "mt-2"} w-full rounded-md border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300`}
         >
           Back to portfolio
         </button>

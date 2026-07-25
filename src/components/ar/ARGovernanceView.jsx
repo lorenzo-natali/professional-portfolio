@@ -9,11 +9,14 @@ import { useIsMobileDevice } from "./useIsMobileDevice";
 
 function briefCopy(reason) {
   switch (reason) {
+    case "target-unavailable":
+      return "The AR recognition experience is not currently available. You can explore the same professional insights in this interactive view.";
     case "unsupported":
-      return "The AR image target is not available yet. You can explore the same professional insights in this interactive view.";
+      return "This browser or device cannot run the camera experience. You can explore the same professional insights in this interactive view.";
     case "camera-denied":
-    case "tracking-error":
       return "Camera access was not granted. You can still explore the same professional insights in a standard interactive view.";
+    case "tracking-error":
+      return "The camera experience could not be started. You can still explore the same professional insights in a standard interactive view.";
     case "desktop":
       return "A concise interactive summary of the governance layer — available without the camera experience.";
     default:
@@ -53,7 +56,14 @@ function ARGovernanceExperience({ isMobile, onClose }) {
       )}
 
       {screen === "intro" && (
-        <ARGovernanceIntro onActivateCamera={() => setScreen("camera")} onBack={onClose} />
+        <ARGovernanceIntro
+          onActivateCamera={() => setScreen("camera")}
+          onExploreBrief={() => {
+            setBriefReason("target-unavailable");
+            setScreen("brief");
+          }}
+          onBack={onClose}
+        />
       )}
 
       {screen === "camera" && (
@@ -62,7 +72,14 @@ function ARGovernanceExperience({ isMobile, onClose }) {
             onBack={onClose}
             onExploreProjects={exploreProjects}
             onFallback={(reason) => {
-              setBriefReason(reason === "unsupported" ? "unsupported" : "camera-denied");
+              // Automatic fallback only after the user has opted into camera AR.
+              const allowed = new Set([
+                "unsupported",
+                "tracking-error",
+                "camera-denied",
+                "target-unavailable",
+              ]);
+              setBriefReason(allowed.has(reason) ? reason : "camera-denied");
               setScreen("brief");
             }}
           />

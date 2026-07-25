@@ -158,7 +158,9 @@ export default function ARCameraView({ onBack, onExploreProjects, onFallback }) 
         onTargetFound={handleTargetFound}
         onTargetLost={handleTargetLost}
         onError={() => onFallback("tracking-error")}
-        onUnsupported={() => onFallback("unsupported")}
+        onUnsupported={(reason) =>
+          onFallback(reason === "target-unavailable" ? "target-unavailable" : "unsupported")
+        }
       />
 
       {(tracking === "searching" || tracking === "detected") && <CornerBrackets />}

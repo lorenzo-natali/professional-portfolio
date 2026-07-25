@@ -14,4 +14,9 @@ export default defineConfig({
       include: [/mind-ar/, /node_modules/],
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+  },
 })
