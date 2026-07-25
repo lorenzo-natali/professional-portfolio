@@ -15,7 +15,7 @@ vi.mock("./ARTrackingScene", () => ({
       <div
         data-testid="tracking-scene"
         data-ar-tracking-container="true"
-        className="ar-tracking-container absolute inset-0 overflow-hidden bg-transparent"
+        className="ar-tracking-container"
       />
     );
   },
@@ -26,6 +26,14 @@ vi.mock("./tracking/ARTrackingProvider", () => ({
 }));
 
 describe("ARCameraView camera-slice HUD", () => {
+  it("uses a fixed full-viewport camera shell", () => {
+    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
+    const shell = container.querySelector("[data-ar-camera-shell='true']");
+    expect(shell).toBeTruthy();
+    expect(shell.className).toContain("ar-camera-shell");
+    expect(screen.getByTestId("tracking-scene").className).toContain("ar-tracking-container");
+  });
+
   it("does not trigger fallback on no detection or target lost", async () => {
     const onFallback = vi.fn();
 
@@ -70,10 +78,10 @@ describe("ARCameraView camera-slice HUD", () => {
     expect(screen.queryByText("Professional trajectory")).not.toBeInTheDocument();
   });
 
-  it("uses a transparent tracking container class", () => {
+  it("keeps the tracking container free of opaque background utilities", () => {
     render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
     const container = screen.getByTestId("tracking-scene");
-    expect(container.className).toContain("bg-transparent");
+    expect(container.className).toContain("ar-tracking-container");
     expect(container.className).not.toContain("bg-black");
   });
 });

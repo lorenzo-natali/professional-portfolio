@@ -4,6 +4,7 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
+import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
  * Lift MindAR's video above the container background (MindAR defaults to z-index: -2)
@@ -14,11 +15,17 @@ export function applyCameraLayerStacking(container, renderer) {
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
+  container.style.position = "absolute";
+  container.style.inset = "0px";
+  container.style.width = "100%";
+  container.style.height = "100%";
+  container.style.overflow = "hidden";
 
   const video = container.querySelector("video");
   if (video) {
     video.style.zIndex = "0";
     video.style.pointerEvents = "none";
+    video.style.objectFit = "cover";
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
     video.muted = true;
@@ -29,6 +36,9 @@ export function applyCameraLayerStacking(container, renderer) {
     canvas.style.zIndex = String(1 + index);
     canvas.style.pointerEvents = "none";
     canvas.style.background = "transparent";
+    // MindAR sets explicit cover crop geometry; keep fill without stretch fallback.
+    if (!canvas.style.width) canvas.style.width = "100%";
+    if (!canvas.style.height) canvas.style.height = "100%";
   });
 
   if (renderer) {
@@ -42,16 +52,19 @@ export function applyCameraLayerStacking(container, renderer) {
   }
 }
 
+function findCameraShell(container) {
+  return container?.closest?.("[data-ar-camera-shell='true']") || container?.parentElement || null;
+}
+
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
- * Target bytes are validated before getUserMedia so the camera never opens on a bad target.
  * @returns {import("./createTrackingAdapter").TrackingAdapter}
  */
 export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) {
   let mindarThree = null;
   let running = false;
   let rafLoop = null;
-  let stackingCleanup = null;
+  let viewportCleanup = null;
 
   return {
     isRunning: () => running,
@@ -59,7 +72,6 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
     async start(container, callbacks = {}) {
       if (running) await this.stop();
 
-      // Prefer validating/preloading before camera initialization.
       const targetBuffer = await loadArTargetBuffer(targetSrc);
       if (!targetBuffer) {
         callbacks.onUnsupported?.("target-unavailable");
@@ -76,6 +88,9 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
           import("three"),
         ]);
 
+        const shell = findCameraShell(container);
+        syncArViewportShell(shell);
+
         mindarThree = new MindARThree({
           container,
           imageTargetSrc: blobUrl,
@@ -89,7 +104,6 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
         });
 
         const { renderer, scene, camera } = mindarThree;
-        // Transparent GL clear so the live video remains visible underneath.
         renderer.setClearColor(0x000000, 0);
         if (typeof renderer.setClearAlpha === "function") {
           renderer.setClearAlpha(0);
@@ -99,8 +113,6 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
         scene.add(light);
 
         const anchor = mindarThree.addAnchor(0);
-        // Spatial proof: visible frame bound to the CV image target.
-        // MindAR toggles anchor.group.visible on found/lost — no fixed HTML.
         const proof = createAnchorProofObject(THREE);
         anchor.group.add(proof);
 
@@ -108,9 +120,16 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
         anchor.onTargetLost = () => callbacks.onTargetLost?.();
 
         await mindarThree.start();
+        syncArViewportShell(shell);
+        try {
+          mindarThree.resize?.();
+        } catch {
+          // ignore
+        }
         applyCameraLayerStacking(container, renderer);
 
-        const onResize = () => {
+        const onViewportChange = () => {
+          syncArViewportShell(shell);
           try {
             mindarThree?.resize?.();
           } catch {
@@ -118,12 +137,7 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
           }
           applyCameraLayerStacking(container, renderer);
         };
-        window.addEventListener("resize", onResize);
-        window.addEventListener("orientationchange", onResize);
-        stackingCleanup = () => {
-          window.removeEventListener("resize", onResize);
-          window.removeEventListener("orientationchange", onResize);
-        };
+        viewportCleanup = bindArViewportListeners(onViewportChange);
 
         running = true;
         callbacks.onReady?.();
@@ -148,11 +162,11 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
     async stop() {
       running = false;
       try {
-        stackingCleanup?.();
+        viewportCleanup?.();
       } catch {
         // ignore
       }
-      stackingCleanup = null;
+      viewportCleanup = null;
       try {
         if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
         await mindarThree?.stop?.();

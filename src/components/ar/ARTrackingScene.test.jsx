@@ -27,7 +27,7 @@ describe("ARTrackingScene container", () => {
 
     const tracking = container.querySelector("[data-ar-tracking-container='true']");
     expect(tracking).toBeTruthy();
-    expect(tracking.className).toContain("bg-transparent");
+    expect(tracking.className).toContain("ar-tracking-container");
     expect(tracking.className).not.toMatch(/\bbg-black\b/);
     expect(tracking.className).not.toMatch(/\bbg-slate-/);
   });

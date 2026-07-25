@@ -109,7 +109,7 @@ export default function ARGovernanceView({ open, onClose }) {
       {open && (
         <motion.div
           key="ar-governance-view"
-          className="fixed inset-0 z-[120] bg-transparent"
+          className="ar-viewport-shell z-[120]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

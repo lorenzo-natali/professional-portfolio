@@ -102,10 +102,84 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(group.add).toHaveBeenCalled();
     const proof = group.children[0];
     expect(isVisuallyPresentObject3D(proof)).toBe(true);
+    expect(proof.userData.documentPlane.height).toBeCloseTo(2574 / 1820, 10);
 
     const video = host.querySelector("video");
     expect(video.style.zIndex).toBe("0");
     expect(host.querySelector("canvas").style.zIndex).toBe("1");
+
+    const mindInstance = mocks.MindARThree.mock.instances[0];
+    expect(mindInstance.resize).toHaveBeenCalled();
+
+    await adapter.stop();
+  });
+
+  it("re-runs MindAR resize on viewport / visualViewport changes", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+
+    const listeners = {};
+    const vvListeners = {};
+    vi.stubGlobal("requestAnimationFrame", (cb) => {
+      cb(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(window, "addEventListener").mockImplementation((type, fn) => {
+      listeners[type] = fn;
+    });
+    vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: {
+        width: 390,
+        height: 700,
+        offsetLeft: 0,
+        offsetTop: 0,
+        addEventListener: (type, fn) => {
+          vvListeners[type] = fn;
+        },
+        removeEventListener: vi.fn(),
+      },
+    });
+
+    const resize = vi.fn();
+    const group = { children: [], add: vi.fn(function add(child) { this.children.push(child); }) };
+    const renderer = {
+      setAnimationLoop: vi.fn(),
+      setClearColor: vi.fn(),
+      setClearAlpha: vi.fn(),
+      domElement: document.createElement("canvas"),
+      dispose: vi.fn(),
+    };
+
+    mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
+      this.start = vi.fn().mockResolvedValue(undefined);
+      this.stop = vi.fn();
+      this.resize = resize;
+      this.addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
+      this.renderer = renderer;
+      this.scene = { add: vi.fn() };
+      this.camera = {};
+      options.container.appendChild(renderer.domElement);
+      options.container.appendChild(document.createElement("video"));
+    });
+
+    const adapter = createMindARTrackingAdapter({ targetSrc: "./ar/targets/cv-page-1.mind" });
+    const shell = document.createElement("div");
+    shell.setAttribute("data-ar-camera-shell", "true");
+    const host = document.createElement("div");
+    shell.appendChild(host);
+
+    await adapter.start(host, { onReady: vi.fn() });
+    const callsAfterStart = resize.mock.calls.length;
+
+    listeners.resize?.();
+    listeners.orientationchange?.();
+    vvListeners.resize?.();
+
+    expect(resize.mock.calls.length).toBeGreaterThan(callsAfterStart);
+    expect(shell.style.position).toBe("fixed");
+    expect(shell.style.overflow).toBe("hidden");
 
     await adapter.stop();
   });

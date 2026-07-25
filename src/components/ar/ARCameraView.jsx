@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import ARTrackingScene from "./ARTrackingScene";
 import ARAboutPanel from "./ARAboutPanel";
+import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
 
 function CornerBrackets() {
   const corner = "absolute h-6 w-6 border-cyan-300/60";
@@ -16,12 +17,21 @@ function CornerBrackets() {
 }
 
 /**
- * Camera AR slice: visible live feed + one anchored Three.js proof object.
- * Full governance cards stay unused here until rebuilt as world-space content.
+ * Camera AR slice: full-viewport live feed + calibrated document-plane proof frame.
  */
 export default function ARCameraView({ onBack, onFallback }) {
+  const shellRef = useRef(null);
   const [tracking, setTracking] = useState("searching"); // searching | detected | lost
   const [aboutOpen, setAboutOpen] = useState(false);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return undefined;
+
+    const sync = () => syncArViewportShell(shell);
+    sync();
+    return bindArViewportListeners(sync);
+  }, []);
 
   const handleTargetFound = () => {
     setTracking("detected");
@@ -50,7 +60,11 @@ export default function ARCameraView({ onBack, onFallback }) {
           : null;
 
   return (
-    <div className="relative h-full min-h-0 bg-transparent text-slate-100">
+    <div
+      ref={shellRef}
+      data-ar-camera-shell="true"
+      className="ar-camera-shell text-slate-100"
+    >
       <ARTrackingScene
         active
         onReady={() => setTracking((t) => (t === "searching" ? "searching" : t))}
@@ -64,7 +78,7 @@ export default function ARCameraView({ onBack, onFallback }) {
 
       {(tracking === "searching" || tracking === "detected") && <CornerBrackets />}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-4">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <AnimatePresence mode="wait">
           {statusLabel && (
             <motion.div
@@ -81,7 +95,7 @@ export default function ARCameraView({ onBack, onFallback }) {
         </AnimatePresence>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-3 pb-4 pt-8">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8">
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
