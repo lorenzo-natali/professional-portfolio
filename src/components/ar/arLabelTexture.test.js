@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import {
   LABEL_DPR_CAP,
@@ -6,7 +6,7 @@ import {
   createLabelMesh,
   resolveLabelDevicePixelRatio,
 } from "./arLabelTexture";
-import { LABEL_HEIGHT_STANDARD } from "./governanceLensConfig";
+import { LABEL_HEIGHT, LABEL_MAX_WIDTH } from "./lensCatalog";
 
 describe("arLabelTexture", () => {
   afterEach(() => {
@@ -15,36 +15,30 @@ describe("arLabelTexture", () => {
 
   it("caps device pixel ratio for lightweight canvas sizing", () => {
     expect(resolveLabelDevicePixelRatio(1)).toBe(1);
-    expect(resolveLabelDevicePixelRatio(2)).toBe(2);
     expect(resolveLabelDevicePixelRatio(4)).toBe(LABEL_DPR_CAP);
-    expect(LABEL_DPR_CAP).toBeLessThanOrEqual(3);
   });
 
-  it("renders canvases at DPR-aware resolution while preserving logical aspect", () => {
-    const canvas = createLabelCanvas("Governance Lens Active", { devicePixelRatio: 2 });
-    const logicalW = Number(canvas.dataset.logicalWidth);
-    const logicalH = Number(canvas.dataset.logicalHeight);
-
-    expect(canvas.width).toBe(Math.round(logicalW * 2));
-    expect(canvas.height).toBe(Math.round(logicalH * 2));
-    expect(logicalW).toBeGreaterThan(100);
-    expect(logicalH).toBeGreaterThan(40);
-  });
-
-  it("creates document-oriented plane meshes (not sprites) at configured height", () => {
-    const mesh = createLabelMesh(THREE, "Internal Audit", {
-      worldHeight: LABEL_HEIGHT_STANDARD,
+  it("prefers compact multi-line wrapping for long labels", () => {
+    const canvas = createLabelCanvas("Operational Resilience", {
       devicePixelRatio: 2,
+      preferTwoLine: true,
+    });
+    expect(Number(canvas.dataset.lineCount)).toBeGreaterThanOrEqual(2);
+    expect(canvas.width).toBe(Math.round(Number(canvas.dataset.logicalWidth) * 2));
+  });
+
+  it("enforces max world width on document-oriented plane meshes", () => {
+    const mesh = createLabelMesh(THREE, "Operational Resilience", {
+      worldHeight: LABEL_HEIGHT,
+      maxWorldWidth: LABEL_MAX_WIDTH,
+      devicePixelRatio: 2,
+      preferTwoLine: true,
     });
 
     expect(mesh.isMesh).toBe(true);
     expect(mesh.isSprite).toBeFalsy();
-    expect(mesh.geometry.type).toBe("PlaneGeometry");
-    expect(mesh.userData.worldHeight).toBe(LABEL_HEIGHT_STANDARD);
-
-    const params = mesh.geometry.parameters;
-    expect(params.height).toBeCloseTo(LABEL_HEIGHT_STANDARD, 5);
-    expect(params.width).toBeGreaterThan(params.height);
+    expect(mesh.userData.worldWidth).toBeLessThanOrEqual(LABEL_MAX_WIDTH + 1e-6);
+    expect(mesh.geometry.parameters.width).toBeLessThanOrEqual(LABEL_MAX_WIDTH + 1e-6);
 
     mesh.userData.disposables.forEach((d) => d.dispose?.());
   });

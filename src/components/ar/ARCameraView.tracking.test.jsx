@@ -66,28 +66,35 @@ describe("ARCameraView minimal HUD", () => {
     expect(await screen.findByText("Reframe the CV to continue")).toBeInTheDocument();
   });
 
-  it("keeps a compact HUD and does not render viewport-fixed Governance Lens DOM", async () => {
-    render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
+  it("shows a viewport-fixed Lens selector after detection without old Governance labels", async () => {
+    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "About this experience" })).toBeInTheDocument();
+    expect(container.querySelector("[data-ar-lens-selector='true']")).toBeNull();
 
-    expect(screen.queryByText("Interpretation")).not.toBeInTheDocument();
-    expect(screen.queryByText("Governance model")).not.toBeInTheDocument();
-    expect(screen.queryByText("Professional trajectory")).not.toBeInTheDocument();
-    expect(screen.queryByText("Governance view ready")).not.toBeInTheDocument();
     expect(screen.queryByText("Governance Lens Active")).not.toBeInTheDocument();
     expect(screen.queryByText("Professional Identity")).not.toBeInTheDocument();
-    expect(screen.queryByText("Internal Audit")).not.toBeInTheDocument();
-    expect(screen.queryByText("Operational Resilience")).not.toBeInTheDocument();
 
     await act(async () => {
       trackingHandlers.onTargetFound?.();
     });
 
     expect(await screen.findByText("CV detected")).toBeInTheDocument();
+    const selector = container.querySelector("[data-ar-lens-selector='true']");
+    expect(selector).toBeTruthy();
+
+    expect(screen.getByRole("button", { name: /^Professional/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Technology/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^AI/ })).toBeDisabled();
+
+    const risk = screen.getByRole("button", { name: /^Risk/ });
+    expect(risk).not.toBeDisabled();
+    expect(risk).toHaveAttribute("aria-pressed", "true");
+
+    // Selector is HUD DOM — not world AR content.
+    expect(selector.closest("[data-ar-camera-stage='true']")).toBeTruthy();
     expect(screen.queryByText("Governance Lens Active")).not.toBeInTheDocument();
     expect(screen.queryByText("Interpretation")).not.toBeInTheDocument();
-    expect(screen.queryByText("Professional trajectory")).not.toBeInTheDocument();
   });
 });

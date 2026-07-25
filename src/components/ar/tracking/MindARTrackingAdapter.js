@@ -5,7 +5,8 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createGovernanceLensLayer } from "../createGovernanceLensLayer";
+import { createLensLayer } from "../createLensLayer";
+import { DEFAULT_LENS_ID } from "../lensCatalog";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
@@ -100,7 +101,7 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let governanceLens = null;
+  let lensLayer = null;
 
   return {
     isRunning: () => running,
@@ -153,15 +154,15 @@ export function createMindARTrackingAdapter({
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
-        governanceLens = createGovernanceLensLayer(THREE);
-        anchor.group.add(governanceLens.group);
+        lensLayer = createLensLayer(THREE, { lensId: DEFAULT_LENS_ID });
+        anchor.group.add(lensLayer.group);
 
         anchor.onTargetFound = () => {
-          governanceLens?.onTargetFound();
+          lensLayer?.onTargetFound();
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
-          governanceLens?.onTargetLost();
+          lensLayer?.onTargetLost();
           callbacks.onTargetLost?.();
         };
 
@@ -199,11 +200,11 @@ export function createMindARTrackingAdapter({
       } catch (error) {
         running = false;
         try {
-          governanceLens?.dispose();
+          lensLayer?.dispose();
         } catch {
           // ignore
         }
-        governanceLens = null;
+        lensLayer = null;
         const err = error instanceof Error ? error : new Error(String(error));
         if (isTargetLoadError(err)) {
           callbacks.onUnsupported?.("target-unavailable");
@@ -225,11 +226,11 @@ export function createMindARTrackingAdapter({
       viewportCleanup = null;
 
       try {
-        governanceLens?.dispose();
+        lensLayer?.dispose();
       } catch {
         // ignore
       }
-      governanceLens = null;
+      lensLayer = null;
 
       const instance = mindarThree;
       mindarThree = null;

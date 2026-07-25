@@ -1,14 +1,17 @@
 import { useState } from "react";
 import ARTrackingScene from "./ARTrackingScene";
 import ARAboutPanel from "./ARAboutPanel";
+import ARLensSelector from "./ARLensSelector";
+import { DEFAULT_LENS_ID } from "./lensCatalog";
 
 /**
  * Camera AR slice: absolute stage inside the single portaled viewport shell.
- * Minimal HUD only — no calibration frames or decorative overlays.
+ * Minimal HUD + Lens selector — AR annotations remain world-anchored.
  */
 export default function ARCameraView({ onBack, onFallback }) {
   const [tracking, setTracking] = useState("searching"); // searching | detected | lost
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [activeLensId, setActiveLensId] = useState(DEFAULT_LENS_ID);
 
   const handleTargetFound = () => {
     setTracking("detected");
@@ -26,6 +29,8 @@ export default function ARCameraView({ onBack, onFallback }) {
         : tracking === "lost"
           ? "Reframe the CV to continue"
           : null;
+
+  const showLensSelector = tracking === "detected" || tracking === "lost";
 
   return (
     <div data-ar-camera-stage="true" className="ar-camera-stage text-slate-100">
@@ -52,6 +57,11 @@ export default function ARCameraView({ onBack, onFallback }) {
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6">
+        <ARLensSelector
+          visible={showLensSelector}
+          activeLensId={activeLensId}
+          onSelectLens={setActiveLensId}
+        />
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"

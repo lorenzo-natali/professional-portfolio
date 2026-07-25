@@ -130,7 +130,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
     expect(group.add).toHaveBeenCalledTimes(1);
-    expect(group.children[0].name).toBe("ar-governance-lens");
+    expect(group.children[0].name).toBe("ar-lens-layer");
     expect(group.children.some((child) => child.name === "ar-anchor-proof")).toBe(false);
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
@@ -168,7 +168,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(onUnsupported).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(adapter.isRunning()).toBe(true);
-    expect(group.children[0].name).toBe("ar-governance-lens");
+    expect(group.children[0].name).toBe("ar-lens-layer");
 
     await adapter.stop();
   });
