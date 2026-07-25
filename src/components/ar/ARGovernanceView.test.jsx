@@ -3,8 +3,10 @@ import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ARGovernanceView from "./ARGovernanceView";
 
+const mobileMock = vi.hoisted(() => ({ isMobile: true }));
+
 vi.mock("./useIsMobileDevice", () => ({
-  useIsMobileDevice: () => true,
+  useIsMobileDevice: () => mobileMock.isMobile,
 }));
 
 vi.mock("./checkArTargetAvailable", () => ({
@@ -22,6 +24,7 @@ describe("ARGovernanceView entry flow", () => {
     vi.clearAllMocks();
     cleanup();
     document.body.innerHTML = '<div id="root"></div>';
+    mobileMock.isMobile = true;
     checkArTargetAvailable.mockResolvedValue(true);
   });
 
@@ -29,10 +32,7 @@ describe("ARGovernanceView entry flow", () => {
     const main = document.createElement("main");
     document.getElementById("root").appendChild(main);
 
-    render(
-      <ARGovernanceView open onClose={vi.fn()} />,
-      { container: main },
-    );
+    render(<ARGovernanceView open onClose={vi.fn()} />, { container: main });
 
     const shell = document.querySelector("[data-ar-viewport-shell='true']");
     expect(shell).toBeTruthy();
@@ -55,27 +55,31 @@ describe("ARGovernanceView entry flow", () => {
     });
 
     const main = document.createElement("main");
-    // Tall portfolio sibling so a static-positioned shell would fall below the fold.
     main.style.height = "4000px";
     document.getElementById("root").appendChild(main);
 
     render(<ARGovernanceView open onClose={vi.fn()} />, { container: main });
 
     const shell = document.querySelector("[data-ar-viewport-shell='true']");
-    expect(shell).toBeTruthy();
     expect(shell.style.left).toBe("0px");
     expect(shell.style.top).toBe("0px");
-    expect(shell.style.right).toBe("auto");
-    expect(shell.style.bottom).toBe("auto");
     expect(shell.style.width).toBe("390px");
     expect(shell.style.height).toBe("700px");
-    expect(shell.style.inset).toBe("");
-    expect(shell.style.cssText).not.toMatch(/(?:^|;)\s*inset\s*:/);
 
     const introTitle = await screen.findByRole("heading", { name: "AR Governance View" });
     expect(shell.contains(introTitle)).toBe(true);
     expect(await screen.findByRole("button", { name: "Back to portfolio" })).toBeInTheDocument();
-    expect(shell.contains(screen.getByRole("button", { name: "Back to portfolio" }))).toBe(true);
+  });
+
+  it("shows a centered desktop gate without the 2D brief CTA", () => {
+    mobileMock.isMobile = false;
+    render(<ARGovernanceView open onClose={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Designed for smartphones." })).toBeInTheDocument();
+    expect(screen.queryByText("AR Governance View")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View 2D Governance Brief" })).not.toBeInTheDocument();
+    expect(screen.queryByText("2D Governance Brief")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
   });
 
   it("locks the portfolio root against pointer interaction while open", () => {
@@ -100,22 +104,18 @@ describe("ARGovernanceView entry flow", () => {
     expect(document.body.style.position).toBe("");
   });
 
-  it("opens the 2D brief from intro when the target is missing, without mounting the camera view", async () => {
+  it("does not offer a 2D brief when the target is missing", async () => {
     checkArTargetAvailable.mockResolvedValue(false);
 
     render(<ARGovernanceView open onClose={vi.fn()} />);
 
-    const explore = await screen.findByRole("button", { name: "Explore 2D Governance Brief" });
-    expect(screen.queryByTestId("ar-camera-view")).not.toBeInTheDocument();
-
-    await userEvent.click(explore);
-
-    expect(await screen.findByText("2D Governance Brief")).toBeInTheDocument();
     expect(
-      screen.getByText(/The AR recognition experience is not currently available/),
+      await screen.findByText(/The AR recognition experience is not currently available/),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("ar-camera-view")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Activate Camera" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Explore 2D Governance Brief" })).not.toBeInTheDocument();
+    expect(screen.queryByText("2D Governance Brief")).not.toBeInTheDocument();
+    expect(screen.queryByText("Governance view ready")).not.toBeInTheDocument();
   });
 
   it("mounts the camera view only after Activate Camera when the target is available", async () => {

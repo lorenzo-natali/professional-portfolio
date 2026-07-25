@@ -17,13 +17,7 @@ describe("ARGovernanceIntro entry CTA", () => {
   it("does not render the primary CTA while the target probe is pending", () => {
     checkArTargetAvailable.mockReturnValue(new Promise(() => {}));
 
-    render(
-      <ARGovernanceIntro
-        onActivateCamera={vi.fn()}
-        onExploreBrief={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<ARGovernanceIntro onActivateCamera={vi.fn()} onBack={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "Activate Camera" })).not.toBeInTheDocument();
     expect(
@@ -36,48 +30,31 @@ describe("ARGovernanceIntro entry CTA", () => {
     const onActivateCamera = vi.fn();
     checkArTargetAvailable.mockResolvedValue(true);
 
-    render(
-      <ARGovernanceIntro
-        onActivateCamera={onActivateCamera}
-        onExploreBrief={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<ARGovernanceIntro onActivateCamera={onActivateCamera} onBack={vi.fn()} />);
 
     const activate = await screen.findByRole("button", { name: "Activate Camera" });
     expect(
       screen.queryByRole("button", { name: "Explore 2D Governance Brief" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("The AR recognition experience is not currently available."),
     ).not.toBeInTheDocument();
 
     await userEvent.click(activate);
     expect(onActivateCamera).toHaveBeenCalledTimes(1);
   });
 
-  it("shows Explore 2D Governance Brief when the target is missing", async () => {
-    const onExploreBrief = vi.fn();
-    const onActivateCamera = vi.fn();
+  it("shows an unavailable notice without a 2D brief CTA when the target is missing", async () => {
     checkArTargetAvailable.mockResolvedValue(false);
 
-    render(
-      <ARGovernanceIntro
-        onActivateCamera={onActivateCamera}
-        onExploreBrief={onExploreBrief}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<ARGovernanceIntro onActivateCamera={vi.fn()} onBack={vi.fn()} />);
 
-    const explore = await screen.findByRole("button", { name: "Explore 2D Governance Brief" });
+    expect(
+      await screen.findByText(/The AR recognition experience is not currently available/),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Activate Camera" })).not.toBeInTheDocument();
     expect(
-      screen.getByText("The AR recognition experience is not currently available."),
-    ).toBeInTheDocument();
-
-    await userEvent.click(explore);
-    expect(onExploreBrief).toHaveBeenCalledTimes(1);
-    expect(onActivateCamera).not.toHaveBeenCalled();
+      screen.queryByRole("button", { name: "Explore 2D Governance Brief" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("2D Governance Brief")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to portfolio" })).toBeInTheDocument();
   });
 
   it("never requests camera permission from the intro screen", async () => {
@@ -88,13 +65,7 @@ describe("ARGovernanceIntro entry CTA", () => {
     });
     checkArTargetAvailable.mockResolvedValue(true);
 
-    render(
-      <ARGovernanceIntro
-        onActivateCamera={vi.fn()}
-        onExploreBrief={vi.fn()}
-        onBack={vi.fn()}
-      />,
-    );
+    render(<ARGovernanceIntro onActivateCamera={vi.fn()} onBack={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Activate Camera" })).toBeInTheDocument();

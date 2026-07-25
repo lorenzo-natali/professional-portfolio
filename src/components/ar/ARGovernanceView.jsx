@@ -4,60 +4,36 @@ import { ARTrackingProvider } from "./tracking/ARTrackingProvider";
 import ARDesktopGate from "./ARDesktopGate";
 import ARGovernanceIntro from "./ARGovernanceIntro";
 import ARCameraView from "./ARCameraView";
-import GovernanceBriefFallback from "./GovernanceBriefFallback";
+import ARUnavailablePanel from "./ARUnavailablePanel";
 import { useIsMobileDevice } from "./useIsMobileDevice";
 import { lockArPage, setPortfolioInert } from "./arPageLock";
 import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
 
-function briefCopy(reason) {
+function unavailableCopy(reason) {
   switch (reason) {
     case "target-unavailable":
-      return "The AR recognition experience is not currently available. You can explore the same professional insights in this interactive view.";
+      return "The AR recognition experience is not currently available.";
     case "unsupported":
-      return "This browser or device cannot run the camera experience. You can explore the same professional insights in this interactive view.";
+      return "This browser or device cannot run the camera experience.";
     case "camera-denied":
-      return "Camera access was not granted. You can still explore the same professional insights in a standard interactive view.";
+      return "Camera access was not granted.";
     case "tracking-error":
-      return "The camera experience could not be started. You can still explore the same professional insights in a standard interactive view.";
-    case "desktop":
-      return "A concise interactive summary of the governance layer — available without the camera experience.";
+      return "The camera experience could not be started.";
     default:
-      return "You can explore the same professional insights in a standard interactive view.";
+      return "The camera experience is unavailable right now.";
   }
 }
 
 function ARGovernanceExperience({ isMobile, onClose }) {
   const [screen, setScreen] = useState(isMobile ? "intro" : "desktop");
-  const [briefReason, setBriefReason] = useState(null);
-
-  const exploreProjects = () => {
-    onClose();
-    window.requestAnimationFrame(() => {
-      document.getElementById("projects")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  };
+  const [unavailableReason, setUnavailableReason] = useState(null);
 
   return (
     <>
-      {screen === "desktop" && (
-        <ARDesktopGate
-          onViewBrief={() => {
-            setBriefReason("desktop");
-            setScreen("brief");
-          }}
-          onClose={onClose}
-        />
-      )}
+      {screen === "desktop" && <ARDesktopGate onClose={onClose} />}
 
       {screen === "intro" && (
-        <ARGovernanceIntro
-          onActivateCamera={() => setScreen("camera")}
-          onExploreBrief={() => {
-            setBriefReason("target-unavailable");
-            setScreen("brief");
-          }}
-          onBack={onClose}
-        />
+        <ARGovernanceIntro onActivateCamera={() => setScreen("camera")} onBack={onClose} />
       )}
 
       {screen === "camera" && (
@@ -71,20 +47,15 @@ function ARGovernanceExperience({ isMobile, onClose }) {
                 "camera-denied",
                 "target-unavailable",
               ]);
-              setBriefReason(allowed.has(reason) ? reason : "camera-denied");
-              setScreen("brief");
+              setUnavailableReason(allowed.has(reason) ? reason : "camera-denied");
+              setScreen("unavailable");
             }}
           />
         </ARTrackingProvider>
       )}
 
-      {screen === "brief" && (
-        <GovernanceBriefFallback
-          title="2D Governance Brief"
-          message={briefCopy(briefReason)}
-          onBack={onClose}
-          onExploreProjects={exploreProjects}
-        />
+      {screen === "unavailable" && (
+        <ARUnavailablePanel message={unavailableCopy(unavailableReason)} onClose={onClose} />
       )}
     </>
   );

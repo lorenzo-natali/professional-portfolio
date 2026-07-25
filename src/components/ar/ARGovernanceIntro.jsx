@@ -5,7 +5,7 @@ import { checkArTargetAvailable } from "./checkArTargetAvailable";
  * Mobile entry screen. Primary CTA is chosen only after the .mind target probe.
  * Camera permission is never requested here — only after “Activate Camera”.
  */
-export default function ARGovernanceIntro({ onActivateCamera, onExploreBrief, onBack }) {
+export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
   const [targetState, setTargetState] = useState("checking"); // checking | available | unavailable
 
   useEffect(() => {
@@ -55,18 +55,9 @@ export default function ARGovernanceIntro({ onActivateCamera, onExploreBrief, on
         )}
 
         {targetState === "unavailable" && (
-          <>
-            <button
-              type="button"
-              onClick={onExploreBrief}
-              className="mt-6 w-full rounded-md border border-cyan-400/40 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100"
-            >
-              Explore 2D Governance Brief
-            </button>
-            <p className="mt-3 text-center text-[11px] leading-5 text-slate-500">
-              The AR recognition experience is not currently available.
-            </p>
-          </>
+          <p className="mt-6 text-center text-[11px] leading-5 text-slate-500">
+            The AR recognition experience is not currently available on this device.
+          </p>
         )}
 
         <button
