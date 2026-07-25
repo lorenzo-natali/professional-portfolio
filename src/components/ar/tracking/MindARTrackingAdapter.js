@@ -3,6 +3,44 @@ import {
   isTargetLoadError,
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
+import { createAnchorProofObject } from "../createAnchorProofObject";
+
+/**
+ * Lift MindAR's video above the container background (MindAR defaults to z-index: -2)
+ * and keep the WebGL/CSS canvases transparent above it.
+ */
+export function applyCameraLayerStacking(container, renderer) {
+  if (!container) return;
+
+  container.style.background = "transparent";
+  container.style.isolation = "isolate";
+
+  const video = container.querySelector("video");
+  if (video) {
+    video.style.zIndex = "0";
+    video.style.pointerEvents = "none";
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+    video.muted = true;
+  }
+
+  const canvases = container.querySelectorAll("canvas");
+  canvases.forEach((canvas, index) => {
+    canvas.style.zIndex = String(1 + index);
+    canvas.style.pointerEvents = "none";
+    canvas.style.background = "transparent";
+  });
+
+  if (renderer) {
+    renderer.setClearColor?.(0x000000, 0);
+    if (typeof renderer.setClearAlpha === "function") {
+      renderer.setClearAlpha(0);
+    }
+    if (renderer.domElement) {
+      renderer.domElement.style.background = "transparent";
+    }
+  }
+}
 
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
@@ -13,6 +51,7 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
   let mindarThree = null;
   let running = false;
   let rafLoop = null;
+  let stackingCleanup = null;
 
   return {
     isRunning: () => running,
@@ -44,29 +83,48 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
           filterBeta: 0.001,
           warmupTolerance: 5,
           missTolerance: 10,
+          uiLoading: "no",
+          uiScanning: "no",
+          uiError: "no",
         });
 
         const { renderer, scene, camera } = mindarThree;
-        // Soft, professional lighting — no neon bloom.
-        const light = new THREE.AmbientLight(0xffffff, 0.85);
+        // Transparent GL clear so the live video remains visible underneath.
+        renderer.setClearColor(0x000000, 0);
+        if (typeof renderer.setClearAlpha === "function") {
+          renderer.setClearAlpha(0);
+        }
+
+        const light = new THREE.AmbientLight(0xffffff, 0.9);
         scene.add(light);
 
         const anchor = mindarThree.addAnchor(0);
+        // Spatial proof: visible frame bound to the CV image target.
+        // MindAR toggles anchor.group.visible on found/lost — no fixed HTML.
+        const proof = createAnchorProofObject(THREE);
+        anchor.group.add(proof);
+
         anchor.onTargetFound = () => callbacks.onTargetFound?.();
         anchor.onTargetLost = () => callbacks.onTargetLost?.();
 
-        // Invisible marker plane keeps the anchor alive for potential future overlays.
-        const plane = new THREE.Mesh(
-          new THREE.PlaneGeometry(1, 1.414),
-          new THREE.MeshBasicMaterial({
-            transparent: true,
-            opacity: 0,
-            depthWrite: false,
-          }),
-        );
-        anchor.group.add(plane);
-
         await mindarThree.start();
+        applyCameraLayerStacking(container, renderer);
+
+        const onResize = () => {
+          try {
+            mindarThree?.resize?.();
+          } catch {
+            // ignore
+          }
+          applyCameraLayerStacking(container, renderer);
+        };
+        window.addEventListener("resize", onResize);
+        window.addEventListener("orientationchange", onResize);
+        stackingCleanup = () => {
+          window.removeEventListener("resize", onResize);
+          window.removeEventListener("orientationchange", onResize);
+        };
+
         running = true;
         callbacks.onReady?.();
 
@@ -89,6 +147,12 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
 
     async stop() {
       running = false;
+      try {
+        stackingCleanup?.();
+      } catch {
+        // ignore
+      }
+      stackingCleanup = null;
       try {
         if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
         await mindarThree?.stop?.();

@@ -70,7 +70,6 @@ function ARGovernanceExperience({ isMobile, onClose }) {
         <ARTrackingProvider>
           <ARCameraView
             onBack={onClose}
-            onExploreProjects={exploreProjects}
             onFallback={(reason) => {
               // Automatic fallback only after the user has opted into camera AR.
               const allowed = new Set([
@@ -110,7 +109,7 @@ export default function ARGovernanceView({ open, onClose }) {
       {open && (
         <motion.div
           key="ar-governance-view"
-          className="fixed inset-0 z-[120] bg-slate-950"
+          className="fixed inset-0 z-[120] bg-transparent"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

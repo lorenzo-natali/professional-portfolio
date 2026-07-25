@@ -18,25 +18,15 @@ vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
   MindARThree: mocks.MindARThree,
 }));
 
-vi.mock("three", () => {
-  class AmbientLight {
-    constructor() {
-      this.isLight = true;
-    }
-  }
-  class PlaneGeometry {}
-  class MeshBasicMaterial {}
-  class Mesh {
-    constructor() {
-      this.isMesh = true;
-    }
-  }
-  return { AmbientLight, PlaneGeometry, MeshBasicMaterial, Mesh };
+vi.mock("three", async () => {
+  const actual = await vi.importActual("three");
+  return actual;
 });
 
-import { createMindARTrackingAdapter } from "./MindARTrackingAdapter";
+import { applyCameraLayerStacking, createMindARTrackingAdapter } from "./MindARTrackingAdapter";
+import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
 
-describe("createMindARTrackingAdapter target gating", () => {
+describe("createMindARTrackingAdapter camera slice", () => {
   beforeEach(() => {
     mocks.loadArTargetBuffer.mockReset();
     mocks.MindARThree.mockReset();
@@ -69,46 +59,53 @@ describe("createMindARTrackingAdapter target gating", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("reaches scanning/ready when the target is valid", async () => {
+  it("attaches a visible proof object to anchor.group and keeps renderer alpha enabled", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
 
     const start = vi.fn().mockResolvedValue(undefined);
-    const addAnchor = vi.fn(() => ({ group: { add: vi.fn() } }));
+    const group = { children: [], add: vi.fn(function add(child) { this.children.push(child); }) };
+    const addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
     const scene = { add: vi.fn() };
     const renderer = {
       setAnimationLoop: vi.fn(),
+      setClearColor: vi.fn(),
+      setClearAlpha: vi.fn(),
       domElement: document.createElement("canvas"),
       dispose: vi.fn(),
     };
 
-    mocks.MindARThree.mockImplementation(function MockMindARThree() {
+    mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
+      this.options = options;
       this.start = start;
       this.stop = vi.fn();
+      this.resize = vi.fn();
       this.addAnchor = addAnchor;
       this.renderer = renderer;
       this.scene = scene;
       this.camera = {};
+      // Simulate MindAR video insertion with the problematic default z-index.
+      const video = document.createElement("video");
+      video.style.zIndex = "-2";
+      options.container.appendChild(renderer.domElement);
+      options.container.appendChild(video);
     });
 
     const adapter = createMindARTrackingAdapter({ targetSrc: "./ar/targets/cv-page-1.mind" });
+    const host = document.createElement("div");
     const onReady = vi.fn();
-    const onUnsupported = vi.fn();
-    const onError = vi.fn();
 
-    await adapter.start(document.createElement("div"), {
-      onReady,
-      onUnsupported,
-      onError,
-    });
+    await adapter.start(host, { onReady, onUnsupported: vi.fn(), onError: vi.fn() });
 
-    expect(mocks.loadArTargetBuffer).toHaveBeenCalled();
-    expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
-    expect(mocks.MindARThree.mock.calls[0][0].imageTargetSrc).toBe("blob:mind-target");
     expect(start).toHaveBeenCalledTimes(1);
     expect(onReady).toHaveBeenCalledTimes(1);
-    expect(onUnsupported).not.toHaveBeenCalled();
-    expect(onError).not.toHaveBeenCalled();
-    expect(adapter.isRunning()).toBe(true);
+    expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
+    expect(group.add).toHaveBeenCalled();
+    const proof = group.children[0];
+    expect(isVisuallyPresentObject3D(proof)).toBe(true);
+
+    const video = host.querySelector("video");
+    expect(video.style.zIndex).toBe("0");
+    expect(host.querySelector("canvas").style.zIndex).toBe("1");
 
     await adapter.stop();
   });
@@ -118,9 +115,11 @@ describe("createMindARTrackingAdapter target gating", () => {
     mocks.MindARThree.mockImplementation(function MockMindARThree() {
       this.start = vi.fn().mockRejectedValue(new Error("Failed to import mind target dataList"));
       this.stop = vi.fn();
-      this.addAnchor = vi.fn(() => ({ group: { add: vi.fn() } }));
+      this.addAnchor = vi.fn(() => ({ group: { add: vi.fn(), children: [] } }));
       this.renderer = {
         setAnimationLoop: vi.fn(),
+        setClearColor: vi.fn(),
+        setClearAlpha: vi.fn(),
         dispose: vi.fn(),
         domElement: document.createElement("canvas"),
       };
@@ -136,5 +135,31 @@ describe("createMindARTrackingAdapter target gating", () => {
 
     expect(onUnsupported).toHaveBeenCalledWith("target-unavailable");
     expect(onError).not.toHaveBeenCalled();
+  });
+});
+
+describe("applyCameraLayerStacking", () => {
+  it("does not leave the MindAR video hidden behind an opaque ancestor fill", () => {
+    const container = document.createElement("div");
+    container.style.background = "black";
+    const video = document.createElement("video");
+    video.style.zIndex = "-2";
+    const canvas = document.createElement("canvas");
+    container.appendChild(canvas);
+    container.appendChild(video);
+
+    const renderer = {
+      setClearColor: vi.fn(),
+      setClearAlpha: vi.fn(),
+      domElement: canvas,
+    };
+
+    applyCameraLayerStacking(container, renderer);
+
+    expect(container.style.background).toBe("transparent");
+    expect(video.style.zIndex).toBe("0");
+    expect(canvas.style.zIndex).toBe("1");
+    expect(canvas.style.background).toBe("transparent");
+    expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
   });
 });

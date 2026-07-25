@@ -399,6 +399,23 @@ body {
   overflow: visible;
 }
 
+/* Camera layer: never paint an opaque fill over MindAR's <video> (z-index compensated in JS). */
+.ar-tracking-container {
+  background: transparent !important;
+  isolation: isolate;
+}
+
+.ar-tracking-container video {
+  z-index: 0 !important;
+  pointer-events: none;
+}
+
+.ar-tracking-container canvas {
+  z-index: 1;
+  pointer-events: none;
+  background: transparent !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .radar-sweep {
     animation: none;

@@ -4,6 +4,7 @@ import { useARTracking } from "./tracking/useARTracking";
 /**
  * Owns the tracking lifecycle through the abstraction only.
  * Never imports MindAR directly.
+ * Container must stay transparent so MindAR's video is not covered.
  */
 export default function ARTrackingScene({
   active,
@@ -51,5 +52,12 @@ export default function ARTrackingScene({
     };
   }, [active, adapter]);
 
-  return <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-black" aria-hidden="true" />;
+  return (
+    <div
+      ref={containerRef}
+      data-ar-tracking-container="true"
+      className="ar-tracking-container absolute inset-0 overflow-hidden bg-transparent"
+      aria-hidden="true"
+    />
+  );
 }
