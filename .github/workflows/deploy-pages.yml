@@ -28,8 +28,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      # mind-ar pulls in native `canvas` (target compilation only). Ignore install
+      # scripts so Pages CI does not need cairo/pixman — the browser AR bundle
+      # imports mind-ar's prebuilt dist and does not require native canvas.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Build
         run: npm run build
