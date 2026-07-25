@@ -1,8 +1,12 @@
 import { AR_TARGET_SRC } from "../arConfig";
-import { checkArTargetAvailable } from "../checkArTargetAvailable";
+import {
+  isTargetLoadError,
+  loadArTargetBuffer,
+} from "../checkArTargetAvailable";
 
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
+ * Target bytes are validated before getUserMedia so the camera never opens on a bad target.
  * @returns {import("./createTrackingAdapter").TrackingAdapter}
  */
 export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) {
@@ -16,11 +20,16 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
     async start(container, callbacks = {}) {
       if (running) await this.stop();
 
-      const available = await checkArTargetAvailable(targetSrc);
-      if (!available) {
+      // Prefer validating/preloading before camera initialization.
+      const targetBuffer = await loadArTargetBuffer(targetSrc);
+      if (!targetBuffer) {
         callbacks.onUnsupported?.("target-unavailable");
         return;
       }
+
+      const blobUrl = URL.createObjectURL(
+        new Blob([targetBuffer], { type: "application/octet-stream" }),
+      );
 
       try {
         const [{ MindARThree }, THREE] = await Promise.all([
@@ -30,7 +39,7 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
 
         mindarThree = new MindARThree({
           container,
-          imageTargetSrc: targetSrc,
+          imageTargetSrc: blobUrl,
           filterMinCF: 0.0001,
           filterBeta: 0.001,
           warmupTolerance: 5,
@@ -68,7 +77,13 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
       } catch (error) {
         running = false;
         const err = error instanceof Error ? error : new Error(String(error));
-        callbacks.onError?.(err);
+        if (isTargetLoadError(err)) {
+          callbacks.onUnsupported?.("target-unavailable");
+        } else {
+          callbacks.onError?.(err);
+        }
+      } finally {
+        URL.revokeObjectURL(blobUrl);
       }
     },
 
@@ -87,9 +102,6 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
       }
       mindarThree = null;
       rafLoop = null;
-      if (typeof document !== "undefined") {
-        // MindAR injects video/canvas into the container; clear residual nodes.
-      }
     },
   };
 }
