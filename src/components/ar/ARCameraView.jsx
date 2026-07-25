@@ -1,37 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useState } from "react";
 import ARTrackingScene from "./ARTrackingScene";
 import ARAboutPanel from "./ARAboutPanel";
-import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
-
-function CornerBrackets() {
-  const corner = "absolute h-6 w-6 border-cyan-300/60";
-  return (
-    <div className="pointer-events-none absolute inset-[12%] sm:inset-[18%]" aria-hidden="true">
-      <span className={`${corner} left-0 top-0 border-l border-t`} />
-      <span className={`${corner} right-0 top-0 border-r border-t`} />
-      <span className={`${corner} bottom-0 left-0 border-b border-l`} />
-      <span className={`${corner} bottom-0 right-0 border-b border-r`} />
-    </div>
-  );
-}
 
 /**
- * Camera AR slice: full-viewport live feed + calibrated document-plane proof frame.
+ * Camera AR slice: absolute stage inside the single portaled viewport shell.
+ * Minimal HUD only — no calibration frames or decorative overlays.
  */
 export default function ARCameraView({ onBack, onFallback }) {
-  const shellRef = useRef(null);
   const [tracking, setTracking] = useState("searching"); // searching | detected | lost
   const [aboutOpen, setAboutOpen] = useState(false);
-
-  useEffect(() => {
-    const shell = shellRef.current;
-    if (!shell) return undefined;
-
-    const sync = () => syncArViewportShell(shell);
-    sync();
-    return bindArViewportListeners(sync);
-  }, []);
 
   const handleTargetFound = () => {
     setTracking("detected");
@@ -43,28 +20,15 @@ export default function ARCameraView({ onBack, onFallback }) {
 
   const statusLabel =
     tracking === "searching"
-      ? "Searching for CV…"
+      ? "Align the first page of the CV"
       : tracking === "detected"
         ? "CV detected"
         : tracking === "lost"
-          ? "Tracking paused"
-          : null;
-
-  const statusDetail =
-    tracking === "searching"
-      ? "Point the camera at the first page and keep the full document visible."
-      : tracking === "lost"
-        ? "Reframe the first page to continue."
-        : tracking === "detected"
-          ? "Document frame is anchored to the CV."
+          ? "Reframe the CV to continue"
           : null;
 
   return (
-    <div
-      ref={shellRef}
-      data-ar-camera-shell="true"
-      className="ar-camera-shell text-slate-100"
-    >
+    <div data-ar-camera-stage="true" className="ar-camera-stage text-slate-100">
       <ARTrackingScene
         active
         onReady={() => setTracking((t) => (t === "searching" ? "searching" : t))}
@@ -76,38 +40,30 @@ export default function ARCameraView({ onBack, onFallback }) {
         }
       />
 
-      {(tracking === "searching" || tracking === "detected") && <CornerBrackets />}
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-[max(1rem,env(safe-area-inset-top))]">
-        <AnimatePresence mode="wait">
-          {statusLabel && (
-            <motion.div
-              key={statusLabel}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="mx-auto max-w-md rounded-lg border border-slate-700/80 bg-slate-950/70 px-3 py-2 text-center backdrop-blur"
-            >
-              <p className="text-xs font-medium tracking-[0.14em] text-slate-100">{statusLabel}</p>
-              {statusDetail && <p className="mt-1 text-[11px] leading-5 text-slate-400">{statusDetail}</p>}
-            </motion.div>
-          )}
-        </AnimatePresence>
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        {statusLabel && (
+          <p
+            className="mx-auto max-w-md text-center text-xs font-medium tracking-[0.12em] text-slate-100"
+            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.85)" }}
+          >
+            {statusLabel}
+          </p>
+        )}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-8">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-6">
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={onBack}
-            className="rounded-md border border-slate-600 bg-slate-950/80 px-3 py-2 text-xs font-medium text-slate-100 transition hover:border-slate-400"
+            className="rounded-md bg-slate-950/80 px-3 py-2 text-xs font-medium text-slate-100"
           >
-            Back to Portfolio
+            Close
           </button>
           <button
             type="button"
             onClick={() => setAboutOpen(true)}
-            className="rounded-md border border-slate-700 px-2.5 py-2 text-xs font-medium text-slate-400 transition hover:text-slate-200"
+            className="rounded-md bg-slate-950/70 px-2.5 py-2 text-xs font-medium text-slate-300"
             aria-label="About this experience"
           >
             About

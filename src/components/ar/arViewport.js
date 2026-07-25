@@ -1,5 +1,6 @@
 /**
- * Keep the AR camera shell locked to the visible viewport (iOS Safari safe).
+ * Single AR viewport shell sizing authority (visualViewport when available).
+ * Uses left/top offsets — not transform — so descendants are not trapped.
  * @param {HTMLElement | null} shell
  */
 export function syncArViewportShell(shell) {
@@ -12,16 +13,18 @@ export function syncArViewportShell(shell) {
   const offsetTop = Math.round(vv?.offsetTop ?? 0);
 
   shell.style.position = "fixed";
-  shell.style.left = "0px";
-  shell.style.top = "0px";
+  shell.style.left = `${offsetLeft}px`;
+  shell.style.top = `${offsetTop}px`;
   shell.style.right = "auto";
   shell.style.bottom = "auto";
   shell.style.width = `${width}px`;
   shell.style.height = `${height}px`;
-  shell.style.maxWidth = "100vw";
-  shell.style.maxHeight = "100dvh";
+  shell.style.maxWidth = "none";
+  shell.style.maxHeight = "none";
+  shell.style.margin = "0";
+  shell.style.transform = "none";
   shell.style.overflow = "hidden";
-  shell.style.transform = `translate(${offsetLeft}px, ${offsetTop}px)`;
+  shell.style.inset = "auto";
 }
 
 /**
@@ -50,5 +53,24 @@ export function bindArViewportListeners(onChange) {
     window.removeEventListener("orientationchange", run);
     window.visualViewport?.removeEventListener("resize", run);
     window.visualViewport?.removeEventListener("scroll", run);
+  };
+}
+
+/**
+ * Read the shell box used as MindAR sizing authority.
+ * @param {HTMLElement | null} shell
+ */
+export function getArShellRect(shell) {
+  if (!shell) return null;
+  const width = shell.clientWidth;
+  const height = shell.clientHeight;
+  const rect = shell.getBoundingClientRect();
+  return {
+    width,
+    height,
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
   };
 }

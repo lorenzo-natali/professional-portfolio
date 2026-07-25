@@ -399,37 +399,33 @@ body {
   overflow: visible;
 }
 
-/* Full-viewport AR shell — covers the portfolio while any AR screen is open. */
+/* Single portaled AR viewport shell — sized by visualViewport JS (arViewport.js). */
 .ar-viewport-shell {
   position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  max-width: 100vw;
-  max-height: 100dvh;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
-  background: #020617; /* slate-950 — intro/brief sit on this; camera shell paints black */
+  background: #020617;
+  z-index: 2147483000;
+  transform: none;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
-/* Camera mode: opaque full-screen stage so the portfolio never bleeds through. */
-.ar-camera-shell {
-  position: fixed;
+/* Camera stage fills the one shell — never an independent fixed viewport. */
+.ar-camera-stage {
+  position: absolute;
   inset: 0;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  max-width: 100vw;
-  max-height: 100dvh;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: #000;
-}
-
-@supports (height: 100dvh) {
-  .ar-viewport-shell,
-  .ar-camera-shell {
-    height: 100dvh;
-  }
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
 /* Camera layer: never paint an opaque fill over MindAR's <video> (z-index compensated in JS). */
@@ -450,6 +446,11 @@ body {
 
 .ar-tracking-container canvas {
   z-index: 1;
+  pointer-events: none;
+  background: transparent !important;
+}
+
+.ar-tracking-container > div {
   pointer-events: none;
   background: transparent !important;
 }

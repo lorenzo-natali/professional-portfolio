@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ARGovernanceView from "./ARGovernanceView";
 
@@ -20,6 +20,47 @@ import { checkArTargetAvailable } from "./checkArTargetAvailable";
 describe("ARGovernanceView entry flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cleanup();
+    document.body.innerHTML = '<div id="root"></div>';
+    checkArTargetAvailable.mockResolvedValue(true);
+  });
+
+  it("portals the AR root to document.body outside the portfolio main tree", () => {
+    const main = document.createElement("main");
+    document.getElementById("root").appendChild(main);
+
+    render(
+      <ARGovernanceView open onClose={vi.fn()} />,
+      { container: main },
+    );
+
+    const shell = document.querySelector("[data-ar-viewport-shell='true']");
+    expect(shell).toBeTruthy();
+    expect(shell.parentElement).toBe(document.body);
+    expect(main.contains(shell)).toBe(false);
+    expect(document.querySelectorAll("[data-ar-viewport-shell='true']")).toHaveLength(1);
+  });
+
+  it("locks the portfolio root against pointer interaction while open", () => {
+    const root = document.getElementById("root");
+    render(<ARGovernanceView open onClose={vi.fn()} />);
+
+    expect(root.hasAttribute("inert")).toBe(true);
+    expect(root.style.pointerEvents).toBe("none");
+    expect(document.body.style.position).toBe("fixed");
+  });
+
+  it("restores page lock on close", () => {
+    const root = document.getElementById("root");
+    const { rerender } = render(<ARGovernanceView open onClose={vi.fn()} />);
+    expect(root.hasAttribute("inert")).toBe(true);
+
+    rerender(<ARGovernanceView open={false} onClose={vi.fn()} />);
+
+    expect(document.querySelector("[data-ar-viewport-shell='true']")).toBeNull();
+    expect(root.hasAttribute("inert")).toBe(false);
+    expect(root.style.pointerEvents).toBe("");
+    expect(document.body.style.position).toBe("");
   });
 
   it("opens the 2D brief from intro when the target is missing, without mounting the camera view", async () => {

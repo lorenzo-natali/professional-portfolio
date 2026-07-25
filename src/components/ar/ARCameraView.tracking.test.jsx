@@ -25,13 +25,22 @@ vi.mock("./tracking/ARTrackingProvider", () => ({
   ARTrackingProvider: ({ children }) => children,
 }));
 
-describe("ARCameraView camera-slice HUD", () => {
-  it("uses a fixed full-viewport camera shell", () => {
+describe("ARCameraView minimal HUD", () => {
+  it("uses an absolute camera stage inside the viewport shell", () => {
     const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
-    const shell = container.querySelector("[data-ar-camera-shell='true']");
-    expect(shell).toBeTruthy();
-    expect(shell.className).toContain("ar-camera-shell");
-    expect(screen.getByTestId("tracking-scene").className).toContain("ar-tracking-container");
+    const stage = container.querySelector("[data-ar-camera-stage='true']");
+    expect(stage).toBeTruthy();
+    expect(stage.className).toContain("ar-camera-stage");
+    expect(stage.className).not.toContain("ar-camera-shell");
+  });
+
+  it("does not render corner brackets or calibration copy", () => {
+    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
+
+    expect(container.querySelectorAll(".border-l.border-t").length).toBe(0);
+    expect(screen.queryByText(/Document frame/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Searching for CV/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Align the first page of the CV")).toBeInTheDocument();
   });
 
   it("does not trigger fallback on no detection or target lost", async () => {
@@ -54,14 +63,13 @@ describe("ARCameraView camera-slice HUD", () => {
     });
 
     expect(onFallback).not.toHaveBeenCalled();
-    expect(await screen.findByText("Tracking paused")).toBeInTheDocument();
+    expect(await screen.findByText("Reframe the CV to continue")).toBeInTheDocument();
   });
 
-  it("keeps HUD screen-fixed and does not render viewport AR cards", async () => {
+  it("keeps a compact HUD and does not render governance content", async () => {
     render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
 
-    expect(screen.getByText("Searching for CV…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "About this experience" })).toBeInTheDocument();
 
     expect(screen.queryByText("Interpretation")).not.toBeInTheDocument();
@@ -76,12 +84,5 @@ describe("ARCameraView camera-slice HUD", () => {
     expect(await screen.findByText("CV detected")).toBeInTheDocument();
     expect(screen.queryByText("Interpretation")).not.toBeInTheDocument();
     expect(screen.queryByText("Professional trajectory")).not.toBeInTheDocument();
-  });
-
-  it("keeps the tracking container free of opaque background utilities", () => {
-    render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
-    const container = screen.getByTestId("tracking-scene");
-    expect(container.className).toContain("ar-tracking-container");
-    expect(container.className).not.toContain("bg-black");
   });
 });

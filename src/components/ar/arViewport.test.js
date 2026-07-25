@@ -14,28 +14,7 @@ describe("arViewport shell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("locks the shell to fixed full-viewport dimensions", () => {
-    const shell = document.createElement("div");
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
-    Object.defineProperty(window, "visualViewport", {
-      configurable: true,
-      value: undefined,
-    });
-
-    syncArViewportShell(shell);
-
-    expect(shell.style.position).toBe("fixed");
-    expect(shell.style.left).toBe("0px");
-    expect(shell.style.top).toBe("0px");
-    expect(shell.style.width).toBe("390px");
-    expect(shell.style.height).toBe("844px");
-    expect(shell.style.overflow).toBe("hidden");
-    expect(shell.style.maxWidth).toBe("100vw");
-    expect(shell.style.maxHeight).toBe("100dvh");
-  });
-
-  it("follows visualViewport size and offset for iOS Safari", () => {
+  it("drives the shell from visualViewport dimensions and offsets without transform", () => {
     const shell = document.createElement("div");
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
@@ -51,9 +30,32 @@ describe("arViewport shell", () => {
 
     syncArViewportShell(shell);
 
+    expect(shell.style.position).toBe("fixed");
+    expect(shell.style.left).toBe("12px");
+    expect(shell.style.top).toBe("24px");
     expect(shell.style.width).toBe("360px");
     expect(shell.style.height).toBe("640px");
-    expect(shell.style.transform).toBe("translate(12px, 24px)");
+    expect(shell.style.transform).toBe("none");
+    expect(shell.style.overflow).toBe("hidden");
+    expect(shell.style.maxWidth).toBe("none");
+    expect(shell.style.maxHeight).toBe("none");
+  });
+
+  it("falls back to window inner size when visualViewport is absent", () => {
+    const shell = document.createElement("div");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: undefined,
+    });
+
+    syncArViewportShell(shell);
+
+    expect(shell.style.width).toBe("390px");
+    expect(shell.style.height).toBe("844px");
+    expect(shell.style.left).toBe("0px");
+    expect(shell.style.top).toBe("0px");
   });
 
   it("rebinds resize, orientationchange, and visualViewport listeners", () => {

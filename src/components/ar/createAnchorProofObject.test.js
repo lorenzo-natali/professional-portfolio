@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { AR_SHOW_ANCHOR_PROOF } from "./arDebug";
 import { DOCUMENT_HEIGHT, DOCUMENT_PLANE_Z, DOCUMENT_WIDTH } from "./arDocumentPlane";
 import {
   createAnchorProofObject,
@@ -8,6 +9,10 @@ import {
 } from "./createAnchorProofObject";
 
 describe("createAnchorProofObject", () => {
+  it("keeps the production debug flag disabled by default", () => {
+    expect(AR_SHOW_ANCHOR_PROOF).toBe(false);
+  });
+
   it("creates a visible Object3D group suitable for MindAR anchor.group", () => {
     const proof = createAnchorProofObject(THREE);
 

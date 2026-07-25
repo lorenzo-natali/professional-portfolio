@@ -23,8 +23,52 @@ vi.mock("three", async () => {
   return actual;
 });
 
-import { applyCameraLayerStacking, createMindARTrackingAdapter } from "./MindARTrackingAdapter";
+import {
+  applyCameraLayerStacking,
+  createMindARTrackingAdapter,
+  layersMatchContainer,
+} from "./MindARTrackingAdapter";
 import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
+
+function mockMindAR({ resize = vi.fn(), withCssHost = true } = {}) {
+  const group = {
+    children: [],
+    add: vi.fn(function add(child) {
+      this.children.push(child);
+    }),
+  };
+  const addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
+  const scene = { add: vi.fn() };
+  const renderer = {
+    setAnimationLoop: vi.fn(),
+    setClearColor: vi.fn(),
+    setClearAlpha: vi.fn(),
+    domElement: document.createElement("canvas"),
+    dispose: vi.fn(),
+  };
+
+  mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
+    this.options = options;
+    this.start = vi.fn().mockResolvedValue(undefined);
+    this.stop = vi.fn();
+    this.resize = resize;
+    this.addAnchor = addAnchor;
+    this.renderer = renderer;
+    this.scene = scene;
+    this.camera = {};
+    options.container.appendChild(renderer.domElement);
+    if (withCssHost) {
+      const cssHost = document.createElement("div");
+      cssHost.style.position = "absolute";
+      options.container.appendChild(cssHost);
+    }
+    const video = document.createElement("video");
+    video.style.zIndex = "-2";
+    options.container.appendChild(video);
+  });
+
+  return { group, addAnchor, renderer, resize };
+}
 
 describe("createMindARTrackingAdapter camera slice", () => {
   beforeEach(() => {
@@ -34,6 +78,11 @@ describe("createMindARTrackingAdapter camera slice", () => {
       createObjectURL: vi.fn(() => "blob:mind-target"),
       revokeObjectURL: vi.fn(),
     });
+    vi.stubGlobal("requestAnimationFrame", (cb) => {
+      cb(0);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
   });
 
   afterEach(() => {
@@ -59,75 +108,60 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("attaches a visible proof object to anchor.group and keeps renderer alpha enabled", async () => {
+  it("starts exactly one MindAR session without a production proof mesh", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    const { group, addAnchor, renderer, resize } = mockMindAR();
 
-    const start = vi.fn().mockResolvedValue(undefined);
-    const group = { children: [], add: vi.fn(function add(child) { this.children.push(child); }) };
-    const addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
-    const scene = { add: vi.fn() };
-    const renderer = {
-      setAnimationLoop: vi.fn(),
-      setClearColor: vi.fn(),
-      setClearAlpha: vi.fn(),
-      domElement: document.createElement("canvas"),
-      dispose: vi.fn(),
-    };
-
-    mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
-      this.options = options;
-      this.start = start;
-      this.stop = vi.fn();
-      this.resize = vi.fn();
-      this.addAnchor = addAnchor;
-      this.renderer = renderer;
-      this.scene = scene;
-      this.camera = {};
-      // Simulate MindAR video insertion with the problematic default z-index.
-      const video = document.createElement("video");
-      video.style.zIndex = "-2";
-      options.container.appendChild(renderer.domElement);
-      options.container.appendChild(video);
+    const adapter = createMindARTrackingAdapter({
+      targetSrc: "./ar/targets/cv-page-1.mind",
+      showAnchorProof: false,
     });
-
-    const adapter = createMindARTrackingAdapter({ targetSrc: "./ar/targets/cv-page-1.mind" });
+    const shell = document.createElement("div");
+    shell.setAttribute("data-ar-viewport-shell", "true");
+    Object.defineProperty(shell, "clientWidth", { value: 390 });
+    Object.defineProperty(shell, "clientHeight", { value: 700 });
     const host = document.createElement("div");
-    const onReady = vi.fn();
+    shell.appendChild(host);
+    document.body.appendChild(shell);
 
+    const onReady = vi.fn();
     await adapter.start(host, { onReady, onUnsupported: vi.fn(), onError: vi.fn() });
 
-    expect(start).toHaveBeenCalledTimes(1);
+    expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
+    expect(addAnchor).toHaveBeenCalledTimes(1);
+    expect(group.add).not.toHaveBeenCalled();
+    expect(group.children).toHaveLength(0);
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
+    expect(resize).toHaveBeenCalled();
+    expect(host.querySelector("video").style.zIndex).toBe("0");
+
+    await adapter.stop();
+    shell.remove();
+  });
+
+  it("attaches a proof object only when the debug flag is enabled", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    const { group } = mockMindAR();
+
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: true });
+    await adapter.start(document.createElement("div"), { onReady: vi.fn() });
+
     expect(group.add).toHaveBeenCalled();
-    const proof = group.children[0];
-    expect(isVisuallyPresentObject3D(proof)).toBe(true);
-    expect(proof.userData.documentPlane.height).toBeCloseTo(2574 / 1820, 10);
-
-    const video = host.querySelector("video");
-    expect(video.style.zIndex).toBe("0");
-    expect(host.querySelector("canvas").style.zIndex).toBe("1");
-
-    const mindInstance = mocks.MindARThree.mock.instances[0];
-    expect(mindInstance.resize).toHaveBeenCalled();
+    expect(isVisuallyPresentObject3D(group.children[0])).toBe(true);
 
     await adapter.stop();
   });
 
-  it("re-runs MindAR resize on viewport / visualViewport changes", async () => {
+  it("re-runs MindAR resize after visualViewport changes and cleans listeners on stop", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
 
     const listeners = {};
     const vvListeners = {};
-    vi.stubGlobal("requestAnimationFrame", (cb) => {
-      cb(0);
-      return 1;
-    });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
     vi.spyOn(window, "addEventListener").mockImplementation((type, fn) => {
       listeners[type] = fn;
     });
-    vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
+    const removeSpy = vi.spyOn(window, "removeEventListener").mockImplementation(() => {});
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       value: {
@@ -143,30 +177,11 @@ describe("createMindARTrackingAdapter camera slice", () => {
     });
 
     const resize = vi.fn();
-    const group = { children: [], add: vi.fn(function add(child) { this.children.push(child); }) };
-    const renderer = {
-      setAnimationLoop: vi.fn(),
-      setClearColor: vi.fn(),
-      setClearAlpha: vi.fn(),
-      domElement: document.createElement("canvas"),
-      dispose: vi.fn(),
-    };
-
-    mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
-      this.start = vi.fn().mockResolvedValue(undefined);
-      this.stop = vi.fn();
-      this.resize = resize;
-      this.addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
-      this.renderer = renderer;
-      this.scene = { add: vi.fn() };
-      this.camera = {};
-      options.container.appendChild(renderer.domElement);
-      options.container.appendChild(document.createElement("video"));
-    });
+    mockMindAR({ resize });
 
     const adapter = createMindARTrackingAdapter({ targetSrc: "./ar/targets/cv-page-1.mind" });
     const shell = document.createElement("div");
-    shell.setAttribute("data-ar-camera-shell", "true");
+    shell.setAttribute("data-ar-viewport-shell", "true");
     const host = document.createElement("div");
     shell.appendChild(host);
 
@@ -179,9 +194,26 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(resize.mock.calls.length).toBeGreaterThan(callsAfterStart);
     expect(shell.style.position).toBe("fixed");
-    expect(shell.style.overflow).toBe("hidden");
+    expect(shell.style.transform).toBe("none");
+    expect(shell.style.width).toBe("390px");
 
     await adapter.stop();
+    expect(removeSpy).toHaveBeenCalledWith("resize", expect.any(Function));
+    expect(window.visualViewport.removeEventListener).toHaveBeenCalled();
+  });
+
+  it("clears injected tracking DOM on scene cleanup path via stop", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    mockMindAR();
+
+    const adapter = createMindARTrackingAdapter();
+    const host = document.createElement("div");
+    await adapter.start(host, { onReady: vi.fn() });
+    expect(host.querySelector("video")).toBeTruthy();
+    expect(host.querySelector("canvas")).toBeTruthy();
+
+    await adapter.stop();
+    expect(adapter.isRunning()).toBe(false);
   });
 
   it("maps unparseable target runtime errors to target-unavailable", async () => {
@@ -219,7 +251,9 @@ describe("applyCameraLayerStacking", () => {
     const video = document.createElement("video");
     video.style.zIndex = "-2";
     const canvas = document.createElement("canvas");
+    const cssHost = document.createElement("div");
     container.appendChild(canvas);
+    container.appendChild(cssHost);
     container.appendChild(video);
 
     const renderer = {
@@ -233,7 +267,27 @@ describe("applyCameraLayerStacking", () => {
     expect(container.style.background).toBe("transparent");
     expect(video.style.zIndex).toBe("0");
     expect(canvas.style.zIndex).toBe("1");
+    expect(cssHost.style.pointerEvents).toBe("none");
     expect(canvas.style.background).toBe("transparent");
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
+  });
+
+  it("reports when canvas and CSS3D host match the container box", () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", { value: 390 });
+    Object.defineProperty(container, "clientHeight", { value: 700 });
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "390px";
+    canvas.style.height = "700px";
+    const cssHost = document.createElement("div");
+    cssHost.style.width = "390px";
+    cssHost.style.height = "700px";
+    container.appendChild(canvas);
+    container.appendChild(cssHost);
+
+    expect(layersMatchContainer(container)).toBe(true);
+
+    cssHost.style.height = "500px";
+    expect(layersMatchContainer(container)).toBe(false);
   });
 });

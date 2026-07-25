@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ARTrackingProvider } from "./tracking/ARTrackingProvider";
 import ARDesktopGate from "./ARDesktopGate";
 import ARGovernanceIntro from "./ARGovernanceIntro";
 import ARCameraView from "./ARCameraView";
 import GovernanceBriefFallback from "./GovernanceBriefFallback";
 import { useIsMobileDevice } from "./useIsMobileDevice";
+import { lockArPage, setPortfolioInert } from "./arPageLock";
+import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
 
 function briefCopy(reason) {
   switch (reason) {
@@ -27,14 +29,6 @@ function briefCopy(reason) {
 function ARGovernanceExperience({ isMobile, onClose }) {
   const [screen, setScreen] = useState(isMobile ? "intro" : "desktop");
   const [briefReason, setBriefReason] = useState(null);
-
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
 
   const exploreProjects = () => {
     onClose();
@@ -71,7 +65,6 @@ function ARGovernanceExperience({ isMobile, onClose }) {
           <ARCameraView
             onBack={onClose}
             onFallback={(reason) => {
-              // Automatic fallback only after the user has opted into camera AR.
               const allowed = new Set([
                 "unsupported",
                 "tracking-error",
@@ -98,29 +91,46 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 }
 
 /**
- * Full-screen AR Governance experience orchestrator.
- * Desktop never attempts camera AR — only the 2D brief.
+ * Full-screen AR Governance experience — portaled to document.body,
+ * outside the portfolio stacking context.
  */
 export default function ARGovernanceView({ open, onClose }) {
   const isMobile = useIsMobileDevice();
+  const shellRef = useRef(null);
 
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          key="ar-governance-view"
-          className="ar-viewport-shell z-[120]"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="AR Governance View"
-        >
-          <ARGovernanceExperience isMobile={isMobile} onClose={onClose} />
-        </motion.div>
-      )}
-    </AnimatePresence>
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+
+    const shell = shellRef.current;
+    const root = document.getElementById("root");
+    const unlockPage = lockArPage();
+    setPortfolioInert(root, true);
+
+    const sync = () => syncArViewportShell(shell);
+    sync();
+    const unbindViewport = bindArViewportListeners(sync);
+
+    return () => {
+      unbindViewport();
+      setPortfolioInert(root, false);
+      unlockPage();
+    };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      ref={shellRef}
+      data-ar-viewport-shell="true"
+      data-ar-root="true"
+      className="ar-viewport-shell"
+      role="dialog"
+      aria-modal="true"
+      aria-label="AR Governance View"
+    >
+      <ARGovernanceExperience isMobile={isMobile} onClose={onClose} />
+    </div>,
+    document.body,
   );
 }

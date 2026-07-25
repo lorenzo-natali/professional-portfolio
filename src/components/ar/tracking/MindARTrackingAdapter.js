@@ -1,4 +1,5 @@
 import { AR_TARGET_SRC } from "../arConfig";
+import { AR_SHOW_ANCHOR_PROOF } from "../arDebug";
 import {
   isTargetLoadError,
   loadArTargetBuffer,
@@ -8,7 +9,7 @@ import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
  * Lift MindAR's video above the container background (MindAR defaults to z-index: -2)
- * and keep the WebGL/CSS canvases transparent above it.
+ * and keep the WebGL/CSS3D layers transparent above it.
  */
 export function applyCameraLayerStacking(container, renderer) {
   if (!container) return;
@@ -25,7 +26,6 @@ export function applyCameraLayerStacking(container, renderer) {
   if (video) {
     video.style.zIndex = "0";
     video.style.pointerEvents = "none";
-    video.style.objectFit = "cover";
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
     video.muted = true;
@@ -36,10 +36,15 @@ export function applyCameraLayerStacking(container, renderer) {
     canvas.style.zIndex = String(1 + index);
     canvas.style.pointerEvents = "none";
     canvas.style.background = "transparent";
-    // MindAR sets explicit cover crop geometry; keep fill without stretch fallback.
-    if (!canvas.style.width) canvas.style.width = "100%";
-    if (!canvas.style.height) canvas.style.height = "100%";
   });
+
+  // CSS3DRenderer host is a positioned div (not a canvas).
+  const cssHost = Array.from(container.children).find((node) => node.tagName === "DIV");
+  if (cssHost) {
+    cssHost.style.zIndex = String(1 + canvases.length);
+    cssHost.style.pointerEvents = "none";
+    cssHost.style.background = "transparent";
+  }
 
   if (renderer) {
     renderer.setClearColor?.(0x000000, 0);
@@ -52,15 +57,44 @@ export function applyCameraLayerStacking(container, renderer) {
   }
 }
 
-function findCameraShell(container) {
-  return container?.closest?.("[data-ar-camera-shell='true']") || container?.parentElement || null;
+/**
+ * Assert MindAR media layers share the container client box after resize.
+ * @param {HTMLElement} container
+ */
+export function layersMatchContainer(container) {
+  if (!container) return false;
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  if (width < 1 || height < 1) return false;
+
+  const canvas = container.querySelector("canvas");
+  const cssHost = Array.from(container.children).find((node) => node.tagName === "DIV");
+  const targets = [canvas, cssHost].filter(Boolean);
+
+  return targets.every((el) => {
+    const w = Math.round(parseFloat(el.style.width) || el.clientWidth);
+    const h = Math.round(parseFloat(el.style.height) || el.clientHeight);
+    return Math.abs(w - width) <= 1 && Math.abs(h - height) <= 1;
+  });
+}
+
+function findViewportShell(container) {
+  return (
+    container?.closest?.("[data-ar-viewport-shell='true']") ||
+    document.querySelector("[data-ar-viewport-shell='true']") ||
+    container?.parentElement ||
+    null
+  );
 }
 
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
  * @returns {import("./createTrackingAdapter").TrackingAdapter}
  */
-export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) {
+export function createMindARTrackingAdapter({
+  targetSrc = AR_TARGET_SRC,
+  showAnchorProof = AR_SHOW_ANCHOR_PROOF,
+} = {}) {
   let mindarThree = null;
   let running = false;
   let rafLoop = null;
@@ -88,7 +122,7 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
           import("three"),
         ]);
 
-        const shell = findCameraShell(container);
+        const shell = findViewportShell(container);
         syncArViewportShell(shell);
 
         mindarThree = new MindARThree({
@@ -113,33 +147,38 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
         scene.add(light);
 
         const anchor = mindarThree.addAnchor(0);
-        const proof = createAnchorProofObject(THREE);
-        anchor.group.add(proof);
+        if (showAnchorProof) {
+          anchor.group.add(createAnchorProofObject(THREE));
+        }
 
         anchor.onTargetFound = () => callbacks.onTargetFound?.();
         anchor.onTargetLost = () => callbacks.onTargetLost?.();
 
         await mindarThree.start();
+
+        // Shell is the only sizing authority; then resize MindAR from that container.
         syncArViewportShell(shell);
         try {
-          mindarThree.resize?.();
+          mindarThree.resize();
         } catch {
           // ignore
         }
         applyCameraLayerStacking(container, renderer);
 
+        // MindAR also binds window.resize internally (anonymous bound fn — not removable).
+        // Our listeners cover visualViewport; both converge on container client box.
         const onViewportChange = () => {
+          if (!running || !mindarThree) return;
           syncArViewportShell(shell);
           try {
-            mindarThree?.resize?.();
+            mindarThree.resize();
           } catch {
             // ignore
           }
           applyCameraLayerStacking(container, renderer);
         };
-        viewportCleanup = bindArViewportListeners(onViewportChange);
-
         running = true;
+        viewportCleanup = bindArViewportListeners(onViewportChange);
         callbacks.onReady?.();
 
         renderer.setAnimationLoop(() => {
@@ -167,19 +206,30 @@ export function createMindARTrackingAdapter({ targetSrc = AR_TARGET_SRC } = {}) 
         // ignore
       }
       viewportCleanup = null;
+
+      const instance = mindarThree;
+      mindarThree = null;
+
       try {
         if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
-        await mindarThree?.stop?.();
-      } catch {
-        // Best-effort cleanup.
-      }
-      try {
-        mindarThree?.renderer?.dispose?.();
       } catch {
         // ignore
       }
-      mindarThree = null;
       rafLoop = null;
+
+      try {
+        await instance?.stop?.();
+      } catch {
+        // Best-effort cleanup.
+      }
+
+      try {
+        instance?.renderer?.dispose?.();
+      } catch {
+        // ignore
+      }
+
+      // Detached MindAR window.resize handlers no-op once video is removed (library checks !video).
     },
   };
 }
