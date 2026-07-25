@@ -2248,9 +2248,113 @@ function RiskRadar({ selectedLens = "Overview" }) {
   );
 }
 
+function PortfolioIntro({ onComplete }) {
+  const words = ["Risk", "Controls", "Technology"];
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    // Per word: ~220ms scan + settle into accent + ~180ms verified hold before next pillar.
+    const timers = [
+      window.setTimeout(() => setActiveIndex(0), 1200),
+      window.setTimeout(() => setActiveIndex(1), 1900),
+      window.setTimeout(() => setActiveIndex(2), 2600),
+      window.setTimeout(() => setReady(true), 3000),
+      window.setTimeout(() => onComplete?.(), 3800),
+    ];
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, [onComplete]);
+
+  return (
+    <motion.div
+      key="portfolio-intro"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 backdrop-blur-md"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1, transition: { duration: 0.3, ease: "easeInOut" } }}
+      exit={{ opacity: 0, transition: { duration: 0.5, ease: "easeInOut" } }}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex flex-col items-center gap-2.5 px-6 text-center">
+        <div className="relative flex h-5 w-full items-center justify-center">
+          <AnimatePresence mode="sync" initial={false}>
+            <motion.p
+              key={ready ? "ready" : "init"}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+              className="absolute inset-x-0 text-sm font-medium tracking-[0.18em] text-slate-200"
+            >
+              {ready ? "Profile ready." : "Initializing professional profile"}
+            </motion.p>
+          </AnimatePresence>
+        </div>
+        <div className="flex items-center justify-center gap-5 text-sm font-medium uppercase tracking-[0.2em] sm:gap-7 sm:text-base">
+          {words.map((word, index) => {
+            const active = index <= activeIndex;
+            const scanning = index === activeIndex;
+            return (
+              <span key={word} className="relative inline-block">
+                <span
+                  className={`transition-colors duration-500 ease-out ${
+                    active ? "text-cyan-300" : "text-slate-500"
+                  }`}
+                >
+                  {word}
+                </span>
+                {scanning && (
+                  <motion.span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 select-none"
+                    style={{
+                      color: "transparent",
+                      WebkitTextFillColor: "transparent",
+                      backgroundImage:
+                        "linear-gradient(90deg, transparent 46%, rgba(224,242,254,0.55) 50%, transparent 54%)",
+                      backgroundRepeat: "no-repeat",
+                      backgroundSize: "250% 100%",
+                      WebkitBackgroundClip: "text",
+                      backgroundClip: "text",
+                    }}
+                    initial={{ backgroundPosition: "120% 0%" }}
+                    animate={{ backgroundPosition: "-20% 0%" }}
+                    transition={{ duration: 0.24, ease: [0.33, 0, 0.2, 1] }}
+                  >
+                    {word}
+                  </motion.span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function App() {
   const [selectedLens, setSelectedLens] = useState("Overview");
   const [expandedExperiences, setExpandedExperiences] = useState({});
+  const [showIntro, setShowIntro] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+      if (window.sessionStorage.getItem("portfolioIntroSeen") === "1") return false;
+    } catch {
+      return false;
+    }
+    return true;
+  });
+
+  useEffect(() => {
+    if (!showIntro) return;
+    try {
+      window.sessionStorage.setItem("portfolioIntroSeen", "1");
+    } catch {
+      // sessionStorage unavailable (e.g. privacy mode); intro simply won't persist.
+    }
+  }, [showIntro]);
 
   const toggleExperienceDetails = (experienceId) => {
     setExpandedExperiences((current) => ({
@@ -2260,6 +2364,7 @@ function App() {
   };
 
   return (
+    <>
     <main className="min-h-screen overflow-hidden bg-slate-950 text-slate-100">
       <section id="hero" className="relative overflow-hidden bg-slate-950 px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
@@ -2616,6 +2721,10 @@ function App() {
 
       <RiskRadar selectedLens={selectedLens} />
     </main>
+    <AnimatePresence>
+      {showIntro && <PortfolioIntro onComplete={() => setShowIntro(false)} />}
+    </AnimatePresence>
+    </>
   );
 }
 
