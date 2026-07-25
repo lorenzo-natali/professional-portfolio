@@ -5,6 +5,7 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
+import { createGovernanceLensLayer } from "../createGovernanceLensLayer";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
@@ -99,6 +100,7 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
+  let governanceLens = null;
 
   return {
     isRunning: () => running,
@@ -151,8 +153,17 @@ export function createMindARTrackingAdapter({
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
-        anchor.onTargetFound = () => callbacks.onTargetFound?.();
-        anchor.onTargetLost = () => callbacks.onTargetLost?.();
+        governanceLens = createGovernanceLensLayer(THREE);
+        anchor.group.add(governanceLens.group);
+
+        anchor.onTargetFound = () => {
+          governanceLens?.onTargetFound();
+          callbacks.onTargetFound?.();
+        };
+        anchor.onTargetLost = () => {
+          governanceLens?.onTargetLost();
+          callbacks.onTargetLost?.();
+        };
 
         await mindarThree.start();
 
@@ -187,6 +198,12 @@ export function createMindARTrackingAdapter({
         rafLoop = renderer;
       } catch (error) {
         running = false;
+        try {
+          governanceLens?.dispose();
+        } catch {
+          // ignore
+        }
+        governanceLens = null;
         const err = error instanceof Error ? error : new Error(String(error));
         if (isTargetLoadError(err)) {
           callbacks.onUnsupported?.("target-unavailable");
@@ -206,6 +223,13 @@ export function createMindARTrackingAdapter({
         // ignore
       }
       viewportCleanup = null;
+
+      try {
+        governanceLens?.dispose();
+      } catch {
+        // ignore
+      }
+      governanceLens = null;
 
       const instance = mindarThree;
       mindarThree = null;

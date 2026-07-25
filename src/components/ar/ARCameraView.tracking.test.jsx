@@ -66,7 +66,7 @@ describe("ARCameraView minimal HUD", () => {
     expect(await screen.findByText("Reframe the CV to continue")).toBeInTheDocument();
   });
 
-  it("keeps a compact HUD and does not render governance content", async () => {
+  it("keeps a compact HUD and does not render viewport-fixed Governance Lens DOM", async () => {
     render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
@@ -76,12 +76,17 @@ describe("ARCameraView minimal HUD", () => {
     expect(screen.queryByText("Governance model")).not.toBeInTheDocument();
     expect(screen.queryByText("Professional trajectory")).not.toBeInTheDocument();
     expect(screen.queryByText("Governance view ready")).not.toBeInTheDocument();
+    expect(screen.queryByText("Governance Lens Active")).not.toBeInTheDocument();
+    expect(screen.queryByText("Professional Identity")).not.toBeInTheDocument();
+    expect(screen.queryByText("Internal Audit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Operational Resilience")).not.toBeInTheDocument();
 
     await act(async () => {
       trackingHandlers.onTargetFound?.();
     });
 
     expect(await screen.findByText("CV detected")).toBeInTheDocument();
+    expect(screen.queryByText("Governance Lens Active")).not.toBeInTheDocument();
     expect(screen.queryByText("Interpretation")).not.toBeInTheDocument();
     expect(screen.queryByText("Professional trajectory")).not.toBeInTheDocument();
   });

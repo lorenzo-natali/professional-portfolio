@@ -108,7 +108,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("starts exactly one MindAR session without a production proof mesh", async () => {
+  it("starts exactly one MindAR session and attaches the governance lens to the anchor", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group, addAnchor, renderer, resize } = mockMindAR();
 
@@ -129,8 +129,9 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
-    expect(group.add).not.toHaveBeenCalled();
-    expect(group.children).toHaveLength(0);
+    expect(group.add).toHaveBeenCalledTimes(1);
+    expect(group.children[0].name).toBe("ar-governance-lens");
+    expect(group.children.some((child) => child.name === "ar-anchor-proof")).toBe(false);
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
     expect(resize).toHaveBeenCalled();
@@ -138,6 +139,38 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     await adapter.stop();
     shell.remove();
+  });
+
+  it("notifies target lost/found for the lens without leaving the camera session", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    const { group, addAnchor } = mockMindAR();
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+    const onTargetFound = vi.fn();
+    const onTargetLost = vi.fn();
+    const onUnsupported = vi.fn();
+    const onError = vi.fn();
+
+    await adapter.start(document.createElement("div"), {
+      onReady: vi.fn(),
+      onTargetFound,
+      onTargetLost,
+      onUnsupported,
+      onError,
+    });
+
+    const wired = addAnchor.mock.results[0].value;
+    wired.onTargetFound();
+    wired.onTargetLost();
+    wired.onTargetFound();
+
+    expect(onTargetFound).toHaveBeenCalledTimes(2);
+    expect(onTargetLost).toHaveBeenCalledTimes(1);
+    expect(onUnsupported).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(adapter.isRunning()).toBe(true);
+    expect(group.children[0].name).toBe("ar-governance-lens");
+
+    await adapter.stop();
   });
 
   it("attaches a proof object only when the debug flag is enabled", async () => {
