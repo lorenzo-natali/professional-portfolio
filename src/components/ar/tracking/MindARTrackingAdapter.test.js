@@ -445,6 +445,25 @@ describe("createMindARTrackingAdapter interest objects", () => {
     container.remove();
   });
 
+  it("restores the pre-1a0da8e MindAR One Euro filter baseline", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    mockMindAR();
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    await adapter.start(container, {});
+
+    expect(mocks.MindARThree).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filterMinCF: 0.0001,
+        filterBeta: 0.001,
+      }),
+    );
+
+    await adapter.stop();
+    container.remove();
+  });
+
   it("cleans up viewport listeners on stop", () => {
     const onChange = vi.fn();
     const vv = {

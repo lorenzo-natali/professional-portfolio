@@ -468,9 +468,9 @@ export function createMindARTrackingAdapter({
         mindarThree = new MindARThree({
           container,
           imageTargetSrc: sessionBlobUrl,
-          // Near MindAR library defaults — prior filterBeta:0.001 caused heavy lag/seasickness.
-          filterMinCF: 0.001,
-          filterBeta: 1000,
+          // Restore last deployed usable baseline (84e81d5); 0.001/1000 was nearly unusable on device.
+          filterMinCF: 0.0001,
+          filterBeta: 0.001,
           warmupTolerance: 5,
           missTolerance: 10,
           uiLoading: "no",
@@ -603,7 +603,7 @@ export function createMindARTrackingAdapter({
 
         /**
          * Sync shell → optional MindAR.resize → normalize, with gap probes.
-         * Video CSS ownership stays unchanged until probes confirm media_sizing.
+         * Normalize enforces video max-width:none so Preflight cannot clamp cover width.
          * @param {string} reason
          * @param {{ forceResize?: boolean }} [opts]
          */

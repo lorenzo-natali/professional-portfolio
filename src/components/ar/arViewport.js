@@ -181,16 +181,12 @@ export function normalizeMindArLayerStyles(container, options = {}) {
 
   const video = container.querySelector("video");
   if (video) {
-    report.videoInline = {
-      width: video.style.width,
-      height: video.style.height,
-      left: video.style.left,
-      top: video.style.top,
-    };
     video.style.position = "absolute";
     video.style.zIndex = "0";
     video.style.pointerEvents = "none";
     video.style.objectFit = "cover";
+    // Survive Tailwind Preflight `video { max-width: 100% }` so MindAR cover can exceed the CB.
+    video.style.maxWidth = "none";
     // Keep MindAR cover math (may exceed container); do not rewrite to 100%x100%
     // unless MindAR left invalid/zero sizes.
     const vw = parseFloat(video.style.width) || 0;
@@ -201,6 +197,13 @@ export function normalizeMindArLayerStyles(container, options = {}) {
       video.style.width = `${width}px`;
       video.style.height = `${height}px`;
     }
+    report.videoInline = {
+      width: video.style.width,
+      height: video.style.height,
+      left: video.style.left,
+      top: video.style.top,
+      maxWidth: video.style.maxWidth,
+    };
   }
 
   const canvases = container.querySelectorAll("canvas");
@@ -490,6 +493,20 @@ export function collectArViewportMetrics(shell, options = {}) {
       gapRightOk: Math.abs(gapRight) <= 1,
       canvasMatchesStage:
         Math.abs((canvasBox?.rect?.width ?? 0) - (stageBox?.rect?.width ?? 0)) <= 1,
+      videoCoversContainer: Boolean(
+        videoBox?.rect &&
+          containerBox?.rect &&
+          videoBox.rect.left <= containerBox.rect.left + 2 &&
+          videoBox.rect.right >= containerBox.rect.right - 2 &&
+          videoBox.rect.top <= containerBox.rect.top + 2 &&
+          videoBox.rect.bottom >= containerBox.rect.bottom - 2,
+      ),
+      coverageShortfall: Number(
+        Math.max(
+          0,
+          (containerBox?.rect?.right ?? 0) - (videoBox?.rect?.right ?? 0),
+        ).toFixed(2),
+      ),
     },
   };
 }
@@ -522,22 +539,53 @@ export function classifyArResizeGapCause(metrics) {
   const docW = metrics?.documentElement?.clientWidth ?? 0;
   const shellRight = metrics?.shell?.rect?.right ?? 0;
   const stageRight = metrics?.stage?.rect?.right ?? shellRight;
-  const containerW = metrics?.container?.rect?.width ?? 0;
-  const videoW = metrics?.video?.rect?.width ?? 0;
-  const canvasW = metrics?.canvas?.rect?.width ?? 0;
-  const videoLeft = metrics?.video?.rect?.left ?? 0;
-  const containerLeft = metrics?.container?.rect?.left ?? 0;
+  const containerRect = metrics?.container?.rect ?? null;
+  const videoRect = metrics?.video?.rect ?? null;
+  const canvasRect = metrics?.canvas?.rect ?? null;
   const vv = metrics?.visualViewport;
 
+  const containerW = containerRect?.width ?? 0;
+  const containerLeft = containerRect?.left ?? 0;
+  const containerRight =
+    containerRect?.right ?? containerLeft + (containerRect?.width ?? 0);
+  const containerTop = containerRect?.top ?? 0;
+  const containerBottom =
+    containerRect?.bottom ?? containerTop + (containerRect?.height ?? 0);
+
+  const videoLeft = videoRect?.left ?? 0;
+  const videoRight = videoRect?.right ?? videoLeft + (videoRect?.width ?? 0);
+  const videoTop = videoRect?.top ?? 0;
+  const videoBottom = videoRect?.bottom ?? videoTop + (videoRect?.height ?? 0);
+
+  const canvasLeft = canvasRect?.left ?? containerLeft;
+  const canvasW = canvasRect?.width ?? 0;
+
+  const EDGE_TOL = 2;
+  const videoCoversContainer =
+    Boolean(videoRect) &&
+    videoLeft <= containerLeft + EDGE_TOL &&
+    videoRight >= containerRight - EDGE_TOL &&
+    videoTop <= containerTop + EDGE_TOL &&
+    videoBottom >= containerBottom - EDGE_TOL;
+
+  const canvasMatchesContainer =
+    !canvasRect ||
+    (Math.abs(canvasW - containerW) <= 2 && Math.abs(canvasLeft - containerLeft) <= 2);
+
   const ancestorGapRight = Math.max(0, docW - Math.max(shellRight, stageRight));
-  const mediaShortfall = Math.max(0, containerW - Math.max(videoW, canvasW));
+  // Positive shortfall = container edge not covered by video (right strip uses X).
+  const coverageShortfallX = Math.max(0, containerRight - videoRight);
+  const mediaShortfall = Math.max(
+    coverageShortfallX,
+    Math.max(0, containerLeft - videoLeft),
+    Math.max(0, videoTop - containerTop),
+    Math.max(0, containerBottom - videoBottom),
+  );
   const videoOffsetLeft = videoLeft - containerLeft;
 
   const ancestorNarrow = ancestorGapRight > 2;
   const mediaNarrow =
-    !ancestorNarrow &&
-    containerW > 1 &&
-    (videoW < containerW - 4 || canvasW < containerW - 2 || Math.abs(videoOffsetLeft) > 2);
+    !ancestorNarrow && containerW > 1 && (!videoCoversContainer || !canvasMatchesContainer);
   const safariViewportDiffers = Boolean(
     vv &&
       (Math.abs(vv.width - (metrics?.window?.innerWidth ?? 0)) > 1 ||
@@ -556,8 +604,11 @@ export function classifyArResizeGapCause(metrics) {
     ancestorNarrow,
     mediaNarrow,
     safariViewportDiffers,
+    videoCoversContainer,
+    canvasMatchesContainer,
     ancestorGapRight: Number(ancestorGapRight.toFixed(2)),
     mediaShortfall: Number(mediaShortfall.toFixed(2)),
+    coverageShortfall: Number(coverageShortfallX.toFixed(2)),
     videoOffsetLeft: Number(videoOffsetLeft.toFixed(2)),
     shellPosition: metrics?.shell?.style?.position ?? metrics?.shell?.inline?.position ?? null,
     hostPosition:

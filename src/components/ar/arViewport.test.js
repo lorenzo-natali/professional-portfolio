@@ -84,7 +84,30 @@ describe("arViewport shell", () => {
     expect(canvas.style.height).toBe("844px");
     // Undersized video is expanded to cover; container stays fullscreen auto.
     expect(parseFloat(video.style.width)).toBeGreaterThanOrEqual(390);
+    expect(video.style.maxWidth).toBe("none");
+    expect(report.videoInline.maxWidth).toBe("none");
     expect(report.canvasInline.width).toBe("390px");
+  });
+
+  it("preserves oversized MindAR cover geometry and forces video maxWidth none", () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", { value: 440 });
+    Object.defineProperty(container, "clientHeight", { value: 956 });
+    const video = document.createElement("video");
+    video.style.width = "556.5px";
+    video.style.height = "956px";
+    video.style.left = "-58.25px";
+    video.style.top = "0px";
+    const canvas = document.createElement("canvas");
+    container.appendChild(video);
+    container.appendChild(canvas);
+
+    normalizeMindArLayerStyles(container, {});
+    expect(video.style.width).toBe("556.5px");
+    expect(video.style.left).toBe("-58.25px");
+    expect(video.style.maxWidth).toBe("none");
+    expect(canvas.style.width).toBe("440px");
+    expect(canvas.style.left).toBe("0px");
   });
 
   it("creates a portal host under document.documentElement", () => {
@@ -157,25 +180,50 @@ describe("arViewport shell", () => {
       visualViewport: { width: 390, offsetLeft: 0 },
       shell: { rect: { right: 360, width: 360 } },
       stage: { rect: { right: 360, width: 360 } },
-      container: { rect: { width: 360, left: 0 } },
-      video: { rect: { width: 360, left: 0 } },
-      canvas: { rect: { width: 360 } },
+      container: { rect: { left: 0, right: 360, top: 0, bottom: 700, width: 360, height: 700 } },
+      video: { rect: { left: 0, right: 360, top: 0, bottom: 700, width: 360, height: 700 } },
+      canvas: { rect: { left: 0, right: 360, width: 360 } },
     });
     expect(ancestor.primary).toBe("ancestor_layout");
     expect(ancestor.ancestorNarrow).toBe(true);
 
     const media = classifyArResizeGapCause({
-      documentElement: { clientWidth: 390 },
-      window: { innerWidth: 390 },
-      visualViewport: { width: 390, offsetLeft: 0 },
-      shell: { rect: { right: 390, width: 390 } },
-      stage: { rect: { right: 390, width: 390 } },
-      container: { rect: { width: 390, left: 0 } },
-      video: { rect: { width: 340, left: -10 } },
-      canvas: { rect: { width: 390 } },
+      documentElement: { clientWidth: 440 },
+      window: { innerWidth: 440 },
+      visualViewport: { width: 440, offsetLeft: 0 },
+      shell: { rect: { right: 440, width: 440 } },
+      stage: { rect: { right: 440, width: 440 } },
+      container: { rect: { left: 0, right: 440, top: 0, bottom: 956, width: 440, height: 956 } },
+      // Preflight clamp fingerprint: negative left kept, used width == container → right shortfall.
+      video: {
+        rect: { left: -58.25, right: 381.75, top: 0, bottom: 956, width: 440, height: 956 },
+      },
+      canvas: { rect: { left: 0, right: 440, width: 440 } },
     });
     expect(media.primary).toBe("media_sizing");
     expect(media.mediaNarrow).toBe(true);
+    expect(media.videoCoversContainer).toBe(false);
+    expect(media.coverageShortfall).toBeCloseTo(58.25, 2);
+  });
+
+  it("accepts MindAR cover negative offsets when both video edges cover the container", () => {
+    const cover = classifyArResizeGapCause({
+      documentElement: { clientWidth: 440 },
+      window: { innerWidth: 440 },
+      visualViewport: { width: 440, offsetLeft: 0 },
+      shell: { rect: { right: 440, width: 440 } },
+      stage: { rect: { right: 440, width: 440 } },
+      container: { rect: { left: 0, right: 440, top: 0, bottom: 956, width: 440, height: 956 } },
+      video: {
+        rect: { left: -58.25, right: 498.25, top: 0, bottom: 956, width: 556.5, height: 956 },
+      },
+      canvas: { rect: { left: 0, right: 440, width: 440 } },
+    });
+    expect(cover.primary).toBe("none");
+    expect(cover.mediaNarrow).toBe(false);
+    expect(cover.videoCoversContainer).toBe(true);
+    expect(cover.coverageShortfall).toBe(0);
+    expect(cover.videoOffsetLeft).toBeCloseTo(-58.25, 2);
   });
 
   it("records resize probes onto window.__arViewportResizeLog", () => {

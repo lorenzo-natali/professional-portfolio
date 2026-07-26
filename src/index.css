@@ -492,9 +492,11 @@ body {
   user-select: none;
 }
 
-.ar-tracking-container video {
+/* Exempt MindAR cover video from Tailwind Preflight `video { max-width: 100% }`. */
+.ar-tracking-container > video {
   z-index: 0 !important;
   pointer-events: none;
+  max-width: none;
 }
 
 .ar-tracking-container canvas {

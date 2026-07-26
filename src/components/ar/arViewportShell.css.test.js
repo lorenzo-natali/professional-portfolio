@@ -3,7 +3,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const cssPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../index.css");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const cssPath = resolve(root, "index.css");
+const preflightPath = resolve(root, "../node_modules/tailwindcss/preflight.css");
 
 describe("ar fullscreen CSS", () => {
   it("keeps a single fixed portal host with absolute fillers below", () => {
@@ -32,5 +34,45 @@ describe("ar fullscreen CSS", () => {
       expect(block, name).not.toMatch(/100vw/);
       expect(block, name).not.toMatch(/aspect-ratio/);
     }
+  });
+
+  it("exempts only the AR tracking video from Tailwind Preflight max-width", () => {
+    const css = readFileSync(cssPath, "utf8");
+    const preflight = readFileSync(preflightPath, "utf8");
+
+    expect(preflight).toMatch(/img,\s*video\s*\{[\s\S]*?max-width:\s*100%/);
+    expect(css).toMatch(/@import\s+["']tailwindcss["']/);
+
+    const arVideo = css.match(/\.ar-tracking-container\s*>\s*video\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    expect(arVideo).toMatch(/max-width:\s*none/);
+    // No global bare `video { max-width: none }` that would disable Preflight portfolio-wide.
+    expect(css).not.toMatch(/(?:^|\n)\s*video\s*\{[^}]*max-width:\s*none/);
+  });
+
+  it("keeps Preflight max-width on non-AR videos while AR container video is exempt", () => {
+    const style = document.createElement("style");
+    style.textContent = `
+      img, video { max-width: 100%; height: auto; }
+      .ar-tracking-container > video {
+        z-index: 0 !important;
+        pointer-events: none;
+        max-width: none;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const ar = document.createElement("div");
+    ar.className = "ar-tracking-container";
+    const arVideo = document.createElement("video");
+    ar.appendChild(arVideo);
+    const portfolioVideo = document.createElement("video");
+    document.body.append(ar, portfolioVideo);
+
+    expect(getComputedStyle(arVideo).maxWidth).toBe("none");
+    expect(getComputedStyle(portfolioVideo).maxWidth).toBe("100%");
+
+    style.remove();
+    ar.remove();
+    portfolioVideo.remove();
   });
 });

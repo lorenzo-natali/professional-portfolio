@@ -164,12 +164,18 @@ function classifyViewportGaps(elements) {
     hypotheses.A_portalShellNarrowerThanViewport = narrow ? "confirmed" : "excluded";
   }
   if (container && video && canvas) {
-    const videoNarrow = video.width < container.width - 4;
-    const canvasNarrow = canvas.width < container.width - 2;
+    // Accept MindAR cover offsets: require edge coverage, not equal widths / zero left.
+    const videoCovers =
+      video.left <= container.left + 2 &&
+      video.right >= container.right - 2 &&
+      video.top <= container.top + 2 &&
+      video.bottom >= container.bottom - 2;
+    const canvasNarrow =
+      canvas.width < container.width - 2 || Math.abs(canvas.left - container.left) > 2;
     hypotheses.B_containerOkVideoCanvasNarrow =
       !hypotheses.A_portalShellNarrowerThanViewport ||
       hypotheses.A_portalShellNarrowerThanViewport === "excluded"
-        ? videoNarrow || canvasNarrow
+        ? !videoCovers || canvasNarrow
           ? "confirmed"
           : "excluded"
         : "unverifiable";
