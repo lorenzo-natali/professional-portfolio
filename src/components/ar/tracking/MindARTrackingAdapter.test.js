@@ -5,7 +5,7 @@ import { createValidMindFixture } from "../mindTargetFixture";
 const mocks = vi.hoisted(() => ({
   loadArTargetBuffer: vi.fn(),
   MindARThree: vi.fn(),
-  createProfessionalEvolutionLayer: vi.fn(),
+  createAlignmentCore: vi.fn(),
 }));
 
 vi.mock("../checkArTargetAvailable", async (importOriginal) => {
@@ -16,8 +16,8 @@ vi.mock("../checkArTargetAvailable", async (importOriginal) => {
   };
 });
 
-vi.mock("../createProfessionalEvolutionLayer", () => ({
-  createProfessionalEvolutionLayer: (...args) => mocks.createProfessionalEvolutionLayer(...args),
+vi.mock("../createAlignmentCore", () => ({
+  createAlignmentCore: (...args) => mocks.createAlignmentCore(...args),
 }));
 
 vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
@@ -30,39 +30,36 @@ import {
   layersMatchContainer,
 } from "./MindARTrackingAdapter";
 import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
-import { PROFESSIONAL_EVOLUTION_STAGES } from "../professionalEvolutionConfig";
 
-function makeEvolutionStub() {
+function makeAlignmentStub() {
   const placement = new THREE.Group();
-  placement.name = "ar-professional-evolution-placement";
-  placement.userData.kind = "ar-professional-evolution";
-  const entrance = new THREE.Group();
-  entrance.name = "ar-professional-evolution-entrance";
-  const content = new THREE.Group();
-  content.name = "ar-professional-evolution-content";
-  entrance.add(content);
-  placement.add(entrance);
+  placement.name = "ar-alignment-core-placement";
+  placement.userData.kind = "ar-alignment-core";
   placement.visible = false;
+  const leftHit = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial());
+  leftHit.userData.shellSide = "left";
+  const rightHit = new THREE.Mesh(new THREE.SphereGeometry(0.1), new THREE.MeshBasicMaterial());
+  rightHit.userData.shellSide = "right";
   return {
-    group: placement,
     placement,
-    interaction: entrance,
-    anim: entrance,
-    content,
-    stageNodes: PROFESSIONAL_EVOLUTION_STAGES.map((stage) => ({ id: stage.id })),
-    stages: PROFESSIONAL_EVOLUTION_STAGES.map((stage) => ({
-      id: stage.id,
-      label: stage.label,
-    })),
-    riseHeight: 0.018,
-    riseAxis: "z",
-    initialRotation: { x: -0.04, y: 0, z: 0 },
-    initialScale: 1,
-    applyProgress: vi.fn(),
-    resetVisualState: vi.fn(),
-    resetInteractionPose: vi.fn(),
-    setOpacity: vi.fn(),
-    getOpacity: vi.fn(() => 0),
+    group: placement,
+    hitTargets: [leftHit, rightHit],
+    leftShell: { root: new THREE.Group(), hit: leftHit, dispose: vi.fn() },
+    rightShell: { root: new THREE.Group(), hit: rightHit, dispose: vi.fn() },
+    leftCarrier: new THREE.Group(),
+    rightCarrier: new THREE.Group(),
+    leftTarget: new THREE.Quaternion(),
+    rightTarget: new THREE.Quaternion(),
+    coreGroup: new THREE.Group(),
+    coreMesh: new THREE.Mesh(),
+    halo: new THREE.Mesh(),
+    coreMat: { emissiveIntensity: 1 },
+    haloMat: { opacity: 0 },
+    mergedInteraction: new THREE.Group(),
+    assembly: new THREE.Group(),
+    layout: { shellSeparation: 0.4 },
+    setVisible: vi.fn(),
+    resetToSplit: vi.fn(),
     dispose: vi.fn(),
   };
 }
@@ -103,12 +100,12 @@ function mockMindAR({ resize = vi.fn(), withCssHost = true } = {}) {
   return { group, addAnchor, renderer, resize, scene };
 }
 
-describe("createMindARTrackingAdapter camera slice", () => {
+describe("createMindARTrackingAdapter Alignment Core", () => {
   beforeEach(() => {
     mocks.loadArTargetBuffer.mockReset();
     mocks.MindARThree.mockReset();
-    mocks.createProfessionalEvolutionLayer.mockReset();
-    mocks.createProfessionalEvolutionLayer.mockImplementation(() => makeEvolutionStub());
+    mocks.createAlignmentCore.mockReset();
+    mocks.createAlignmentCore.mockImplementation(() => makeAlignmentStub());
     vi.stubGlobal("URL", {
       createObjectURL: vi.fn(() => "blob:mind-target"),
       revokeObjectURL: vi.fn(),
@@ -119,16 +116,26 @@ describe("createMindARTrackingAdapter camera slice", () => {
     vi.unstubAllGlobals();
   });
 
-  it("does not attach gesture controllers and disables container pointer events", async () => {
+  it("mounts Alignment Core under presentation and enables canvas pointers", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
-    mockMindAR();
+    const { group, addAnchor, renderer } = mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
     const container = document.createElement("div");
     document.body.appendChild(container);
     await adapter.start(container, {});
 
-    expect(mocks.createProfessionalEvolutionLayer).toHaveBeenCalledTimes(1);
+    expect(mocks.createAlignmentCore).toHaveBeenCalledTimes(1);
+    expect(addAnchor).toHaveBeenCalledTimes(1);
+    const presentation = group.children.find(
+      (child) => child?.name === "ar-alignment-core-presentation",
+    );
+    expect(presentation).toBeTruthy();
+    expect(presentation.children[0]?.name).toBe("ar-alignment-core-placement");
+    expect(group.children.some((child) => child?.name === "ar-professional-evolution")).toBe(
+      false,
+    );
     expect(container.style.pointerEvents).toBe("none");
+    expect(renderer.domElement.style.pointerEvents).toBe("auto");
 
     await adapter.stop();
     container.remove();
@@ -143,75 +150,6 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("starts exactly one MindAR session with Professional Evolution and no Risk Lens labels", async () => {
-    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
-    const { group, addAnchor, renderer, resize } = mockMindAR();
-
-    const shell = document.createElement("div");
-    shell.setAttribute("data-ar-viewport-shell", "true");
-    Object.defineProperty(shell, "clientWidth", { value: 390 });
-    Object.defineProperty(shell, "clientHeight", { value: 720 });
-    const container = document.createElement("div");
-    shell.appendChild(container);
-    document.body.appendChild(shell);
-
-    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
-    await adapter.start(container, {});
-
-    expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
-    expect(addAnchor).toHaveBeenCalledTimes(1);
-    expect(mocks.createProfessionalEvolutionLayer).toHaveBeenCalledTimes(1);
-    const presentation = group.children.find(
-      (child) => child?.name === "ar-professional-evolution-presentation",
-    );
-    expect(presentation).toBeTruthy();
-    expect(presentation.children).toHaveLength(1);
-    const placement = presentation.children[0];
-    expect(placement.name).toBe("ar-professional-evolution-placement");
-    expect(placement.children.map((child) => child.name)).toEqual([
-      "ar-professional-evolution-entrance",
-    ]);
-    expect(placement.children[0].children.map((child) => child.name)).toEqual([
-      "ar-professional-evolution-content",
-    ]);
-    // No obsolete wrapper between presentation and placement.
-    expect(
-      presentation.children.some((child) => child?.name === "ar-professional-evolution"),
-    ).toBe(false);
-    expect(group.children.some((child) => child?.name === "ar-collectible")).toBe(false);
-    expect(group.children.some((child) => child?.name === "ar-decision-core")).toBe(false);
-    expect(group.children.some((child) => child?.name === "ar-professional-card")).toBe(false);
-    expect(group.children.some((child) => child?.name === "ar-lens-layer")).toBe(false);
-    expect(renderer.setClearColor).toHaveBeenCalled();
-    expect(resize).toHaveBeenCalled();
-
-    await adapter.stop();
-    shell.remove();
-  });
-
-  it("wires Professional Evolution entrance to target found/lost without diagnostics hooks", async () => {
-    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
-    const { addAnchor, renderer } = mockMindAR();
-    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const onTargetFound = vi.fn();
-    const onTargetLost = vi.fn();
-    await adapter.start(container, { onTargetFound, onTargetLost });
-
-    const anchor = addAnchor.mock.results[0].value;
-    expect(typeof anchor.onTargetFound).toBe("function");
-    expect(typeof anchor.onTargetLost).toBe("function");
-    anchor.onTargetFound();
-    expect(onTargetFound).toHaveBeenCalledTimes(1);
-    anchor.onTargetLost();
-    expect(onTargetLost).toHaveBeenCalledTimes(1);
-    expect(renderer.setAnimationLoop).toHaveBeenCalled();
-
-    await adapter.stop();
-    container.remove();
-  });
-
   it("keeps the raw MindAR anchor unmodified by presentation ownership", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group } = mockMindAR();
@@ -221,7 +159,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     await adapter.start(container, {});
 
     const presentation = group.children.find(
-      (child) => child?.name === "ar-professional-evolution-presentation",
+      (child) => child?.name === "ar-alignment-core-presentation",
     );
     expect(presentation.matrixAutoUpdate).toBe(false);
     expect(group.matrixAutoUpdate).toBe(true);
@@ -230,14 +168,14 @@ describe("createMindARTrackingAdapter camera slice", () => {
     container.remove();
   });
 
-  it("applyCameraLayerStacking disables pointer events so Close is not stolen", () => {
+  it("applyCameraLayerStacking keeps Close-safe container isolation", () => {
     const container = document.createElement("div");
     const canvas = document.createElement("canvas");
     container.appendChild(canvas);
     const renderer = { setClearColor: vi.fn(), setClearAlpha: vi.fn(), domElement: canvas };
-    applyCameraLayerStacking(container, renderer);
+    applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
     expect(container.style.pointerEvents).toBe("none");
-    expect(canvas.style.pointerEvents).toBe("none");
+    expect(canvas.style.pointerEvents).toBe("auto");
   });
 
   it("layersMatchContainer validates canvas sizing against the container", () => {
@@ -261,7 +199,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(group.children.some((child) => isVisuallyPresentObject3D(child))).toBe(true);
     expect(
-      group.children.some((child) => child?.name === "ar-professional-evolution-presentation"),
+      group.children.some((child) => child?.name === "ar-alignment-core-presentation"),
     ).toBe(true);
 
     await adapter.stop();

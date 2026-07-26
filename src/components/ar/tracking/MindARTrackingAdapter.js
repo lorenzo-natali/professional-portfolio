@@ -5,17 +5,24 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createProfessionalEvolutionLayer } from "../createProfessionalEvolutionLayer";
-import { createProfessionalEvolutionAnimation } from "../professionalEvolutionAnimation";
+import { createAlignmentCore } from "../createAlignmentCore";
+import { createAlignmentAnimator } from "../createAlignmentAnimator";
+import { createAlignmentInteraction } from "../createAlignmentInteraction";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
+import { AR_SESSION_RESET_MS } from "../arSessionTiming";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
  * Lift MindAR's video above the container background (MindAR defaults to z-index: -2)
  * and keep the WebGL/CSS3D layers transparent above it.
+ *
+ * Canvas may receive pointers for Alignment Core rotation; Close stays outside
+ * this container with pointer-events: auto.
  */
-export function applyCameraLayerStacking(container, renderer) {
+export function applyCameraLayerStacking(container, renderer, options = {}) {
   if (!container) return;
+
+  const canvasPointerEvents = options.canvasPointerEvents ?? "auto";
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
@@ -24,7 +31,6 @@ export function applyCameraLayerStacking(container, renderer) {
   container.style.width = "100%";
   container.style.height = "100%";
   container.style.overflow = "hidden";
-  // Close control lives outside this container; AR canvas must not steal taps.
   container.style.pointerEvents = "none";
   container.style.touchAction = "none";
   container.style.userSelect = "none";
@@ -42,11 +48,11 @@ export function applyCameraLayerStacking(container, renderer) {
   const canvases = container.querySelectorAll("canvas");
   canvases.forEach((canvas, index) => {
     canvas.style.zIndex = String(1 + index);
-    canvas.style.pointerEvents = "none";
+    canvas.style.pointerEvents = canvasPointerEvents;
+    canvas.style.touchAction = "none";
     canvas.style.background = "transparent";
   });
 
-  // CSS3DRenderer host is a positioned div (not a canvas).
   const cssHost = Array.from(container.children).find((node) => node.tagName === "DIV");
   if (cssHost) {
     cssHost.style.zIndex = String(1 + canvases.length);
@@ -61,6 +67,8 @@ export function applyCameraLayerStacking(container, renderer) {
     }
     if (renderer.domElement) {
       renderer.domElement.style.background = "transparent";
+      renderer.domElement.style.pointerEvents = canvasPointerEvents;
+      renderer.domElement.style.touchAction = "none";
     }
   }
 }
@@ -95,28 +103,49 @@ function findViewportShell(container) {
   );
 }
 
-function configureEvolutionRenderer(THREE, renderer) {
+function configureAlignmentRenderer(THREE, renderer) {
   if (!renderer) return;
   if ("outputColorSpace" in renderer && "SRGBColorSpace" in THREE) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
   } else if ("outputEncoding" in renderer && "sRGBEncoding" in THREE) {
     renderer.outputEncoding = THREE.sRGBEncoding;
   }
+  if ("physicallyCorrectLights" in renderer) {
+    renderer.physicallyCorrectLights = true;
+  }
+  if ("toneMapping" in THREE && "toneMapping" in renderer) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping ?? renderer.toneMapping;
+    renderer.toneMappingExposure = 1.05;
+  }
   renderer.setClearColor?.(0x000000, 0);
   renderer.setClearAlpha?.(0);
 }
 
-function createEvolutionLighting(THREE, scene) {
+function createAlignmentLighting(THREE, scene) {
   const lights = [];
-  const ambient = new THREE.AmbientLight(0xffffff, 0.85);
-  ambient.name = "ar-pe-ambient";
-  scene.add(ambient);
-  lights.push(ambient);
-  const key = new THREE.DirectionalLight(0xf2f7fb, 0.35);
-  key.name = "ar-pe-key";
-  key.position.set(0.2, 0.8, 1.1);
+  const hemi = new THREE.HemisphereLight(0xdde7f2, 0x1a1f28, 0.55);
+  hemi.name = "ar-ac-hemi";
+  scene.add(hemi);
+  lights.push(hemi);
+
+  const key = new THREE.DirectionalLight(0xf4f7fb, 0.85);
+  key.name = "ar-ac-key";
+  key.position.set(0.45, 0.9, 1.2);
   scene.add(key);
   lights.push(key);
+
+  const fill = new THREE.DirectionalLight(0x9eb6ff, 0.28);
+  fill.name = "ar-ac-fill";
+  fill.position.set(-0.7, 0.2, 0.6);
+  scene.add(fill);
+  lights.push(fill);
+
+  const rim = new THREE.DirectionalLight(0x5ec8d6, 0.22);
+  rim.name = "ar-ac-rim";
+  rim.position.set(0.1, -0.4, -0.9);
+  scene.add(rim);
+  lights.push(rim);
+
   return {
     lights,
     dispose() {
@@ -145,18 +174,141 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let evolutionLayer = null;
-  let evolutionAnimation = null;
+  let alignmentCore = null;
+  let alignmentAnimator = null;
+  let alignmentInteraction = null;
   let poseStabilizer = null;
   let presentationRoot = null;
   let presentationLighting = null;
   let lastFrameTimeMs = 0;
+  let sessionResetTimer = 0;
+  let sessionBlobUrl = null;
+  let cleaning = false;
+
+  function clearSessionReset() {
+    if (sessionResetTimer) {
+      clearTimeout(sessionResetTimer);
+      sessionResetTimer = 0;
+    }
+  }
+
+  function syncInteractionGate(phase) {
+    if (!alignmentInteraction) return;
+    if (phase === "aligning" || phase === "hidden") {
+      alignmentInteraction.setEnabled(false);
+    } else {
+      // split | merged
+      alignmentInteraction.setEnabled(true);
+    }
+  }
+
+  function resetSessionAtomic() {
+    alignmentInteraction?.reset();
+    alignmentAnimator?.resetSession();
+    syncInteractionGate(alignmentAnimator?.getPhase?.() ?? "hidden");
+  }
+
+  /**
+   * Idempotent teardown for start-failure, stop, and dispose.
+   */
+  async function cleanupSession() {
+    if (cleaning) return;
+    cleaning = true;
+    running = false;
+    clearSessionReset();
+
+    try {
+      viewportCleanup?.();
+    } catch {
+      // ignore
+    }
+    viewportCleanup = null;
+
+    try {
+      alignmentInteraction?.reset();
+      alignmentInteraction?.dispose();
+    } catch {
+      // ignore
+    }
+    alignmentInteraction = null;
+
+    try {
+      alignmentAnimator?.dispose();
+    } catch {
+      // ignore
+    }
+    alignmentAnimator = null;
+
+    try {
+      poseStabilizer?.dispose();
+    } catch {
+      // ignore
+    }
+    poseStabilizer = null;
+
+    try {
+      alignmentCore?.dispose();
+    } catch {
+      // ignore
+    }
+    alignmentCore = null;
+
+    try {
+      presentationLighting?.dispose();
+    } catch {
+      // ignore
+    }
+    presentationLighting = null;
+
+    try {
+      presentationRoot?.removeFromParent?.();
+    } catch {
+      // ignore
+    }
+    presentationRoot = null;
+    lastFrameTimeMs = 0;
+
+    const instance = mindarThree;
+    mindarThree = null;
+
+    try {
+      if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
+    } catch {
+      // ignore
+    }
+    rafLoop = null;
+
+    try {
+      await instance?.stop?.();
+    } catch {
+      // Best-effort cleanup.
+    }
+
+    try {
+      instance?.renderer?.dispose?.();
+    } catch {
+      // ignore
+    }
+
+    if (sessionBlobUrl) {
+      try {
+        URL.revokeObjectURL(sessionBlobUrl);
+      } catch {
+        // ignore
+      }
+      sessionBlobUrl = null;
+    }
+
+    cleaning = false;
+  }
 
   return {
     isRunning: () => running,
 
     async start(container, callbacks = {}) {
       if (running) await this.stop();
+      // Ensure a previous failed start left no residue.
+      await cleanupSession();
 
       const targetBuffer = await loadArTargetBuffer(targetSrc);
       if (!targetBuffer) {
@@ -164,7 +316,7 @@ export function createMindARTrackingAdapter({
         return;
       }
 
-      const blobUrl = URL.createObjectURL(
+      sessionBlobUrl = URL.createObjectURL(
         new Blob([targetBuffer], { type: "application/octet-stream" }),
       );
 
@@ -179,7 +331,7 @@ export function createMindARTrackingAdapter({
 
         mindarThree = new MindARThree({
           container,
-          imageTargetSrc: blobUrl,
+          imageTargetSrc: sessionBlobUrl,
           filterMinCF: 0.0001,
           filterBeta: 0.001,
           warmupTolerance: 5,
@@ -190,67 +342,79 @@ export function createMindARTrackingAdapter({
         });
 
         const { renderer, scene, camera } = mindarThree;
-        configureEvolutionRenderer(THREE, renderer);
-        presentationLighting = createEvolutionLighting(THREE, scene);
+        configureAlignmentRenderer(THREE, renderer);
+        presentationLighting = createAlignmentLighting(THREE, scene);
 
-        // Tracking hierarchy (exact):
         // MindAR anchor (raw)
         //   → presentation (filtered)
-        //     → placement
-        //       → entrance
-        //         → Professional Evolution content
+        //     → Alignment Core placement
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
         presentationRoot = new THREE.Group();
-        presentationRoot.name = "ar-professional-evolution-presentation";
-        presentationRoot.userData.kind = "ar-professional-evolution-presentation";
+        presentationRoot.name = "ar-alignment-core-presentation";
+        presentationRoot.userData.kind = "ar-alignment-core-presentation";
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        evolutionLayer = createProfessionalEvolutionLayer(THREE);
-        const reducedMotion =
-          typeof window !== "undefined" &&
-          window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-        evolutionAnimation = createProfessionalEvolutionAnimation(evolutionLayer, {
-          reducedMotion,
+        alignmentCore = createAlignmentCore(THREE);
+        presentationRoot.add(alignmentCore.placement);
+
+        alignmentAnimator = createAlignmentAnimator(alignmentCore, {
+          THREE,
+          isDragging: () => alignmentInteraction?.isDragging?.() ?? false,
+          onPhaseChange: (phase) => {
+            syncInteractionGate(phase);
+          },
         });
-        // placement is the content root (group aliases placement; no wrapper).
-        presentationRoot.add(evolutionLayer.placement);
 
         poseStabilizer = createAnchorPoseStabilizer(THREE, {
           rawAnchor: anchor.group,
           presentation: presentationRoot,
           onAcquisitionReady: () => {
-            evolutionAnimation?.onTargetFound();
+            alignmentAnimator?.reveal();
+            syncInteractionGate(alignmentAnimator?.getPhase?.() ?? "split");
           },
         });
 
         anchor.onTargetFound = () => {
+          clearSessionReset();
           poseStabilizer?.onTargetFound();
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
           poseStabilizer?.onTargetLost();
-          evolutionAnimation?.onTargetLost();
+          clearSessionReset();
+          // Brief loss: keep last stable pose + sculpture. Full reset after shared threshold.
+          sessionResetTimer = window.setTimeout(() => {
+            sessionResetTimer = 0;
+            resetSessionAtomic();
+          }, AR_SESSION_RESET_MS);
           callbacks.onTargetLost?.();
         };
 
+        // Camera permission / MindAR startup — failure must fully clean up.
         await mindarThree.start();
 
-        // Shell is the only sizing authority; then resize MindAR from that container.
         syncArViewportShell(shell);
         try {
           mindarThree.resize();
         } catch {
           // ignore
         }
-        applyCameraLayerStacking(container, renderer);
+        applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
 
-        // MindAR also binds window.resize internally (anonymous bound fn — not removable).
-        // Our listeners cover visualViewport; both converge on container client box.
+        alignmentInteraction = createAlignmentInteraction({
+          domElement: renderer.domElement,
+          camera,
+          core: alignmentCore,
+          THREE,
+          getPhase: () => alignmentAnimator?.getPhase() ?? "hidden",
+        });
+        alignmentInteraction.setEnabled(false);
+
         const onViewportChange = () => {
           if (!running || !mindarThree) return;
           syncArViewportShell(shell);
@@ -259,7 +423,7 @@ export function createMindARTrackingAdapter({
           } catch {
             // ignore
           }
-          applyCameraLayerStacking(container, renderer);
+          applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
         };
         running = true;
         viewportCleanup = bindArViewportListeners(onViewportChange);
@@ -271,94 +435,25 @@ export function createMindARTrackingAdapter({
           const tNow = typeof frameTime === "number" ? frameTime : performance.now();
           const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
           lastFrameTimeMs = tNow;
-          // Single authoritative writer for the presentation transform.
-          // Reads MindAR's anchor.matrix directly (matrixAutoUpdate=false) —
-          // never call updateMatrix() on the raw anchor.
           poseStabilizer?.update(dtSec);
+          alignmentInteraction?.update();
+          alignmentAnimator?.update();
           renderer.render(scene, camera);
         });
         rafLoop = renderer;
       } catch (error) {
-        running = false;
+        await cleanupSession();
         const err = error instanceof Error ? error : new Error(String(error));
         if (isTargetLoadError(err)) {
           callbacks.onUnsupported?.("target-unavailable");
         } else {
           callbacks.onError?.(err);
         }
-      } finally {
-        URL.revokeObjectURL(blobUrl);
       }
     },
 
     async stop() {
-      running = false;
-      try {
-        viewportCleanup?.();
-      } catch {
-        // ignore
-      }
-      viewportCleanup = null;
-
-      try {
-        poseStabilizer?.dispose();
-      } catch {
-        // ignore
-      }
-      poseStabilizer = null;
-
-      try {
-        evolutionAnimation?.dispose();
-      } catch {
-        // ignore
-      }
-      evolutionAnimation = null;
-
-      try {
-        evolutionLayer?.dispose();
-      } catch {
-        // ignore
-      }
-      evolutionLayer = null;
-
-      try {
-        presentationLighting?.dispose();
-      } catch {
-        // ignore
-      }
-      presentationLighting = null;
-
-      try {
-        presentationRoot?.removeFromParent?.();
-      } catch {
-        // ignore
-      }
-      presentationRoot = null;
-      lastFrameTimeMs = 0;
-
-      const instance = mindarThree;
-      mindarThree = null;
-
-      try {
-        if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
-      } catch {
-        // ignore
-      }
-      rafLoop = null;
-
-      try {
-        await instance?.stop?.();
-      } catch {
-        // Best-effort cleanup.
-      }
-
-      try {
-        instance?.renderer?.dispose?.();
-      } catch {
-        // ignore
-      }
-
-      // Detached MindAR window.resize handlers no-op once video is removed (library checks !video).
+      await cleanupSession();
     },
   };
 }
