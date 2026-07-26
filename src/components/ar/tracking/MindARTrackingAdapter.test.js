@@ -23,6 +23,7 @@ vi.mock("three", async () => {
   return actual;
 });
 
+import * as THREE from "three";
 import {
   applyCameraLayerStacking,
   createMindARTrackingAdapter,
@@ -31,12 +32,8 @@ import {
 import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
 
 function mockMindAR({ resize = vi.fn(), withCssHost = true } = {}) {
-  const group = {
-    children: [],
-    add: vi.fn(function add(child) {
-      this.children.push(child);
-    }),
-  };
+  const group = new THREE.Group();
+  group.name = "mindar-anchor";
   const addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
   const scene = { add: vi.fn() };
   const renderer = {
@@ -45,6 +42,7 @@ function mockMindAR({ resize = vi.fn(), withCssHost = true } = {}) {
     setClearAlpha: vi.fn(),
     domElement: document.createElement("canvas"),
     dispose: vi.fn(),
+    render: vi.fn(),
   };
 
   mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
@@ -129,8 +127,14 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
-    expect(group.add).toHaveBeenCalled();
-    expect(group.children.some((child) => child?.name === "ar-professional-card")).toBe(true);
+    const presentation = group.children.find(
+      (child) => child?.name === "ar-professional-card-presentation",
+    );
+    expect(presentation).toBeTruthy();
+    expect(
+      presentation.children.some((child) => child?.name === "ar-professional-card"),
+    ).toBe(true);
+    expect(group.children.some((child) => child?.name === "ar-professional-card")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-lens-layer")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-governance-lens")).toBe(false);
     expect(group.children.some((child) => child?.userData?.kind === "ar-lens-layer")).toBe(false);
@@ -138,18 +142,21 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
     expect(resize).toHaveBeenCalled();
     expect(host.querySelector("video").style.zIndex).toBe("0");
+    expect(renderer.setAnimationLoop).toHaveBeenCalled();
 
     const ctorOptions = mocks.MindARThree.mock.calls[0][0];
     expect(ctorOptions).not.toHaveProperty("video");
     expect(ctorOptions).not.toHaveProperty("filterVideoConstraints");
 
     await adapter.stop();
+    // Stop clears the animation loop so reopen starts without a stale writer.
+    expect(renderer.setAnimationLoop).toHaveBeenCalledWith(null);
     shell.remove();
   });
 
   it("wires card entrance to target found/lost without diagnostics hooks", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
-    const { addAnchor } = mockMindAR();
+    const { addAnchor, renderer } = mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
     const onTargetFound = vi.fn();
     const onTargetLost = vi.fn();
@@ -166,6 +173,11 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(typeof wired.onTargetFound).toBe("function");
     expect(typeof wired.onTargetLost).toBe("function");
     wired.onTargetFound();
+    // Drive acquisition samples through the render loop callback.
+    const loop = renderer.setAnimationLoop.mock.calls[0][0];
+    for (let i = 0; i < 24; i += 1) {
+      loop(i * 16);
+    }
     wired.onTargetLost();
     expect(onTargetFound).toHaveBeenCalledTimes(1);
     expect(onTargetLost).toHaveBeenCalledTimes(1);
@@ -229,12 +241,16 @@ describe("createMindARTrackingAdapter camera slice", () => {
   it("attaches a proof object only when the debug flag is enabled", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group } = mockMindAR();
+    const addSpy = vi.spyOn(group, "add");
 
     const adapter = createMindARTrackingAdapter({ showAnchorProof: true });
     await adapter.start(document.createElement("div"), { onReady: vi.fn() });
 
-    expect(group.add).toHaveBeenCalled();
-    expect(isVisuallyPresentObject3D(group.children[0])).toBe(true);
+    expect(addSpy).toHaveBeenCalled();
+    expect(group.children.some((child) => isVisuallyPresentObject3D(child))).toBe(true);
+    expect(
+      group.children.some((child) => child?.name === "ar-professional-card-presentation"),
+    ).toBe(true);
 
     await adapter.stop();
   });

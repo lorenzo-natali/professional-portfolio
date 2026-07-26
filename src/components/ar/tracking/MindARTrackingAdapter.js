@@ -7,6 +7,11 @@ import {
 import { createAnchorProofObject } from "../createAnchorProofObject";
 import { createProfessionalCard3D } from "../createProfessionalCard3D";
 import { createProfessionalCardAnimation } from "../professionalCardAnimation";
+import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
+import {
+  PROFESSIONAL_CARD_TIMING,
+  PROFESSIONAL_CARD_REDUCED_MOTION_TIMING,
+} from "../professionalCardConfig";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
@@ -103,6 +108,9 @@ export function createMindARTrackingAdapter({
   let viewportCleanup = null;
   let professionalCard = null;
   let professionalCardAnimation = null;
+  let poseStabilizer = null;
+  let presentationRoot = null;
+  let lastFrameTimeMs = 0;
 
   return {
     isRunning: () => running,
@@ -153,21 +161,47 @@ export function createMindARTrackingAdapter({
         keyLight.position.set(0.35, 0.85, 1.15);
         scene.add(keyLight);
 
-        // Tracking anchor + Professional Card — no Risk/Governance Lens labels.
+        // Tracking hierarchy:
+        // MindAR anchor (raw) → presentation (filtered) → professional card → anim → geometry
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
+        presentationRoot = new THREE.Group();
+        presentationRoot.name = "ar-professional-card-presentation";
+        presentationRoot.userData.kind = "ar-professional-card-presentation";
+        presentationRoot.matrixAutoUpdate = false;
+        anchor.group.add(presentationRoot);
+
         professionalCard = createProfessionalCard3D(THREE);
-        professionalCardAnimation = createProfessionalCardAnimation(professionalCard);
-        anchor.group.add(professionalCard.group);
+        // Acquisition window lives in the pose stabilizer — avoid a second delay here.
+        const reducedMotion =
+          typeof window !== "undefined" &&
+          window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        const baseTiming = reducedMotion
+          ? PROFESSIONAL_CARD_REDUCED_MOTION_TIMING
+          : PROFESSIONAL_CARD_TIMING;
+        professionalCardAnimation = createProfessionalCardAnimation(professionalCard, {
+          reducedMotion,
+          timing: { ...baseTiming, stabilizeDelayMs: 0 },
+        });
+        presentationRoot.add(professionalCard.group);
+
+        poseStabilizer = createAnchorPoseStabilizer(THREE, {
+          rawAnchor: anchor.group,
+          presentation: presentationRoot,
+          onAcquisitionReady: () => {
+            professionalCardAnimation?.onTargetFound();
+          },
+        });
 
         anchor.onTargetFound = () => {
-          professionalCardAnimation?.onTargetFound();
+          poseStabilizer?.onTargetFound();
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
+          poseStabilizer?.onTargetLost();
           professionalCardAnimation?.onTargetLost();
           callbacks.onTargetLost?.();
         };
@@ -200,7 +234,13 @@ export function createMindARTrackingAdapter({
 
         callbacks.onReady?.();
 
-        renderer.setAnimationLoop(() => {
+        lastFrameTimeMs = performance.now();
+        renderer.setAnimationLoop((frameTime) => {
+          const tNow = typeof frameTime === "number" ? frameTime : performance.now();
+          const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
+          lastFrameTimeMs = tNow;
+          // Single authoritative writer for the presentation transform.
+          poseStabilizer?.update(dtSec);
           renderer.render(scene, camera);
         });
         rafLoop = renderer;
@@ -227,6 +267,13 @@ export function createMindARTrackingAdapter({
       viewportCleanup = null;
 
       try {
+        poseStabilizer?.dispose();
+      } catch {
+        // ignore
+      }
+      poseStabilizer = null;
+
+      try {
         professionalCardAnimation?.dispose();
       } catch {
         // ignore
@@ -239,6 +286,14 @@ export function createMindARTrackingAdapter({
         // ignore
       }
       professionalCard = null;
+
+      try {
+        presentationRoot?.removeFromParent?.();
+      } catch {
+        // ignore
+      }
+      presentationRoot = null;
+      lastFrameTimeMs = 0;
 
       const instance = mindarThree;
       mindarThree = null;

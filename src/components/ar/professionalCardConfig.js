@@ -26,13 +26,36 @@ export const PROFESSIONAL_CARD_SIZE = {
 /**
  * Resting / idle pose relative to the document origin.
  * `riseHeight` is the final lift above the document plane after entrance.
+ * Kept modest so rotation jitter from tracking is not lever-arm amplified.
  */
 export const PROFESSIONAL_CARD_TRANSFORM = {
   position: { x: 0, y: 0, z: 0.01 },
   scale: 1,
   /** Idle readable three-quarter pose (radians). */
   rotation: { x: -0.18, y: 0.38, z: 0.02 },
-  riseHeight: 0.13,
+  riseHeight: 0.08,
+};
+
+/**
+ * Pose presentation filter above the raw MindAR anchor.
+ * Time constants are seconds; dead zones are in anchor-local units / radians.
+ */
+export const PROFESSIONAL_CARD_STABILIZATION = {
+  /** Collect pose samples before revealing / starting entrance. */
+  acquisitionMs: 320,
+  minAcquisitionSamples: 6,
+  /** Exponential smoothing time constants (frame-rate independent). */
+  translationTauSec: 0.14,
+  rotationTauSec: 0.18,
+  scaleTauSec: 0.16,
+  /** Ignore sub-threshold noise relative to the current filtered pose. */
+  positionDeadZone: 0.0022,
+  angularDeadZoneRad: 0.012,
+  scaleDeadZone: 0.004,
+  /** Blend duration when re-acquiring after a brief freeze. */
+  reacquisitionBlendMs: 220,
+  /** Continuous loss longer than this clears the pose filter. */
+  sessionResetMs: 1400,
 };
 
 /** Entrance + loss lifecycle timings (ms). */

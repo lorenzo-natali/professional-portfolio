@@ -214,4 +214,32 @@ describe("professionalCardAnimation lifecycle", () => {
 
     animation.dispose();
   });
+
+  it("holds a fixed idle pose after entrance with no continuous motion", () => {
+    const animation = createProfessionalCardAnimation(card, {
+      reducedMotion: true,
+      now: () => nowMs,
+      timing,
+    });
+
+    animation.onTargetFound();
+    advance(200);
+    expect(animation.getState().phase).toBe("idle");
+    const pose = {
+      z: card.anim.position.z,
+      x: card.anim.rotation.x,
+      y: card.anim.rotation.y,
+      opacity: card.frontFace.material.opacity,
+    };
+
+    advance(400);
+    expect(animation.getState().phase).toBe("idle");
+    expect(card.anim.position.z).toBeCloseTo(pose.z, 5);
+    expect(card.anim.rotation.x).toBeCloseTo(pose.x, 5);
+    expect(card.anim.rotation.y).toBeCloseTo(pose.y, 5);
+    expect(card.frontFace.material.opacity).toBeCloseTo(pose.opacity, 5);
+    expect(rafQueue.length).toBe(0);
+
+    animation.dispose();
+  });
 });
