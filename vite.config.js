@@ -43,10 +43,30 @@ function stripInterestSourceGlbsFromDist() {
   }
 }
 
+/** DEV-only MindAR experiments must not ship in production dist. */
+function stripArTargetExperimentsFromDist() {
+  return {
+    name: 'strip-ar-target-experiments-from-dist',
+    apply: 'build',
+    closeBundle() {
+      const expDir = join(rootDir, 'dist/ar/targets/experiments')
+      if (!existsSync(expDir)) return
+      for (const name of readdirSync(expDir)) {
+        unlinkSync(join(expDir, name))
+      }
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss(), stripInterestSourceGlbsFromDist()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    stripInterestSourceGlbsFromDist(),
+    stripArTargetExperimentsFromDist(),
+  ],
   optimizeDeps: {
     exclude: ['mind-ar'],
   },
@@ -59,6 +79,11 @@ export default defineConfig({
         main: resolve(rootDir, 'index.html'),
         // DEV compare page for original vs web-optimized interest GLBs.
         arInterestsCompare: resolve(rootDir, 'ar-interests-compare.html'),
+        // DEV MindAR tracking-feature experiment (does not touch live target).
+        arTrackingFeaturesExperiment: resolve(
+          rootDir,
+          'ar-tracking-features-experiment.html',
+        ),
       },
     },
   },

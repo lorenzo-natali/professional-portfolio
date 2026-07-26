@@ -20,14 +20,33 @@ export const INTEREST_UPRIGHT_IDENTITY = { x: 0, y: 0, z: 0 };
 /**
  * Target display sizes in document units (CV width = 1).
  * Interpreted with each item's `scaleAxis` after final orientation.
+ * Calibrated for iPhone AR readability (first pass — still miniature, not full-page).
  */
 export const INTEREST_TARGET_SIZES = {
-  book: 0.11,
-  backpack: 0.125,
-  plant: 0.155,
-  robot: 0.09,
-  fossil: 0.1,
-  "evil-eye": 0.055,
+  book: 0.16,
+  backpack: 0.18,
+  plant: 0.24,
+  robot: 0.22,
+  fossil: 0.2,
+  "evil-eye": 0.1,
+};
+
+/**
+ * Rigid CV attachment: presentation stays identity under the MindAR anchor.
+ * Avoids professional-card pose lag that made miniatures slip vs the paper.
+ */
+export const INTEREST_OBJECTS_STABILIZATION = {
+  rigidAttachment: true,
+  acquisitionMs: 160,
+  minAcquisitionSamples: 3,
+  maxAcquisitionMs: 480,
+  translationTauSec: 0,
+  rotationTauSec: 0,
+  scaleTauSec: 0,
+  positionDeadZone: 0,
+  angularDeadZoneRad: 0,
+  scaleDeadZone: 0,
+  reacquisitionBlendMs: 60,
 };
 
 /** @deprecated use INTEREST_TARGET_SIZES */
@@ -72,7 +91,7 @@ export const INTEREST_OBJECTS = [
     id: "book",
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/book.glb`,
-    origin: { u: 0.18, vTop: 0.28 },
+    origin: { u: 0.2, vTop: 0.22 },
     position: { x: 0, y: 0, z: 0.012 },
     rotation: { x: 0, y: 0, z: 0.35 },
     upright: INTEREST_UPRIGHT_Y_TO_Z,
@@ -85,7 +104,7 @@ export const INTEREST_OBJECTS = [
     id: "evil-eye",
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/evil-eye.glb`,
-    origin: { u: 0.34, vTop: 0.22 },
+    origin: { u: 0.4, vTop: 0.18 },
     position: { x: 0, y: 0, z: 0.012 },
     rotation: { x: 0.12, y: -0.35, z: 0.08 },
     upright: INTEREST_UPRIGHT_Y_TO_Z,
@@ -97,7 +116,7 @@ export const INTEREST_OBJECTS = [
     id: "robot",
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/robot.glb`,
-    origin: { u: 0.22, vTop: 0.42 },
+    origin: { u: 0.24, vTop: 0.48 },
     position: { x: 0, y: 0, z: 0.012 },
     rotation: { x: 0, y: 0, z: 0.55 },
     upright: INTEREST_UPRIGHT_Y_TO_Z,
@@ -109,7 +128,7 @@ export const INTEREST_OBJECTS = [
     id: "fossil",
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/fossil.glb`,
-    origin: { u: 0.78, vTop: 0.32 },
+    origin: { u: 0.74, vTop: 0.28 },
     position: { x: 0, y: 0, z: 0.012 },
     rotation: { x: 0, y: 0, z: -0.85 },
     // Native tallest axis is Z — already document-normal aligned.
@@ -122,7 +141,7 @@ export const INTEREST_OBJECTS = [
     id: "plant",
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/plant.glb`,
-    origin: { u: 0.86, vTop: 0.5 },
+    origin: { u: 0.76, vTop: 0.58 },
     position: { x: 0, y: 0, z: 0.012 },
     rotation: { x: 0, y: 0, z: 0.25 },
     upright: INTEREST_UPRIGHT_Y_TO_Z,
@@ -134,7 +153,7 @@ export const INTEREST_OBJECTS = [
     id: "backpack",
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/backpack.glb`,
-    origin: { u: 0.7, vTop: 0.6 },
+    origin: { u: 0.68, vTop: 0.78 },
     position: { x: 0, y: 0, z: 0.012 },
     rotation: { x: 0, y: 0, z: -0.5 },
     upright: INTEREST_UPRIGHT_Y_TO_Z,

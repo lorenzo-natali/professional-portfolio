@@ -1,0 +1,463 @@
+{
+  "generatedAt": "2026-07-26T16:13:21.093Z",
+  "liveGuards": {
+    "pngSha256": "5c23ee7d79d641e1956d0f4387e1dd94531e4a4aeb4286984ee0a1f8e0a7aabd",
+    "mindSha256": "d9e19d73935c84dd70052bce337bcb12e1a6bc9a5eb71a45a8a5228ea9207f26",
+    "arTargetSrcUnchanged": true,
+    "liveFilesUntouched": true
+  },
+  "compiler": {
+    "package": "mind-ar",
+    "api": "OfflineCompiler.compileImageTargets",
+    "script": "scripts/experiment-ar-tracking-features.mjs",
+    "sameAs": "scripts/compile-ar-target.mjs"
+  },
+  "warnings": [
+    "cv-page-1-contrast.mind: \n============================\nHi, looks like you are running TensorFlow.js in Node.js. To speed things up dramatically, install our node backend, visit https://github.com/tensorflow/tfjs-node for more details. \n============================"
+  ],
+  "variants": [
+    {
+      "id": "baseline",
+      "label": "Original (live)",
+      "png": "cv-page-1-baseline.png",
+      "mind": "../cv-page-1.mind",
+      "mindBytes": 976093,
+      "pngBytes": 742072,
+      "ink": {
+        "top15": {
+          "whitePct": 81.2,
+          "darkPct": 9
+        },
+        "middle": {
+          "whitePct": 89.4,
+          "darkPct": 3
+        },
+        "bottom15": {
+          "whitePct": 94.3,
+          "darkPct": 2.2
+        }
+      },
+      "detectionPct": {
+        "top": 33.3,
+        "middle": 32.5,
+        "bottom": 34.2
+      },
+      "detectionAll": {
+        "top": 1595,
+        "middle": 1555,
+        "bottom": 1635,
+        "total": 4785
+      },
+      "trackingPct": {
+        "top": 66.7,
+        "middle": 16.7,
+        "bottom": 16.7
+      },
+      "trackingAll": {
+        "top": 20,
+        "middle": 5,
+        "bottom": 5,
+        "total": 30
+      },
+      "trackingLevels": [
+        {
+          "index": 0,
+          "scale": 0.14065934065934066,
+          "width": 256,
+          "height": 362,
+          "total": 23,
+          "bands": {
+            "top": 14,
+            "middle": 4,
+            "bottom": 5,
+            "total": 23
+          },
+          "pct": {
+            "top": 60.9,
+            "middle": 17.4,
+            "bottom": 21.7
+          }
+        },
+        {
+          "index": 1,
+          "scale": 0.07032967032967033,
+          "width": 128,
+          "height": 181,
+          "total": 7,
+          "bands": {
+            "top": 6,
+            "middle": 1,
+            "bottom": 0,
+            "total": 7
+          },
+          "pct": {
+            "top": 85.7,
+            "middle": 14.3,
+            "bottom": 0
+          }
+        }
+      ],
+      "detectionLevel0": {
+        "total": 436,
+        "maxima": 99,
+        "minima": 337,
+        "bands": {
+          "top": 149,
+          "middle": 139,
+          "bottom": 148,
+          "total": 436
+        },
+        "pct": {
+          "top": 34.2,
+          "middle": 31.9,
+          "bottom": 33.9
+        }
+      },
+      "ranking": {
+        "midBottomL0": 9,
+        "midBottomL1": 1,
+        "topShareL0": 0.609,
+        "totalL0": 23,
+        "totalL1": 7,
+        "score": 27.580434782608698
+      },
+      "notes": [
+        "Live target — not recompiled in this experiment",
+        "Source PNG copied to experiments/ for side-by-side preview only"
+      ]
+    },
+    {
+      "id": "contrast",
+      "label": "A — Controlled contrast",
+      "png": "cv-page-1-contrast.png",
+      "mind": "cv-page-1-contrast.mind",
+      "mindBytes": 979347,
+      "pngBytes": 589526,
+      "ink": {
+        "top15": {
+          "whitePct": 84,
+          "darkPct": 9.4
+        },
+        "middle": {
+          "whitePct": 90,
+          "darkPct": 3.7
+        },
+        "bottom15": {
+          "whitePct": 94.6,
+          "darkPct": 2.4
+        }
+      },
+      "detectionPct": {
+        "top": 33.1,
+        "middle": 32.7,
+        "bottom": 34.2
+      },
+      "detectionAll": {
+        "top": 1587,
+        "middle": 1565,
+        "bottom": 1638,
+        "total": 4790
+      },
+      "trackingPct": {
+        "top": 66.7,
+        "middle": 16.7,
+        "bottom": 16.7
+      },
+      "trackingAll": {
+        "top": 20,
+        "middle": 5,
+        "bottom": 5,
+        "total": 30
+      },
+      "trackingLevels": [
+        {
+          "index": 0,
+          "scale": 0.14065934065934066,
+          "width": 256,
+          "height": 362,
+          "total": 23,
+          "bands": {
+            "top": 14,
+            "middle": 4,
+            "bottom": 5,
+            "total": 23
+          },
+          "pct": {
+            "top": 60.9,
+            "middle": 17.4,
+            "bottom": 21.7
+          }
+        },
+        {
+          "index": 1,
+          "scale": 0.07032967032967033,
+          "width": 128,
+          "height": 181,
+          "total": 7,
+          "bands": {
+            "top": 6,
+            "middle": 1,
+            "bottom": 0,
+            "total": 7
+          },
+          "pct": {
+            "top": 85.7,
+            "middle": 14.3,
+            "bottom": 0
+          }
+        }
+      ],
+      "detectionLevel0": {
+        "total": 436,
+        "maxima": 95,
+        "minima": 341,
+        "bands": {
+          "top": 149,
+          "middle": 140,
+          "bottom": 147,
+          "total": 436
+        },
+        "pct": {
+          "top": 34.2,
+          "middle": 32.1,
+          "bottom": 33.7
+        }
+      },
+      "ranking": {
+        "midBottomL0": 9,
+        "midBottomL1": 1,
+        "topShareL0": 0.609,
+        "totalL0": 23,
+        "totalL1": 7,
+        "score": 27.580434782608698
+      },
+      "notes": []
+    },
+    {
+      "id": "feature-balanced",
+      "label": "B — Distributed features",
+      "png": "cv-page-1-feature-balanced.png",
+      "mind": "cv-page-1-feature-balanced.mind",
+      "mindBytes": 1032485,
+      "pngBytes": 736322,
+      "ink": {
+        "top15": {
+          "whitePct": 81.2,
+          "darkPct": 9
+        },
+        "middle": {
+          "whitePct": 89.2,
+          "darkPct": 3
+        },
+        "bottom15": {
+          "whitePct": 93.6,
+          "darkPct": 2.6
+        }
+      },
+      "detectionPct": {
+        "top": 31.3,
+        "middle": 32.7,
+        "bottom": 36
+      },
+      "detectionAll": {
+        "top": 1595,
+        "middle": 1667,
+        "bottom": 1834,
+        "total": 5096
+      },
+      "trackingPct": {
+        "top": 60.6,
+        "middle": 18.2,
+        "bottom": 21.2
+      },
+      "trackingAll": {
+        "top": 20,
+        "middle": 6,
+        "bottom": 7,
+        "total": 33
+      },
+      "trackingLevels": [
+        {
+          "index": 0,
+          "scale": 0.14065934065934066,
+          "width": 256,
+          "height": 362,
+          "total": 26,
+          "bands": {
+            "top": 14,
+            "middle": 5,
+            "bottom": 7,
+            "total": 26
+          },
+          "pct": {
+            "top": 53.8,
+            "middle": 19.2,
+            "bottom": 26.9
+          }
+        },
+        {
+          "index": 1,
+          "scale": 0.07032967032967033,
+          "width": 128,
+          "height": 181,
+          "total": 7,
+          "bands": {
+            "top": 6,
+            "middle": 1,
+            "bottom": 0,
+            "total": 7
+          },
+          "pct": {
+            "top": 85.7,
+            "middle": 14.3,
+            "bottom": 0
+          }
+        }
+      ],
+      "detectionLevel0": {
+        "total": 465,
+        "maxima": 96,
+        "minima": 369,
+        "bands": {
+          "top": 149,
+          "middle": 150,
+          "bottom": 166,
+          "total": 465
+        },
+        "pct": {
+          "top": 32,
+          "middle": 32.3,
+          "bottom": 35.7
+        }
+      },
+      "ranking": {
+        "midBottomL0": 12,
+        "midBottomL1": 1,
+        "topShareL0": 0.538,
+        "totalL0": 26,
+        "totalL1": 7,
+        "score": 37.59230769230769
+      },
+      "notes": []
+    },
+    {
+      "id": "combined",
+      "label": "C — Combined",
+      "png": "cv-page-1-combined.png",
+      "mind": "cv-page-1-combined.mind",
+      "mindBytes": 1033781,
+      "pngBytes": 645427,
+      "ink": {
+        "top15": {
+          "whitePct": 84,
+          "darkPct": 9.4
+        },
+        "middle": {
+          "whitePct": 89.9,
+          "darkPct": 3.7
+        },
+        "bottom15": {
+          "whitePct": 93.8,
+          "darkPct": 2.8
+        }
+      },
+      "detectionPct": {
+        "top": 31.1,
+        "middle": 32.9,
+        "bottom": 36
+      },
+      "detectionAll": {
+        "top": 1587,
+        "middle": 1677,
+        "bottom": 1839,
+        "total": 5103
+      },
+      "trackingPct": {
+        "top": 60.6,
+        "middle": 18.2,
+        "bottom": 21.2
+      },
+      "trackingAll": {
+        "top": 20,
+        "middle": 6,
+        "bottom": 7,
+        "total": 33
+      },
+      "trackingLevels": [
+        {
+          "index": 0,
+          "scale": 0.14065934065934066,
+          "width": 256,
+          "height": 362,
+          "total": 26,
+          "bands": {
+            "top": 14,
+            "middle": 5,
+            "bottom": 7,
+            "total": 26
+          },
+          "pct": {
+            "top": 53.8,
+            "middle": 19.2,
+            "bottom": 26.9
+          }
+        },
+        {
+          "index": 1,
+          "scale": 0.07032967032967033,
+          "width": 128,
+          "height": 181,
+          "total": 7,
+          "bands": {
+            "top": 6,
+            "middle": 1,
+            "bottom": 0,
+            "total": 7
+          },
+          "pct": {
+            "top": 85.7,
+            "middle": 14.3,
+            "bottom": 0
+          }
+        }
+      ],
+      "detectionLevel0": {
+        "total": 465,
+        "maxima": 93,
+        "minima": 372,
+        "bands": {
+          "top": 149,
+          "middle": 150,
+          "bottom": 166,
+          "total": 465
+        },
+        "pct": {
+          "top": 32,
+          "middle": 32.3,
+          "bottom": 35.7
+        }
+      },
+      "ranking": {
+        "midBottomL0": 12,
+        "midBottomL1": 1,
+        "topShareL0": 0.538,
+        "totalL0": 26,
+        "totalL1": 7,
+        "score": 37.59230769230769
+      },
+      "notes": []
+    }
+  ],
+  "rankingOrder": [
+    "feature-balanced",
+    "combined",
+    "baseline",
+    "contrast"
+  ],
+  "recommendations": {
+    "technicallyBest": "feature-balanced",
+    "iphoneTestCandidate": "combined",
+    "contrastAloneHelps": false,
+    "graphicsNeeded": true
+  }
+}

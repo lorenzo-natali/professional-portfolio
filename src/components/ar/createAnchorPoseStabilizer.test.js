@@ -346,4 +346,35 @@ describe("createAnchorPoseStabilizer", () => {
     expect(stabilizer.getState().sampleCount).toBeLessThan(50);
     stabilizer.dispose();
   });
+
+  it("rigidAttachment keeps presentation identity so world pose equals raw MindAR pose", () => {
+    const hierarchy = makeHierarchy();
+    const updateSpy = vi.spyOn(hierarchy.rawAnchor, "updateMatrix");
+    const stabilizer = createStabilizer(hierarchy, {
+      config: {
+        rigidAttachment: true,
+        acquisitionMs: 40,
+        minAcquisitionSamples: 2,
+        maxAcquisitionMs: 80,
+      },
+    });
+
+    setRawPose(hierarchy.rawAnchor, { x: 1.2, y: -0.4, z: 0.6, s: 1.35 });
+    stabilizer.onTargetFound();
+    for (let i = 0; i < 6; i += 1) {
+      nowMs += 20;
+      setRawPose(hierarchy.rawAnchor, { x: 1.2 + i * 0.05, y: -0.4, z: 0.6, s: 1.35 });
+      stabilizer.update(0.02);
+    }
+
+    expect(stabilizer.getState().rigidAttachment).toBe(true);
+    expect(stabilizer.getState().state).toBe("tracking");
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(hierarchy.presentation.matrix.equals(new THREE.Matrix4().identity())).toBe(true);
+
+    const world = readWorldPose(hierarchy.presentation);
+    expect(world.pos.x).toBeCloseTo(1.45, 2);
+    expect(world.scale.x).toBeCloseTo(1.35, 5);
+    stabilizer.dispose();
+  });
 });

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "compile:ar-target": "node scripts/compile-ar-target.mjs",
-    "optimize:ar-interests": "node scripts/optimize-ar-interests.mjs"
+    "optimize:ar-interests": "node scripts/optimize-ar-interests.mjs",
+    "experiment:ar-tracking-features": "node scripts/experiment-ar-tracking-features.mjs"
   },
   "dependencies": {
     "@msgpack/msgpack": "^2.8.0",

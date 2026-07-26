@@ -12,8 +12,12 @@ describe("ar-viewport-shell CSS fallback", () => {
 
     expect(block).toMatch(/position:\s*fixed/);
     expect(block).toMatch(/inset:\s*0/);
-    expect(block).toMatch(/width:\s*100(?:%|vw)/);
-    expect(block).toMatch(/height:\s*100(?:%|vh|dvh)/);
+    expect(block).toMatch(/width:\s*100%/);
+    expect(block).toMatch(/height:\s*100%/);
+    expect(block).toMatch(/height:\s*100dvh/);
+    // 100vw/100vh cause iOS Safari visualViewport side bars — must not be used.
+    expect(block).not.toMatch(/100vw/);
+    expect(block).not.toMatch(/100vh;/);
     expect(block).toMatch(/touch-action:\s*none/);
     expect(block).toMatch(/user-select:\s*none/);
     // Single shell only — no competing camera-shell fixed layer in CSS.

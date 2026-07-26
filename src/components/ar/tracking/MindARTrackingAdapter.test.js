@@ -32,11 +32,15 @@ vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
 
 import {
   applyCameraLayerStacking,
+  bindMindArVideoResize,
   createMindARTrackingAdapter,
   layersMatchContainer,
+  syncTrackingContainerToShell,
 } from "./MindARTrackingAdapter";
 import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
+import { INTEREST_OBJECTS_STABILIZATION } from "../interestObjectsConfig";
+import { bindArViewportListeners } from "../arViewport";
 
 function makeInterestLayerStub() {
   const placement = new THREE.Group();
@@ -308,15 +312,87 @@ describe("createMindARTrackingAdapter interest objects", () => {
     expect(canvas.style.pointerEvents).toBe("none");
   });
 
-  it("layersMatchContainer validates canvas sizing against the container", () => {
+  it("layersMatchContainer validates canvas and cover video against the container", () => {
     const container = document.createElement("div");
     Object.defineProperty(container, "clientWidth", { value: 300 });
     Object.defineProperty(container, "clientHeight", { value: 500 });
     const canvas = document.createElement("canvas");
     canvas.style.width = "300px";
     canvas.style.height = "500px";
+    const video = document.createElement("video");
+    video.style.width = "320px";
+    video.style.height = "520px";
+    container.appendChild(video);
     container.appendChild(canvas);
     expect(layersMatchContainer(container)).toBe(true);
+  });
+
+  it("syncTrackingContainerToShell pins pixel size from the shell rect", () => {
+    const shell = document.createElement("div");
+    Object.defineProperty(shell, "clientWidth", { value: 390 });
+    Object.defineProperty(shell, "clientHeight", { value: 844 });
+    Object.defineProperty(shell, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, right: 390, bottom: 844, width: 390, height: 844 }),
+    });
+    const container = document.createElement("div");
+    syncTrackingContainerToShell(container, shell);
+    expect(container.style.width).toBe("390px");
+    expect(container.style.height).toBe("844px");
+    expect(container.style.left).toBe("0px");
+    expect(container.style.top).toBe("0px");
+  });
+
+  it("bindMindArVideoResize cleans up listeners and resizes when metadata is ready", () => {
+    const video = document.createElement("video");
+    Object.defineProperty(video, "videoWidth", { configurable: true, value: 1280 });
+    Object.defineProperty(video, "videoHeight", { configurable: true, value: 720 });
+    const resize = vi.fn();
+    const mindarThree = { video, resize };
+    const cleanup = bindMindArVideoResize(mindarThree);
+    expect(resize).toHaveBeenCalled();
+    cleanup();
+    resize.mockClear();
+    video.dispatchEvent(new Event("loadedmetadata"));
+    expect(resize).not.toHaveBeenCalled();
+  });
+
+  it("uses rigid interest stabilization and does not parent interests to the camera", async () => {
+    expect(INTEREST_OBJECTS_STABILIZATION.rigidAttachment).toBe(true);
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    const { group, scene } = mockMindAR();
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    await adapter.start(container, {});
+
+    const presentation = group.children.find(
+      (child) => child?.name === "ar-interest-objects-presentation",
+    );
+    const placement = presentation?.children.find(
+      (child) => child?.name === "ar-interest-objects-placement",
+    );
+    expect(presentation.parent).toBe(group);
+    expect(placement.parent).toBe(presentation);
+    expect(placement.parent).not.toBe(scene);
+
+    await adapter.stop();
+    container.remove();
+  });
+
+  it("cleans up viewport listeners on stop", () => {
+    const onChange = vi.fn();
+    const vv = {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: vv,
+    });
+    const cleanup = bindArViewportListeners(onChange);
+    cleanup();
+    expect(vv.removeEventListener).toHaveBeenCalledWith("resize", expect.any(Function));
+    expect(vv.removeEventListener).toHaveBeenCalledWith("scroll", expect.any(Function));
   });
 
   it("optionally mounts an anchor-proof object under the raw MindAR anchor", async () => {

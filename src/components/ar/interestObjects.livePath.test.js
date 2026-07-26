@@ -80,7 +80,8 @@ describe("Interest objects live path", () => {
 
     const book = INTEREST_OBJECTS.find((item) => item.id === "book");
     expect(book.scaleAxis).toBe("max");
-    expect(book.targetSize).toBeLessThanOrEqual(0.12);
+    expect(book.targetSize).toBeGreaterThan(0.12);
+    expect(book.targetSize).toBeLessThanOrEqual(0.2);
   });
 
   it("ships the six web GLBs and keeps originals as offline sources", () => {

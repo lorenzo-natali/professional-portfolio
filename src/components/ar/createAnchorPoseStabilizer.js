@@ -158,6 +158,14 @@ export function createAnchorPoseStabilizer(THREE, options) {
     writePresentation(smoothPos, smoothQuat, smoothScale);
   }
 
+  /** Stick presentation to the raw MindAR pose (no lag / no inverse counter-matrix). */
+  function writeRigidPassthrough() {
+    presentation.matrix.identity();
+    presentation.matrixWorldNeedsUpdate = true;
+  }
+
+  const rigidAttachment = Boolean(config.rigidAttachment);
+
   function resetFilter() {
     hasFilter = false;
     readyNotified = false;
@@ -269,7 +277,8 @@ export function createAnchorPoseStabilizer(THREE, options) {
     initFilterFromAverage();
     state = "tracking";
     readyNotified = true;
-    writeFilteredPresentation();
+    if (rigidAttachment) writeRigidPassthrough();
+    else writeFilteredPresentation();
     onAcquisitionReady?.();
   }
 
@@ -325,6 +334,14 @@ export function createAnchorPoseStabilizer(THREE, options) {
       return;
     }
 
+    // Capture the last known MindAR pose before freezing (critical for rigid mode,
+    // which otherwise never updates smooth* during tracking).
+    if (readRawPose()) {
+      smoothPos.copy(rawPos);
+      smoothQuat.copy(rawQuat);
+      smoothScale.copy(rawScale);
+    }
+
     state = "frozen";
     writeFilteredPresentation();
     clearSessionResetTimer();
@@ -364,6 +381,18 @@ export function createAnchorPoseStabilizer(THREE, options) {
     if (state === "frozen") {
       // Keep world pose fixed at last smooth while the raw anchor may drift/stop.
       writeFilteredPresentation();
+      return;
+    }
+
+    if (rigidAttachment) {
+      // Interests must inherit MindAR pose 1:1 (no translation/rotation/scale lag).
+      if (state === "blending") {
+        blendElapsedMs += dt * 1000;
+        if (blendElapsedMs >= Math.max(1, config.reacquisitionBlendMs)) {
+          state = "tracking";
+        }
+      }
+      writeRigidPassthrough();
       return;
     }
 
@@ -413,6 +442,7 @@ export function createAnchorPoseStabilizer(THREE, options) {
       hasFilter,
       readyNotified,
       sampleCount: acquisitionSamples.length,
+      rigidAttachment,
       config,
       smoothPosition: smoothPos.clone(),
       smoothQuaternion: smoothQuat.clone(),

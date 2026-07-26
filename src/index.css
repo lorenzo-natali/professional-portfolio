@@ -402,15 +402,19 @@ body {
   shape-rendering: geometricPrecision;
 }
 
-/* Single portaled AR viewport shell — CSS pins to viewport; JS may override with visualViewport. */
+/*
+ * Single portaled AR viewport shell.
+ * Use inset:0 + % sizing only — never 100vw (iOS Safari visualViewport mismatch → side bars).
+ * JS syncArViewportShell overrides with visualViewport pixel box when available.
+ */
 .ar-viewport-shell {
   position: fixed;
   inset: 0;
   width: 100%;
-  width: 100vw;
   height: 100%;
-  height: 100vh;
   height: 100dvh;
+  max-width: none;
+  max-height: none;
   margin: 0;
   padding: 0;
   overflow: hidden;

@@ -12,8 +12,37 @@ import {
   isInterestObjectsDebugEnabled,
 } from "../createInterestObjectsDebug";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
+import { INTEREST_OBJECTS_STABILIZATION } from "../interestObjectsConfig";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
-import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
+import { bindArViewportListeners, getArShellRect, syncArViewportShell } from "../arViewport";
+
+/**
+ * Pin the tracking container to the viewport shell client box before MindAR measures it.
+ * Prevents iOS cases where % sizing resolves against a stale/wrong containing block.
+ * @param {HTMLElement | null} container
+ * @param {HTMLElement | null} shell
+ */
+export function syncTrackingContainerToShell(container, shell) {
+  if (!container) return;
+  container.style.position = "absolute";
+  container.style.left = "0px";
+  container.style.top = "0px";
+  container.style.right = "auto";
+  container.style.bottom = "auto";
+  container.style.margin = "0";
+  container.style.transform = "none";
+  container.style.overflow = "hidden";
+
+  const rect = getArShellRect(shell);
+  if (rect?.width > 0 && rect?.height > 0) {
+    container.style.width = `${Math.round(rect.width)}px`;
+    container.style.height = `${Math.round(rect.height)}px`;
+  } else {
+    container.style.inset = "0px";
+    container.style.width = "100%";
+    container.style.height = "100%";
+  }
+}
 
 /**
  * Lift MindAR's video above the container background (MindAR defaults to z-index: -2)
@@ -26,14 +55,14 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
   if (!container) return;
 
   const canvasPointerEvents = options.canvasPointerEvents ?? "none";
+  const shell =
+    options.shell ||
+    container.closest?.("[data-ar-viewport-shell='true']") ||
+    container.parentElement;
+  syncTrackingContainerToShell(container, shell);
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
-  container.style.position = "absolute";
-  container.style.inset = "0px";
-  container.style.width = "100%";
-  container.style.height = "100%";
-  container.style.overflow = "hidden";
   container.style.pointerEvents = "none";
   container.style.touchAction = "none";
   container.style.userSelect = "none";
@@ -41,8 +70,10 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   const video = container.querySelector("video");
   if (video) {
+    video.style.position = "absolute";
     video.style.zIndex = "0";
     video.style.pointerEvents = "none";
+    video.style.objectFit = "cover";
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
     video.muted = true;
@@ -50,6 +81,9 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   const canvases = container.querySelectorAll("canvas");
   canvases.forEach((canvas, index) => {
+    canvas.style.position = "absolute";
+    canvas.style.left = "0px";
+    canvas.style.top = "0px";
     canvas.style.zIndex = String(1 + index);
     canvas.style.pointerEvents = canvasPointerEvents;
     canvas.style.touchAction = "none";
@@ -58,6 +92,9 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   const cssHost = Array.from(container.children).find((node) => node.tagName === "DIV");
   if (cssHost) {
+    cssHost.style.position = "absolute";
+    cssHost.style.left = "0px";
+    cssHost.style.top = "0px";
     cssHost.style.zIndex = String(1 + canvases.length);
     cssHost.style.pointerEvents = "none";
     cssHost.style.background = "transparent";
@@ -78,6 +115,7 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
 /**
  * Assert MindAR media layers share the container client box after resize.
+ * Video may be larger (cover crop) but its layout box must still cover the container.
  * @param {HTMLElement} container
  */
 export function layersMatchContainer(container) {
@@ -87,14 +125,64 @@ export function layersMatchContainer(container) {
   if (width < 1 || height < 1) return false;
 
   const canvas = container.querySelector("canvas");
+  const video = container.querySelector("video");
   const cssHost = Array.from(container.children).find((node) => node.tagName === "DIV");
-  const targets = [canvas, cssHost].filter(Boolean);
 
-  return targets.every((el) => {
-    const w = Math.round(parseFloat(el.style.width) || el.clientWidth);
-    const h = Math.round(parseFloat(el.style.height) || el.clientHeight);
-    return Math.abs(w - width) <= 1 && Math.abs(h - height) <= 1;
-  });
+  const canvasOk = !canvas
+    ? true
+    : (() => {
+        const w = Math.round(parseFloat(canvas.style.width) || canvas.clientWidth);
+        const h = Math.round(parseFloat(canvas.style.height) || canvas.clientHeight);
+        return Math.abs(w - width) <= 1 && Math.abs(h - height) <= 1;
+      })();
+
+  const cssOk = !cssHost
+    ? true
+    : (() => {
+        const w = Math.round(parseFloat(cssHost.style.width) || cssHost.clientWidth);
+        const h = Math.round(parseFloat(cssHost.style.height) || cssHost.clientHeight);
+        return Math.abs(w - width) <= 1 && Math.abs(h - height) <= 1;
+      })();
+
+  // MindAR cover: video CSS box ≥ container, centered with negative offsets.
+  const videoOk = !video
+    ? true
+    : (() => {
+        const w = Math.round(parseFloat(video.style.width) || video.clientWidth);
+        const h = Math.round(parseFloat(video.style.height) || video.clientHeight);
+        return w + 1 >= width && h + 1 >= height;
+      })();
+
+  return canvasOk && cssOk && videoOk;
+}
+
+/**
+ * Re-run MindAR resize once the camera stream has real dimensions (avoids NaN cover math).
+ * @param {{ resize?: () => void, video?: HTMLVideoElement | null } | null} mindarThree
+ * @returns {() => void} cleanup
+ */
+export function bindMindArVideoResize(mindarThree) {
+  const video = mindarThree?.video;
+  if (!video || typeof mindarThree.resize !== "function") return () => {};
+
+  const run = () => {
+    try {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        mindarThree.resize();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  video.addEventListener("loadedmetadata", run);
+  video.addEventListener("resize", run);
+  run();
+
+  return () => {
+    video.removeEventListener("loadedmetadata", run);
+    video.removeEventListener("resize", run);
+  };
 }
 
 function findViewportShell(container) {
@@ -182,6 +270,7 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
+  let videoResizeCleanup = null;
   let interestLayer = null;
   let interestAnimation = null;
   let interestDebug = null;
@@ -223,6 +312,13 @@ export function createMindARTrackingAdapter({
       // ignore
     }
     viewportCleanup = null;
+
+    try {
+      videoResizeCleanup?.();
+    } catch {
+      // ignore
+    }
+    videoResizeCleanup = null;
 
     try {
       interestDebug?.dispose();
@@ -327,6 +423,7 @@ export function createMindARTrackingAdapter({
 
         const shell = findViewportShell(container);
         syncArViewportShell(shell);
+        syncTrackingContainerToShell(container, shell);
 
         mindarThree = new MindARThree({
           container,
@@ -345,7 +442,7 @@ export function createMindARTrackingAdapter({
         presentationLighting = createInterestLighting(THREE, scene);
 
         // MindAR anchor (raw)
-        //   → presentation (filtered)
+        //   → presentation (rigid identity / filtered)
         //     → interest objects placement
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
@@ -384,19 +481,26 @@ export function createMindARTrackingAdapter({
         });
         interestAnimation = sessionAnim;
 
-        if (debugEnabled) {
-          interestDebug = createInterestObjectsDebug(sessionLayer, { enabled: true });
-        }
-
         poseStabilizer = createAnchorPoseStabilizer(THREE, {
           rawAnchor: anchor.group,
           presentation: presentationRoot,
+          config: INTEREST_OBJECTS_STABILIZATION,
           onAcquisitionReady: () => {
             if (sessionGeneration !== sessionToken) return;
             if (interestAnimation !== sessionAnim || !sessionAnim) return;
             sessionAnim.onAcquisitionReady();
           },
         });
+
+        if (debugEnabled) {
+          interestDebug = createInterestObjectsDebug(sessionLayer, {
+            enabled: true,
+            THREE,
+            rawAnchor: anchor.group,
+            presentation: presentationRoot,
+            poseStabilizer,
+          });
+        }
 
         anchor.onTargetFound = () => {
           if (sessionGeneration !== sessionToken) return;
@@ -432,22 +536,31 @@ export function createMindARTrackingAdapter({
         await mindarThree.start();
 
         syncArViewportShell(shell);
+        syncTrackingContainerToShell(container, shell);
         try {
           mindarThree.resize();
         } catch {
           // ignore
         }
-        applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "none" });
+        applyCameraLayerStacking(container, renderer, {
+          canvasPointerEvents: "none",
+          shell,
+        });
+        videoResizeCleanup = bindMindArVideoResize(mindarThree);
 
         const onViewportChange = () => {
           if (!running || !mindarThree) return;
           syncArViewportShell(shell);
+          syncTrackingContainerToShell(container, shell);
           try {
             mindarThree.resize();
           } catch {
             // ignore
           }
-          applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "none" });
+          applyCameraLayerStacking(container, renderer, {
+            canvasPointerEvents: "none",
+            shell,
+          });
         };
         running = true;
         viewportCleanup = bindArViewportListeners(onViewportChange);

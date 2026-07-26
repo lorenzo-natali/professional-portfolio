@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AR Tracking Feature Experiment (DEV)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f141b;
+        --panel: #1a222c;
+        --ink: #e8eef5;
+        --muted: #9aabbc;
+        --line: #2c3642;
+        --accent: #6ec8d6;
+        --top: #22d3ee;
+        --mid: #fbbf24;
+        --bot: #f472b6;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(1000px 500px at 15% -10%, #243041, var(--bg));
+        color: var(--ink);
+        min-height: 100vh;
+      }
+      header {
+        padding: 1.2rem 1.4rem 0.8rem;
+        border-bottom: 1px solid var(--line);
+      }
+      h1 { margin: 0 0 0.35rem; font-size: 1.2rem; font-weight: 600; }
+      p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.45; }
+      .badge {
+        color: var(--accent);
+        border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+        border-radius: 999px;
+        padding: 0.12rem 0.5rem;
+        font-size: 0.72rem;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.9rem 1.4rem;
+      }
+      label { color: var(--muted); font-size: 0.85rem; }
+      select, button {
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.4rem 0.7rem;
+        font: inherit;
+      }
+      button { cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      .legend {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 0 1.4rem 0.8rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .swatch::before {
+        content: "";
+        display: inline-block;
+        width: 0.65rem;
+        height: 0.65rem;
+        border-radius: 999px;
+        margin-right: 0.35rem;
+        vertical-align: -1px;
+      }
+      .swatch.top::before { background: var(--top); }
+      .swatch.mid::before { background: var(--mid); }
+      .swatch.bot::before { background: var(--bot); }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        padding: 0 1.4rem 1.6rem;
+      }
+      @media (max-width: 980px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .card h2 {
+        margin: 0;
+        padding: 0.7rem 0.9rem;
+        font-size: 0.92rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: baseline;
+      }
+      .card h2 span { color: var(--muted); font-weight: 400; font-size: 0.78rem; }
+      .card img {
+        display: block;
+        width: 100%;
+        height: auto;
+        background: #0b0e13;
+      }
+      .meta {
+        padding: 0.7rem 0.9rem 0.95rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+      .rec {
+        margin: 0 1.4rem 1.4rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--panel) 80%, #0b0e13);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+      code { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Beyond the CV — Tracking feature experiment <span class="badge">DEV</span></h1>
+      <p>
+        Side-by-side baseline vs experimental MindAR targets. Does
+        <strong>not</strong> change the live <code>cv-page-1.mind</code> or AR runtime.
+      </p>
+    </header>
+    <div class="controls">
+      <label><input type="checkbox" id="showOverlay" checked /> Show tracking overlay</label>
+      <button id="reload" type="button">Reload report</button>
+    </div>
+    <div class="legend">
+      <span class="swatch top">tracking TOP</span>
+      <span class="swatch mid">tracking MIDDLE</span>
+      <span class="swatch bot">tracking BOTTOM</span>
+      <span>grey dots = sampled detection features (L0)</span>
+    </div>
+    <div id="rec" class="rec">Loading experiment report…</div>
+    <div id="grid" class="grid"></div>
+    <script type="module" src="/src/ar-tracking-features-experiment.js"></script>
+  </body>
+</html>
