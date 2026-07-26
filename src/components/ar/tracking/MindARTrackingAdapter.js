@@ -5,8 +5,12 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createDecisionCore3D } from "../createDecisionCore3D";
-import { createDecisionCoreTapController } from "../createDecisionCoreTapController";
+import { createCollectible3D } from "../createCollectible3D";
+import {
+  attachCollectibleEnvironment,
+  configureCollectibleRenderer,
+  createCollectibleLighting,
+} from "../configureCollectiblePresentation";
 import { createProfessionalCardAnimation } from "../professionalCardAnimation";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
 import { createCardGestureController } from "../createCardGestureController";
@@ -113,12 +117,13 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let decisionCore = null;
-  let decisionCoreAnimation = null;
-  let decisionCoreTap = null;
+  let collectible = null;
+  let collectibleAnimation = null;
   let poseStabilizer = null;
   let gestureController = null;
   let presentationRoot = null;
+  let presentationLighting = null;
+  let presentationEnvironment = null;
   let lastFrameTimeMs = 0;
 
   return {
@@ -159,79 +164,60 @@ export function createMindARTrackingAdapter({
         });
 
         const { renderer, scene, camera } = mindarThree;
-        renderer.setClearColor(0x000000, 0);
-        if (typeof renderer.setClearAlpha === "function") {
-          renderer.setClearAlpha(0);
-        }
-
-        const ambient = new THREE.AmbientLight(0xffffff, 0.62);
-        scene.add(ambient);
-        const keyLight = new THREE.DirectionalLight(0xf4f7fb, 0.55);
-        keyLight.position.set(0.4, 0.95, 1.2);
-        scene.add(keyLight);
-        const fillLight = new THREE.DirectionalLight(0xb8c4d4, 0.22);
-        fillLight.position.set(-0.6, 0.2, 0.8);
-        scene.add(fillLight);
+        configureCollectibleRenderer(THREE, renderer);
+        presentationLighting = createCollectibleLighting(THREE, scene);
+        presentationEnvironment = await attachCollectibleEnvironment(THREE, renderer, scene);
 
         // Tracking hierarchy:
         // MindAR anchor (raw)
         //   → presentation (filtered)
         //     → placement (CV center)
         //       → interaction (user gestures)
-        //         → anim (entrance rise) → Decision Core
+        //         → anim (entrance rise) → collectible GLB
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
         presentationRoot = new THREE.Group();
-        presentationRoot.name = "ar-decision-core-presentation";
-        presentationRoot.userData.kind = "ar-decision-core-presentation";
+        presentationRoot.name = "ar-collectible-presentation";
+        presentationRoot.userData.kind = "ar-collectible-presentation";
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        decisionCore = createDecisionCore3D(THREE);
+        collectible = await createCollectible3D(THREE);
         const reducedMotion =
           typeof window !== "undefined" &&
           window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         const baseTiming = reducedMotion
           ? PROFESSIONAL_CARD_REDUCED_MOTION_TIMING
           : PROFESSIONAL_CARD_TIMING;
-        decisionCoreAnimation = createProfessionalCardAnimation(decisionCore, {
+        collectibleAnimation = createProfessionalCardAnimation(collectible, {
           reducedMotion,
           timing: { ...baseTiming, stabilizeDelayMs: 0 },
           onSessionReset: () => {
-            decisionCoreTap?.collapseAll({ animate: false });
             gestureController?.reset();
           },
         });
-        presentationRoot.add(decisionCore.group);
-
-        decisionCoreTap = createDecisionCoreTapController(THREE, {
-          artifact: decisionCore,
-          camera,
-          domElement: container,
-          isEnabled: () => decisionCoreAnimation?.getState?.().phase === "idle",
-        });
+        presentationRoot.add(collectible.group);
 
         gestureController = createCardGestureController({
           domElement: container,
-          interaction: decisionCore.interaction,
-          config: decisionCore.interactionConfig,
-          initialRotation: decisionCore.initialRotation,
-          initialScale: decisionCore.initialScale,
+          interaction: collectible.interaction,
+          config: collectible.interactionConfig,
+          initialRotation: collectible.initialRotation,
+          initialScale: collectible.initialScale,
           isEnabled: () => {
-            const phase = decisionCoreAnimation?.getState?.().phase;
+            const phase = collectibleAnimation?.getState?.().phase;
             return phase === "idle" || phase === "playing" || phase === "losing";
           },
-          onTap: (point) => decisionCoreTap?.handleTap(point),
         });
 
         poseStabilizer = createAnchorPoseStabilizer(THREE, {
           rawAnchor: anchor.group,
           presentation: presentationRoot,
           onAcquisitionReady: () => {
-            decisionCoreAnimation?.onTargetFound();
+            collectibleAnimation?.onTargetFound();
           },
         });
 
@@ -241,7 +227,7 @@ export function createMindARTrackingAdapter({
         };
         anchor.onTargetLost = () => {
           poseStabilizer?.onTargetLost();
-          decisionCoreAnimation?.onTargetLost();
+          collectibleAnimation?.onTargetLost();
           callbacks.onTargetLost?.();
         };
 
@@ -315,13 +301,6 @@ export function createMindARTrackingAdapter({
       gestureController = null;
 
       try {
-        decisionCoreTap?.dispose();
-      } catch {
-        // ignore
-      }
-      decisionCoreTap = null;
-
-      try {
         poseStabilizer?.dispose();
       } catch {
         // ignore
@@ -329,18 +308,32 @@ export function createMindARTrackingAdapter({
       poseStabilizer = null;
 
       try {
-        decisionCoreAnimation?.dispose();
+        collectibleAnimation?.dispose();
       } catch {
         // ignore
       }
-      decisionCoreAnimation = null;
+      collectibleAnimation = null;
 
       try {
-        decisionCore?.dispose();
+        collectible?.dispose();
       } catch {
         // ignore
       }
-      decisionCore = null;
+      collectible = null;
+
+      try {
+        presentationEnvironment?.dispose();
+      } catch {
+        // ignore
+      }
+      presentationEnvironment = null;
+
+      try {
+        presentationLighting?.dispose();
+      } catch {
+        // ignore
+      }
+      presentationLighting = null;
 
       try {
         presentationRoot?.removeFromParent?.();

@@ -4,6 +4,7 @@ import { createValidMindFixture } from "../mindTargetFixture";
 const mocks = vi.hoisted(() => ({
   loadArTargetBuffer: vi.fn(),
   MindARThree: vi.fn(),
+  createCollectible3D: vi.fn(),
 }));
 
 vi.mock("../checkArTargetAvailable", async (importOriginal) => {
@@ -11,6 +12,18 @@ vi.mock("../checkArTargetAvailable", async (importOriginal) => {
   return {
     ...actual,
     loadArTargetBuffer: (...args) => mocks.loadArTargetBuffer(...args),
+  };
+});
+
+vi.mock("../createCollectible3D", () => ({
+  createCollectible3D: (...args) => mocks.createCollectible3D(...args),
+}));
+
+vi.mock("../configureCollectiblePresentation", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    attachCollectibleEnvironment: vi.fn(async () => ({ dispose: vi.fn() })),
   };
 });
 
@@ -30,12 +43,50 @@ import {
   layersMatchContainer,
 } from "./MindARTrackingAdapter";
 import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
+import { PROFESSIONAL_CARD_INTERACTION } from "../professionalCardConfig";
+
+function makeCollectibleStub() {
+  const group = new THREE.Group();
+  group.name = "ar-collectible";
+  const placement = new THREE.Group();
+  placement.name = "ar-collectible-placement";
+  const interaction = new THREE.Group();
+  interaction.name = "ar-collectible-interaction";
+  interaction.rotation.set(-0.08, 0, 0);
+  interaction.scale.setScalar(0.26);
+  const anim = new THREE.Group();
+  anim.name = "ar-collectible-anim";
+  interaction.add(anim);
+  placement.add(interaction);
+  group.add(placement);
+  group.visible = false;
+  const material = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0 });
+  material.userData.baseOpacity = 1;
+  return {
+    group,
+    placement,
+    interaction,
+    anim,
+    coreMaterial: material,
+    riseHeight: 0.045,
+    initialRotation: { x: -0.08, y: 0, z: 0 },
+    initialScale: 0.26,
+    interactionConfig: PROFESSIONAL_CARD_INTERACTION,
+    riseAxis: "z",
+    resetInteractionPose: vi.fn(),
+    setOpacity: vi.fn((opacity) => {
+      material.opacity = opacity;
+    }),
+    getOpacity: vi.fn(() => material.opacity),
+    dispose: vi.fn(),
+  };
+}
 
 function mockMindAR({ resize = vi.fn(), withCssHost = true } = {}) {
   const group = new THREE.Group();
   group.name = "mindar-anchor";
   const addAnchor = vi.fn(() => ({ group, onTargetFound: null, onTargetLost: null }));
-  const scene = { add: vi.fn() };
+  const scene = { add: vi.fn(), environment: null };
   const renderer = {
     setAnimationLoop: vi.fn(),
     setClearColor: vi.fn(),
@@ -43,6 +94,8 @@ function mockMindAR({ resize = vi.fn(), withCssHost = true } = {}) {
     domElement: document.createElement("canvas"),
     dispose: vi.fn(),
     render: vi.fn(),
+    toneMapping: 0,
+    toneMappingExposure: 1,
   };
 
   mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
@@ -72,6 +125,8 @@ describe("createMindARTrackingAdapter camera slice", () => {
   beforeEach(() => {
     mocks.loadArTargetBuffer.mockReset();
     mocks.MindARThree.mockReset();
+    mocks.createCollectible3D.mockReset();
+    mocks.createCollectible3D.mockImplementation(async () => makeCollectibleStub());
     vi.stubGlobal("URL", {
       createObjectURL: vi.fn(() => "blob:mind-target"),
       revokeObjectURL: vi.fn(),
@@ -106,7 +161,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("starts exactly one MindAR session with Decision Core and no Risk Lens labels", async () => {
+  it("starts exactly one MindAR session with the collectible GLB and no Risk Lens labels", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group, addAnchor, renderer, resize } = mockMindAR();
 
@@ -127,13 +182,15 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
+    expect(mocks.createCollectible3D).toHaveBeenCalledTimes(1);
     const presentation = group.children.find(
-      (child) => child?.name === "ar-decision-core-presentation",
+      (child) => child?.name === "ar-collectible-presentation",
     );
     expect(presentation).toBeTruthy();
     expect(
-      presentation.children.some((child) => child?.name === "ar-decision-core"),
+      presentation.children.some((child) => child?.name === "ar-collectible"),
     ).toBe(true);
+    expect(group.children.some((child) => child?.name === "ar-collectible")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-decision-core")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-professional-card")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-lens-layer")).toBe(false);
@@ -155,7 +212,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     shell.remove();
   });
 
-  it("wires Decision Core entrance to target found/lost without diagnostics hooks", async () => {
+  it("wires collectible entrance to target found/lost without diagnostics hooks", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { addAnchor, renderer } = mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
@@ -250,7 +307,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(addSpy).toHaveBeenCalled();
     expect(group.children.some((child) => isVisuallyPresentObject3D(child))).toBe(true);
     expect(
-      group.children.some((child) => child?.name === "ar-decision-core-presentation"),
+      group.children.some((child) => child?.name === "ar-collectible-presentation"),
     ).toBe(true);
 
     await adapter.stop();

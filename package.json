@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "compile:ar-target": "node scripts/compile-ar-target.mjs"
+    "compile:ar-target": "node scripts/compile-ar-target.mjs",
+    "optimize:collectible": "node scripts/optimize-collectible.mjs"
   },
   "dependencies": {
     "@msgpack/msgpack": "^2.8.0",
