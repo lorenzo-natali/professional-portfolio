@@ -28,15 +28,18 @@ describe("ARGovernanceView entry flow", () => {
     checkArTargetAvailable.mockResolvedValue(true);
   });
 
-  it("portals the AR root to document.body outside the portfolio main tree", () => {
+  it("portals the AR root through ar-portal-host under document.body", () => {
     const main = document.createElement("main");
     document.getElementById("root").appendChild(main);
 
     render(<ARGovernanceView open onClose={vi.fn()} />, { container: main });
 
     const shell = document.querySelector("[data-ar-viewport-shell='true']");
+    const host = document.querySelector("[data-ar-portal-host='true']");
     expect(shell).toBeTruthy();
-    expect(shell.parentElement).toBe(document.body);
+    expect(host).toBeTruthy();
+    expect(host.parentElement).toBe(document.body);
+    expect(shell.parentElement).toBe(host);
     expect(main.contains(shell)).toBe(false);
     expect(document.querySelectorAll("[data-ar-viewport-shell='true']")).toHaveLength(1);
   });
@@ -68,9 +71,13 @@ describe("ARGovernanceView entry flow", () => {
     expect(shell.style.bottom).toBe("0px");
     expect(shell.style.width).toBe("auto");
     expect(shell.style.height).toBe("auto");
+    expect(shell.style.maxWidth).toBe("none");
     // Must ignore the narrower visualViewport box that caused the right page gap.
     expect(shell.style.width).not.toBe("360px");
     expect(shell.style.left).not.toBe("12px");
+    const host = document.querySelector("[data-ar-portal-host='true']");
+    expect(host.style.width).toBe("auto");
+    expect(host.style.maxWidth).toBe("none");
 
     const introTitle = await screen.findByRole("heading", { name: "Beyond the CV" });
     expect(shell.contains(introTitle)).toBe(true);

@@ -327,7 +327,7 @@ describe("createMindARTrackingAdapter interest objects", () => {
     expect(layersMatchContainer(container)).toBe(true);
   });
 
-  it("syncTrackingContainerToShell pins pixel size from the shell rect", () => {
+  it("syncTrackingContainerToShell uses inset:0 without pixel pinning from the shell", () => {
     const shell = document.createElement("div");
     Object.defineProperty(shell, "clientWidth", { value: 390 });
     Object.defineProperty(shell, "clientHeight", { value: 844 });
@@ -336,10 +336,13 @@ describe("createMindARTrackingAdapter interest objects", () => {
     });
     const container = document.createElement("div");
     syncTrackingContainerToShell(container, shell);
-    expect(container.style.width).toBe("390px");
-    expect(container.style.height).toBe("844px");
+    expect(container.style.width).toBe("auto");
+    expect(container.style.height).toBe("auto");
     expect(container.style.left).toBe("0px");
+    expect(container.style.right).toBe("0px");
     expect(container.style.top).toBe("0px");
+    expect(container.style.bottom).toBe("0px");
+    expect(container.style.width).not.toBe("390px");
   });
 
   it("bindMindArVideoResize cleans up listeners and resizes when metadata is ready", () => {

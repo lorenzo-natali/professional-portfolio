@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ARTrackingProvider } from "./tracking/ARTrackingProvider";
 import ARDesktopGate from "./ARDesktopGate";
@@ -7,7 +7,13 @@ import ARCameraView from "./ARCameraView";
 import ARUnavailablePanel from "./ARUnavailablePanel";
 import { useIsMobileDevice } from "./useIsMobileDevice";
 import { lockArPage, setPortfolioInert } from "./arPageLock";
-import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
+import {
+  bindArViewportListeners,
+  ensureArPortalHost,
+  recordArViewportLifecycle,
+  syncArViewportShell,
+  teardownArPortalHost,
+} from "./arViewport";
 import {
   createArViewportDebug,
   isArViewportDebugEnabled,
@@ -66,39 +72,49 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 }
 
 /**
- * Full-screen AR Governance experience — portaled to document.body,
- * outside the portfolio stacking context.
+ * Full-screen AR Governance experience — portaled through ar-portal-host
+ * under document.body, outside the portfolio stacking context.
  */
 export default function ARGovernanceView({ open, onClose }) {
   const isMobile = useIsMobileDevice();
   const shellRef = useRef(null);
 
+  const portalHost = useMemo(() => {
+    if (!open || typeof document === "undefined") return null;
+    return ensureArPortalHost();
+  }, [open]);
+
   useLayoutEffect(() => {
-    if (!open) return undefined;
+    if (!open || !portalHost) return undefined;
 
     const shell = shellRef.current;
     const root = document.getElementById("root");
     const unlockPage = lockArPage();
     setPortfolioInert(root, true);
 
-    const sync = () => syncArViewportShell(shell);
+    const sync = () => syncArViewportShell(shell, portalHost);
     sync();
+    recordArViewportLifecycle(shell, "portal-mount");
     const unbindViewport = bindArViewportListeners(sync);
 
-    const viewportDebug =
-      import.meta.env.DEV && isArViewportDebugEnabled()
-        ? createArViewportDebug(shell, { enabled: true })
-        : { dispose() {} };
+    // Field telemetry on iPhone: enable with ?arViewportDebug=1 (incl. production builds).
+    const viewportDebug = isArViewportDebugEnabled()
+      ? createArViewportDebug(shell, { enabled: true })
+      : { dispose() {}, recordPhase() {} };
+    viewportDebug.recordPhase?.("portal-mount-debug");
 
     return () => {
       viewportDebug.dispose();
       unbindViewport();
       setPortfolioInert(root, false);
       unlockPage();
+      queueMicrotask(() => {
+        teardownArPortalHost(portalHost);
+      });
     };
-  }, [open]);
+  }, [open, portalHost]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!open || !portalHost) return null;
 
   return createPortal(
     <div
@@ -112,6 +128,6 @@ export default function ARGovernanceView({ open, onClose }) {
     >
       <ARGovernanceExperience isMobile={isMobile} onClose={onClose} />
     </div>,
-    document.body,
+    portalHost,
   );
 }

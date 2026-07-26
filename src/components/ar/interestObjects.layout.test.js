@@ -42,7 +42,8 @@ describe("Interest objects document layout", () => {
     expect(INTEREST_TARGET_SIZES.backpack).toBeGreaterThanOrEqual(0.16);
     expect(INTEREST_TARGET_SIZES.book).toBeGreaterThanOrEqual(0.14);
     expect(INTEREST_TARGET_SIZES["evil-eye"]).toBeLessThan(INTEREST_TARGET_SIZES.robot);
-    expect(INTEREST_TARGET_SIZES["evil-eye"]).toBeGreaterThanOrEqual(0.08);
+    expect(INTEREST_TARGET_SIZES["evil-eye"]).toBeGreaterThanOrEqual(0.13);
+    expect(INTEREST_TARGET_SIZES["evil-eye"]).toBeLessThanOrEqual(0.16);
 
     const knowledge = INTEREST_OBJECTS.filter((item) => item.group === "knowledge").map((i) => i.id);
     const exploration = INTEREST_OBJECTS.filter((item) => item.group === "exploration").map(

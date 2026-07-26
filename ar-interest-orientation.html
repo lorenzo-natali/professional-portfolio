@@ -23,116 +23,119 @@
         min-height: 100vh;
       }
       header {
-        padding: 1.1rem 1.4rem 0.7rem;
+        padding: 1rem 1.25rem 0.6rem;
         border-bottom: 1px solid var(--line);
       }
-      h1 {
-        margin: 0 0 0.3rem;
-        font-size: 1.2rem;
-        font-weight: 600;
-      }
-      p { margin: 0; color: var(--muted); font-size: 0.9rem; }
-      .controls {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.7rem;
-        align-items: center;
-        padding: 0.9rem 1.4rem;
-      }
-      label { color: var(--muted); font-size: 0.85rem; }
-      select, button {
-        background: var(--panel);
-        color: var(--ink);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 0.45rem 0.7rem;
-        font: inherit;
-      }
-      button { cursor: pointer; }
-      button:hover, button.active { border-color: var(--accent); }
-      .views {
+      h1 { margin: 0 0 0.25rem; font-size: 1.15rem; font-weight: 600; }
+      p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+      .layout {
         display: grid;
-        grid-template-columns: 1.4fr 1fr 1fr;
+        grid-template-columns: 280px 1fr;
         gap: 0.75rem;
-        padding: 0 1.4rem 1.2rem;
+        padding: 0.75rem 1.25rem 1.25rem;
       }
-      @media (max-width: 960px) {
-        .views { grid-template-columns: 1fr; }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
       }
       .panel {
         background: var(--panel);
         border: 1px solid var(--line);
         border-radius: 12px;
         overflow: hidden;
-        min-height: 280px;
-        display: flex;
-        flex-direction: column;
       }
       .panel h2 {
         margin: 0;
-        padding: 0.65rem 0.9rem;
-        font-size: 0.9rem;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.88rem;
         border-bottom: 1px solid var(--line);
       }
-      canvas {
-        width: 100%;
-        height: 320px;
-        display: block;
-        background: #0d1014;
+      .controls { padding: 0.75rem 0.85rem 1rem; display: grid; gap: 0.55rem; }
+      label { display: grid; gap: 0.2rem; color: var(--muted); font-size: 0.78rem; }
+      input[type="range"] { width: 100%; }
+      select, button, input[type="number"] {
+        background: #121820;
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.4rem 0.55rem;
+        font: inherit;
       }
+      button { cursor: pointer; }
+      button:hover, button.active { border-color: var(--accent); }
+      .row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+      canvas { width: 100%; height: min(62vh, 520px); display: block; background: #0d1014; }
       .meta {
-        padding: 0.7rem 0.9rem 1rem;
-        font-size: 0.8rem;
+        padding: 0.65rem 0.85rem 0.9rem;
+        font-size: 0.78rem;
         color: var(--muted);
-        line-height: 1.45;
         white-space: pre-wrap;
+        line-height: 1.4;
       }
       .badge {
         color: var(--accent);
         border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
         border-radius: 999px;
-        padding: 0.15rem 0.55rem;
-        font-size: 0.75rem;
+        padding: 0.12rem 0.5rem;
+        font-size: 0.72rem;
       }
+      .val { color: var(--ink); font-variant-numeric: tabular-nums; }
     </style>
   </head>
   <body>
     <header>
       <h1>Interest orientation calibration <span class="badge">DEV</span></h1>
       <p>
-        Neutral Three.js views of live web GLBs with document-plane grounding
-        (<code>canonicalRotation</code> → scale → seat). Does not touch MindAR.
+        Tune canonicalRotation / displayYaw / displayTilt / targetSize. Values persist in
+        <code>localStorage</code> only — they do not auto-write production config. Use Copy configuration.
       </p>
     </header>
-    <div class="controls">
-      <label for="asset">Asset</label>
-      <select id="asset">
-        <option value="book">book</option>
-        <option value="evil-eye">evil-eye</option>
-        <option value="robot">robot</option>
-        <option value="fossil">fossil</option>
-        <option value="plant">plant</option>
-        <option value="backpack">backpack</option>
-      </select>
-      <button type="button" id="view-front" class="active">Front</button>
-      <button type="button" id="view-side">Side</button>
-      <button type="button" id="view-top">Top</button>
-      <label><input type="checkbox" id="show-native" /> Also show native (no canonical)</label>
-    </div>
-    <div class="views">
+    <div class="layout">
+      <aside class="panel">
+        <h2>Controls</h2>
+        <div class="controls">
+          <label>Asset
+            <select id="asset"></select>
+          </label>
+          <div class="row">
+            <button type="button" id="view-perspective" class="active">Perspective</button>
+            <button type="button" id="view-front">Front</button>
+            <button type="button" id="view-side">Side</button>
+            <button type="button" id="view-top">Top</button>
+          </div>
+          <label>canonicalRotation.x <span class="val" id="lab-cx"></span>
+            <input id="cx" type="range" min="-3.1416" max="3.1416" step="0.01" />
+          </label>
+          <label>canonicalRotation.y <span class="val" id="lab-cy"></span>
+            <input id="cy" type="range" min="-3.1416" max="3.1416" step="0.01" />
+          </label>
+          <label>canonicalRotation.z <span class="val" id="lab-cz"></span>
+            <input id="cz" type="range" min="-3.1416" max="3.1416" step="0.01" />
+          </label>
+          <label>displayYaw <span class="val" id="lab-yaw"></span>
+            <input id="yaw" type="range" min="-3.1416" max="3.1416" step="0.01" />
+          </label>
+          <label>displayTilt.x <span class="val" id="lab-tx"></span>
+            <input id="tx" type="range" min="-1.2" max="1.2" step="0.01" />
+          </label>
+          <label>displayTilt.y <span class="val" id="lab-ty"></span>
+            <input id="ty" type="range" min="-1.2" max="1.2" step="0.01" />
+          </label>
+          <label>targetSize <span class="val" id="lab-size"></span>
+            <input id="size" type="range" min="0.05" max="0.35" step="0.005" />
+          </label>
+          <label>groundOffset <span class="val" id="lab-ground"></span>
+            <input id="ground" type="range" min="0" max="0.05" step="0.001" />
+          </label>
+          <div class="row">
+            <button type="button" id="reset-asset">Reset asset</button>
+            <button type="button" id="copy-config">Copy configuration</button>
+          </div>
+        </div>
+      </aside>
       <section class="panel">
-        <h2>Canonical + grounded (production pipeline)</h2>
+        <h2>Document plane preview (XY paper · +Z out)</h2>
         <canvas id="canvas-main"></canvas>
         <div class="meta" id="info-main">Loading…</div>
-      </section>
-      <section class="panel">
-        <h2>Native GLB (no remap)</h2>
-        <canvas id="canvas-native"></canvas>
-        <div class="meta" id="info-native">—</div>
-      </section>
-      <section class="panel">
-        <h2>Config</h2>
-        <div class="meta" id="info-config">—</div>
       </section>
     </div>
     <script type="module" src="/src/ar-interest-orientation.js"></script>

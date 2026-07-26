@@ -45,8 +45,17 @@ export const INTEREST_TARGET_SIZES = {
   plant: 0.24,
   robot: 0.22,
   fossil: 0.2,
-  "evil-eye": 0.1,
+  /** Was 0.10 — too small on iPhone; calibrated to mid 0.13–0.16 band. */
+  "evil-eye": 0.14,
 };
+
+/**
+ * Fossil-specific museum pose (not the shared Y-up remap).
+ * Native tallest axis is Z (snout↔occiput length). Identity grounded that length
+ * on +Z, so the skull rested on a lateral/wrong face. rotateX(+π/2) maps native
+ * +Y (cranial vault “up”) → document +Z and lays length into the page plane.
+ */
+export const INTEREST_FOSSIL_CANONICAL = { x: Math.PI / 2, y: 0, z: 0 };
 
 /**
  * Rigid CV attachment: presentation stays identity under the MindAR anchor.
@@ -98,6 +107,7 @@ export const INTEREST_APPEARANCE_STAGGER_MS = 320;
  * @property {number} displayYaw Yaw around document Z after grounding
  * @property {{ x: number, y: number }} [displayTilt] Optional tilt after grounding (not yaw)
  * @property {number} groundOffset Lift along document normal after seating
+ * @property {"+x"|"-x"|"+y"|"-y"|"+z"|"-z"} [frontAxis] Local axis that faces “forward” after canonicalRotation
  * @property {"x"|"y"|"z"|"max"} scaleAxis AABB axis used for uniform scale after orientation
  * @property {number} targetSize Desired size along scaleAxis (document units)
  * @property {number} appearanceDelayMs
@@ -114,6 +124,7 @@ export const INTEREST_OBJECTS = [
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
     displayYaw: 0.35,
     groundOffset: 0.012,
+    frontAxis: "+y",
     scaleAxis: "max",
     targetSize: INTEREST_TARGET_SIZES.book,
     appearanceDelayMs: 0,
@@ -127,6 +138,7 @@ export const INTEREST_OBJECTS = [
     displayYaw: 0.08,
     displayTilt: { x: 0.12, y: -0.35 },
     groundOffset: 0.012,
+    frontAxis: "+y",
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES["evil-eye"],
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS,
@@ -139,6 +151,7 @@ export const INTEREST_OBJECTS = [
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
     displayYaw: 0.55,
     groundOffset: 0.012,
+    frontAxis: "+y",
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.robot,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 2,
@@ -148,10 +161,12 @@ export const INTEREST_OBJECTS = [
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/fossil.glb`,
     origin: { u: 0.74, vTop: 0.28 },
-    // Native tallest axis is already document Z — do not apply Y→Z.
-    canonicalRotation: { ...INTEREST_CANONICAL_IDENTITY },
+    // Explicit museum pose — not identity, not a shared heuristic with other assets.
+    canonicalRotation: { ...INTEREST_FOSSIL_CANONICAL },
     displayYaw: -0.85,
+    displayTilt: { x: 0.08, y: 0 },
     groundOffset: 0.012,
+    frontAxis: "+y",
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.fossil,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 3,
@@ -164,6 +179,7 @@ export const INTEREST_OBJECTS = [
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
     displayYaw: 0.25,
     groundOffset: 0.012,
+    frontAxis: "+y",
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.plant,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 4,
@@ -176,6 +192,7 @@ export const INTEREST_OBJECTS = [
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
     displayYaw: -0.5,
     groundOffset: 0.012,
+    frontAxis: "+y",
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.backpack,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 5,

@@ -14,39 +14,23 @@ import {
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
 import { INTEREST_OBJECTS_STABILIZATION } from "../interestObjectsConfig";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
-import { bindArViewportListeners, getArShellRect, syncArViewportShell } from "../arViewport";
+import {
+  bindArViewportListeners,
+  normalizeMindArLayerStyles,
+  recordArViewportLifecycle,
+  syncArViewportShell,
+  syncTrackingContainerToShell as syncTrackingContainerFullscreen,
+} from "../arViewport";
 
 /**
- * Pin the tracking container to the viewport shell client box before MindAR measures it.
- * Prevents iOS cases where % sizing resolves against a stale/wrong containing block.
+ * Keep the MindAR container as a true fullscreen absolute layer.
+ * Never pin width/height from shell.clientWidth / visualViewport / camera aspect —
+ * that dual sizing system caused the persistent iPhone right-side gap.
  * @param {HTMLElement | null} container
- * @param {HTMLElement | null} shell
+ * @param {HTMLElement | null} [_shell]
  */
-export function syncTrackingContainerToShell(container, shell) {
-  if (!container) return;
-  container.style.position = "absolute";
-  container.style.left = "0px";
-  container.style.top = "0px";
-  container.style.right = "0px";
-  container.style.bottom = "0px";
-  container.style.margin = "0";
-  container.style.padding = "0";
-  container.style.transform = "none";
-  container.style.overflow = "hidden";
-  container.style.boxSizing = "border-box";
-  container.style.maxWidth = "none";
-
-  const rect = getArShellRect(shell);
-  if (rect?.width > 0 && rect?.height > 0) {
-    // Pin to the fullscreen shell client box so MindAR measures the real stage.
-    container.style.width = `${Math.round(rect.width)}px`;
-    container.style.height = `${Math.round(rect.height)}px`;
-    container.style.right = "auto";
-    container.style.bottom = "auto";
-  } else {
-    container.style.width = "auto";
-    container.style.height = "auto";
-  }
+export function syncTrackingContainerToShell(container) {
+  syncTrackingContainerFullscreen(container);
 }
 
 /**
@@ -64,7 +48,10 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
     options.shell ||
     container.closest?.("[data-ar-viewport-shell='true']") ||
     container.parentElement;
-  syncTrackingContainerToShell(container, shell);
+
+  syncArViewportShell(shell);
+  // Explicit adapter pass: neutralize MindAR/container sizing after create/resize.
+  normalizeMindArLayerStyles(container, { renderer });
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
@@ -75,10 +62,6 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   const video = container.querySelector("video");
   if (video) {
-    video.style.position = "absolute";
-    video.style.zIndex = "0";
-    video.style.pointerEvents = "none";
-    video.style.objectFit = "cover";
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
     video.muted = true;
@@ -86,24 +69,10 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   const canvases = container.querySelectorAll("canvas");
   canvases.forEach((canvas, index) => {
-    canvas.style.position = "absolute";
-    canvas.style.left = "0px";
-    canvas.style.top = "0px";
     canvas.style.zIndex = String(1 + index);
     canvas.style.pointerEvents = canvasPointerEvents;
     canvas.style.touchAction = "none";
-    canvas.style.background = "transparent";
   });
-
-  const cssHost = Array.from(container.children).find((node) => node.tagName === "DIV");
-  if (cssHost) {
-    cssHost.style.position = "absolute";
-    cssHost.style.left = "0px";
-    cssHost.style.top = "0px";
-    cssHost.style.zIndex = String(1 + canvases.length);
-    cssHost.style.pointerEvents = "none";
-    cssHost.style.background = "transparent";
-  }
 
   if (renderer) {
     renderer.setClearColor?.(0x000000, 0);
@@ -166,27 +135,50 @@ export function layersMatchContainer(container) {
  * @param {{ resize?: () => void, video?: HTMLVideoElement | null } | null} mindarThree
  * @returns {() => void} cleanup
  */
-export function bindMindArVideoResize(mindarThree) {
+export function bindMindArVideoResize(mindarThree, options = {}) {
   const video = mindarThree?.video;
+  const container = options.container || mindarThree?.container || null;
+  const shell = options.shell || null;
   if (!video || typeof mindarThree.resize !== "function") return () => {};
 
-  const run = () => {
+  const run = (phase = "video-resize") => {
     try {
       if (video.videoWidth > 0 && video.videoHeight > 0) {
+        syncArViewportShell(shell);
+        syncTrackingContainerToShell(container, shell);
         mindarThree.resize();
+        normalizeMindArLayerStyles(container, { renderer: mindarThree.renderer });
+        recordArViewportLifecycle(shell, phase, {
+          mindArInline: {
+            video: {
+              width: video.style.width,
+              height: video.style.height,
+              left: video.style.left,
+              top: video.style.top,
+            },
+            canvas: mindarThree.renderer?.domElement
+              ? {
+                  width: mindarThree.renderer.domElement.style.width,
+                  height: mindarThree.renderer.domElement.style.height,
+                }
+              : null,
+          },
+        });
       }
     } catch {
       // ignore
     }
   };
 
-  video.addEventListener("loadedmetadata", run);
-  video.addEventListener("resize", run);
-  run();
+  const onMeta = () => run("loadedmetadata");
+  const onVideoResize = () => run("video-element-resize");
+  video.addEventListener("loadedmetadata", onMeta);
+  video.addEventListener("resize", onVideoResize);
+  run("video-resize-bind");
 
   return () => {
-    video.removeEventListener("loadedmetadata", run);
-    video.removeEventListener("resize", run);
+    video.removeEventListener("loadedmetadata", onMeta);
+    video.removeEventListener("resize", onVideoResize);
   };
 }
 
@@ -288,6 +280,8 @@ export function createMindARTrackingAdapter({
   let cleaning = false;
   /** Invalidates async load callbacks from prior AR sessions. */
   let sessionGeneration = 0;
+  /** @type {number[]} */
+  let lifecycleTimers = [];
 
   function clearSessionReset() {
     if (sessionResetTimer) {
@@ -324,6 +318,9 @@ export function createMindARTrackingAdapter({
       // ignore
     }
     videoResizeCleanup = null;
+
+    lifecycleTimers.forEach((id) => clearTimeout(id));
+    lifecycleTimers = [];
 
     try {
       interestDebug?.dispose();
@@ -429,6 +426,7 @@ export function createMindARTrackingAdapter({
         const shell = findViewportShell(container);
         syncArViewportShell(shell);
         syncTrackingContainerToShell(container, shell);
+        recordArViewportLifecycle(shell, "before-mindar-construct");
 
         mindarThree = new MindARThree({
           container,
@@ -445,6 +443,7 @@ export function createMindARTrackingAdapter({
         const { renderer, scene, camera } = mindarThree;
         configureInterestRenderer(THREE, renderer);
         presentationLighting = createInterestLighting(THREE, scene);
+        recordArViewportLifecycle(shell, "after-mindar-construct");
 
         // MindAR anchor (raw)
         //   → presentation (rigid identity / filtered)
@@ -538,7 +537,20 @@ export function createMindARTrackingAdapter({
           sessionAnim.markLoadFinished();
         });
 
+        recordArViewportLifecycle(shell, "before-mindar-start");
         await mindarThree.start();
+        recordArViewportLifecycle(shell, "after-mindar-start", {
+          mindArInline: {
+            video: mindarThree.video
+              ? {
+                  width: mindarThree.video.style.width,
+                  height: mindarThree.video.style.height,
+                  left: mindarThree.video.style.left,
+                  top: mindarThree.video.style.top,
+                }
+              : null,
+          },
+        });
 
         syncArViewportShell(shell);
         syncTrackingContainerToShell(container, shell);
@@ -551,7 +563,8 @@ export function createMindARTrackingAdapter({
           canvasPointerEvents: "none",
           shell,
         });
-        videoResizeCleanup = bindMindArVideoResize(mindarThree);
+        recordArViewportLifecycle(shell, "after-first-normalize");
+        videoResizeCleanup = bindMindArVideoResize(mindarThree, { container, shell });
 
         const onViewportChange = () => {
           if (!running || !mindarThree) return;
@@ -566,12 +579,14 @@ export function createMindARTrackingAdapter({
             canvasPointerEvents: "none",
             shell,
           });
+          recordArViewportLifecycle(shell, "viewport-change");
         };
         running = true;
         viewportCleanup = bindArViewportListeners(onViewportChange);
 
         callbacks.onReady?.();
 
+        let firstFrameRecorded = false;
         lastFrameTimeMs = performance.now();
         renderer.setAnimationLoop((frameTime) => {
           const tNow = typeof frameTime === "number" ? frameTime : performance.now();
@@ -579,8 +594,30 @@ export function createMindARTrackingAdapter({
           lastFrameTimeMs = tNow;
           poseStabilizer?.update(dtSec);
           renderer.render(scene, camera);
+          if (!firstFrameRecorded) {
+            firstFrameRecorded = true;
+            recordArViewportLifecycle(shell, "first-frame");
+          }
         });
         rafLoop = renderer;
+
+        lifecycleTimers.push(
+          window.setTimeout(() => {
+            if (sessionGeneration !== sessionToken) return;
+            syncArViewportShell(shell);
+            syncTrackingContainerToShell(container, shell);
+            try {
+              mindarThree?.resize?.();
+            } catch {
+              // ignore
+            }
+            applyCameraLayerStacking(container, renderer, {
+              canvasPointerEvents: "none",
+              shell,
+            });
+            recordArViewportLifecycle(shell, "after-500ms");
+          }, 500),
+        );
       } catch (error) {
         await cleanupSession();
         const err = error instanceof Error ? error : new Error(String(error));

@@ -29,9 +29,11 @@ describe("Interest objects orientation config", () => {
     });
   });
 
-  it("keeps fossil on identity while Y-up assets use +π/2 X", () => {
+  it("gives fossil an explicit museum canonicalRotation (not identity, not shared heuristic)", () => {
     const fossil = INTEREST_OBJECTS.find((item) => item.id === "fossil");
-    expect(fossil.canonicalRotation).toEqual(INTEREST_CANONICAL_IDENTITY);
+    expect(fossil.canonicalRotation).not.toEqual(INTEREST_CANONICAL_IDENTITY);
+    expect(fossil.canonicalRotation.x).toBeCloseTo(Math.PI / 2, 10);
+    expect(fossil.frontAxis).toBe("+y");
 
     const yUpIds = ["book", "evil-eye", "robot", "plant", "backpack"];
     yUpIds.forEach((id) => {
@@ -39,6 +41,13 @@ describe("Interest objects orientation config", () => {
       expect(item.canonicalRotation.x).toBeCloseTo(Math.PI / 2, 10);
       expect(item.canonicalRotation).toEqual(INTEREST_CANONICAL_Y_UP_TO_Z_UP);
     });
+  });
+
+  it("enlarges evil-eye into the readable 0.13–0.16 band", () => {
+    const eye = INTEREST_OBJECTS.find((item) => item.id === "evil-eye");
+    expect(eye.targetSize).toBeGreaterThanOrEqual(0.13);
+    expect(eye.targetSize).toBeLessThanOrEqual(0.16);
+    expect(eye.targetSize).toBeCloseTo(0.14, 5);
   });
 
   it("separates displayYaw from canonicalRotation", () => {

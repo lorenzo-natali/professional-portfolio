@@ -1,47 +1,75 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
-import { syncArViewportShell, collectArViewportMetrics } from "./arViewport";
-import { syncTrackingContainerToShell } from "./tracking/MindARTrackingAdapter";
+import { describe, expect, it, afterEach } from "vitest";
+import {
+  collectArViewportMetrics,
+  ensureArPortalHost,
+  syncArViewportShell,
+  syncTrackingContainerToShell,
+  teardownArPortalHost,
+} from "./arViewport";
 
 describe("AR fullscreen layer constraints", () => {
   afterEach(() => {
     document.body.innerHTML = "";
-    vi.unstubAllGlobals();
   });
 
-  it("mounts shell styles without inherited max-width and matches layout right edge", () => {
+  it("mounts portal host as a direct body child outside portfolio wrappers", () => {
+    const main = document.createElement("main");
+    main.style.maxWidth = "480px";
+    main.style.transform = "translateZ(0)";
+    document.body.appendChild(main);
+
+    const host = ensureArPortalHost();
     const shell = document.createElement("div");
     shell.className = "ar-viewport-shell";
     shell.dataset.arViewportShell = "true";
+    host.appendChild(shell);
+
+    syncArViewportShell(shell, host);
+
+    expect(host.parentElement).toBe(document.body);
+    expect(main.contains(host)).toBe(false);
+    expect(shell.parentElement).toBe(host);
+    expect(host.style.maxWidth).toBe("none");
+    expect(shell.style.maxWidth).toBe("none");
+    expect(shell.style.width).toBe("auto");
+    expect(shell.style.transform).toBe("none");
+
+    shell.remove();
+    teardownArPortalHost(host);
+  });
+
+  it("does not size stage/container from camera aspect or shell pixel width", () => {
+    const shell = document.createElement("div");
     const stage = document.createElement("div");
     stage.dataset.arCameraStage = "true";
-    stage.className = "ar-camera-stage";
     const container = document.createElement("div");
     container.dataset.arTrackingContainer = "true";
-    container.className = "ar-tracking-container";
     stage.appendChild(container);
     shell.appendChild(stage);
     document.body.appendChild(shell);
 
-    // Simulate a portfolio ancestor constraint that must not affect the portal shell.
-    const main = document.createElement("main");
-    main.style.maxWidth = "480px";
-    main.style.width = "480px";
-    document.body.appendChild(main);
-
+    Object.defineProperty(shell, "clientWidth", { value: 300 });
+    Object.defineProperty(shell, "clientHeight", { value: 600 });
     syncArViewportShell(shell);
+    syncTrackingContainerToShell(container, shell);
 
-    expect(shell.parentElement).toBe(document.body);
-    expect(main.contains(shell)).toBe(false);
-    expect(shell.style.maxWidth).toBe("none");
-    expect(shell.style.width).toBe("auto");
-    expect(shell.style.left).toBe("0px");
-    expect(shell.style.right).toBe("0px");
+    expect(container.style.width).toBe("auto");
+    expect(container.style.height).toBe("auto");
+    expect(stage.style.width).toBe("auto");
+    expect(container.style.width).not.toBe("300px");
+  });
 
+  it("reports acceptance gaps from stage vs documentElement", () => {
+    const shell = document.createElement("div");
+    const stage = document.createElement("div");
+    stage.dataset.arCameraStage = "true";
+    shell.appendChild(stage);
+    document.body.appendChild(shell);
     Object.defineProperty(document.documentElement, "clientWidth", {
       configurable: true,
       value: 390,
     });
-    const fullRect = {
+    const full = {
       left: 0,
       top: 0,
       right: 390,
@@ -52,36 +80,11 @@ describe("AR fullscreen layer constraints", () => {
       y: 0,
       toJSON() {},
     };
-    shell.getBoundingClientRect = () => fullRect;
-    stage.getBoundingClientRect = () => fullRect;
-    Object.defineProperty(shell, "clientWidth", { configurable: true, value: 390 });
-    Object.defineProperty(shell, "clientHeight", { configurable: true, value: 844 });
-
-    syncTrackingContainerToShell(container, shell);
-    expect(container.style.width).toBe("390px");
-    expect(container.style.height).toBe("844px");
-    expect(container.style.maxWidth).toBe("none");
-
-    const metrics = collectArViewportMetrics(shell);
-    expect(Math.abs(metrics.rightGapPx)).toBeLessThanOrEqual(1);
-  });
-
-  it("re-syncs container after a shell client box change (loadedmetadata / orientation)", () => {
-    const shell = document.createElement("div");
-    const container = document.createElement("div");
-    document.body.appendChild(shell);
-    shell.appendChild(container);
-
-    Object.defineProperty(shell, "clientWidth", { configurable: true, value: 320 });
-    Object.defineProperty(shell, "clientHeight", { configurable: true, value: 568 });
-    syncTrackingContainerToShell(container, shell);
-    expect(container.style.width).toBe("320px");
-
-    Object.defineProperty(shell, "clientWidth", { configurable: true, value: 390 });
-    Object.defineProperty(shell, "clientHeight", { configurable: true, value: 844 });
-    syncArViewportShell(shell);
-    syncTrackingContainerToShell(container, shell);
-    expect(container.style.width).toBe("390px");
-    expect(container.style.height).toBe("844px");
+    shell.getBoundingClientRect = () => full;
+    stage.getBoundingClientRect = () => full;
+    const m = collectArViewportMetrics(shell, { phase: "test" });
+    expect(m.acceptance.gapLeftOk).toBe(true);
+    expect(m.acceptance.gapRightOk).toBe(true);
+    expect(m.phase).toBe("test");
   });
 });

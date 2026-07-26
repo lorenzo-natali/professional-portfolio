@@ -21,28 +21,30 @@ export default function ARCameraView({ onBack, onFallback }) {
         }
       />
 
-      {detected && (
-        <div
-          data-ar-status-overlay="true"
-          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center px-4 pt-[max(0.65rem,env(safe-area-inset-top))]"
-        >
-          <p className="ar-status-chip text-center text-[11px] font-medium tracking-[0.14em] text-slate-50">
-            CV detected
-          </p>
-        </div>
-      )}
+      <div data-ar-ui-overlay="true" className="pointer-events-none absolute inset-0 z-20">
+        {detected && (
+          <div
+            data-ar-status-overlay="true"
+            className="pointer-events-none absolute inset-x-0 top-0 flex justify-center px-4 pt-[max(0.65rem,env(safe-area-inset-top))]"
+          >
+            <p className="ar-status-chip text-center text-[11px] font-medium tracking-[0.14em] text-slate-50">
+              CV detected
+            </p>
+          </div>
+        )}
 
-      <div
-        data-ar-close-overlay="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))]"
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          className="pointer-events-auto ar-close-chip px-4 py-2 text-xs font-medium text-slate-100"
+        <div
+          data-ar-close-overlay="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center px-4 pb-[max(0.85rem,env(safe-area-inset-bottom))]"
         >
-          Close
-        </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="pointer-events-auto ar-close-chip px-4 py-2 text-xs font-medium text-slate-100"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
