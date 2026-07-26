@@ -403,7 +403,9 @@ body {
 .ar-viewport-shell {
   position: fixed;
   inset: 0;
+  width: 100%;
   width: 100vw;
+  height: 100%;
   height: 100vh;
   height: 100dvh;
   margin: 0;
@@ -414,6 +416,8 @@ body {
   transform: none;
   overscroll-behavior: none;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Camera stage fills the one shell — never an independent fixed viewport. */
@@ -423,12 +427,15 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #000;
+  /* Fallback only — must not read as a deliberate letterbox frame. */
+  background: #020617;
   overscroll-behavior: none;
   touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* Camera layer: never paint an opaque fill over MindAR's <video> (z-index compensated in JS). */
+/* Camera layer: full-bleed inside the stage; children do not capture pointers. */
 .ar-tracking-container {
   position: absolute;
   inset: 0;
@@ -437,6 +444,10 @@ body {
   overflow: hidden;
   background: transparent !important;
   isolation: isolate;
+  touch-action: none;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .ar-tracking-container video {
@@ -453,6 +464,24 @@ body {
 .ar-tracking-container > div {
   pointer-events: none;
   background: transparent !important;
+}
+
+/* In-screen overlays — no document-flow header/footer chrome. */
+.ar-status-chip {
+  margin: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgb(2 6 23 / 0.42);
+  backdrop-filter: blur(6px);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.75);
+}
+
+.ar-close-chip {
+  border: 0;
+  border-radius: 999px;
+  background: rgb(2 6 23 / 0.55);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
 }
 
 @media (prefers-reduced-motion: reduce) {

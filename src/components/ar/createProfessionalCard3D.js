@@ -3,6 +3,7 @@ import { resolveLabelDevicePixelRatio } from "./arLabelTexture";
 import {
   PROFESSIONAL_CARD_COLORS,
   PROFESSIONAL_CARD_CONTENT,
+  PROFESSIONAL_CARD_INTERACTION,
   PROFESSIONAL_CARD_ORIGIN,
   PROFESSIONAL_CARD_SIZE,
   PROFESSIONAL_CARD_TRANSFORM,
@@ -199,6 +200,7 @@ function configureFaceTexture(THREE, texture) {
 export function createProfessionalCard3D(THREE, options = {}) {
   const origin = options.origin ?? PROFESSIONAL_CARD_ORIGIN;
   const transform = options.transform ?? PROFESSIONAL_CARD_TRANSFORM;
+  const interactionConfig = options.interaction ?? PROFESSIONAL_CARD_INTERACTION;
   const size = options.size ?? PROFESSIONAL_CARD_SIZE;
   const plane = createDocumentPlane();
   const worldOrigin = plane.toWorldFromTopLeft(origin.u, origin.vTop, DOCUMENT_PLANE_Z);
@@ -208,22 +210,44 @@ export function createProfessionalCard3D(THREE, options = {}) {
   group.name = "ar-professional-card";
   group.userData.kind = "ar-professional-card";
   group.userData.documentPlane = plane;
-  group.userData.calibration = { origin, transform, size };
+  group.userData.calibration = { origin, transform, size, interaction: interactionConfig };
   group.userData.riseAxis = "z";
 
-  const root = new THREE.Group();
-  root.name = "ar-professional-card-root";
-  root.position.set(
+  // Centered placement on the CV — target-local, not screen-space.
+  const placement = new THREE.Group();
+  placement.name = "ar-professional-card-placement";
+  placement.position.set(
     worldOrigin.x + transform.position.x,
     worldOrigin.y + transform.position.y,
     worldOrigin.z + transform.position.z,
   );
-  root.scale.setScalar(transform.scale);
-  group.add(root);
+  group.add(placement);
 
+  // Sole writer of user rotation / scale (gesture controller).
+  const interaction = new THREE.Group();
+  interaction.name = "ar-professional-card-interaction";
+  interaction.rotation.set(transform.rotation.x, transform.rotation.y, transform.rotation.z);
+  interaction.scale.setScalar(transform.scale);
+  placement.add(interaction);
+
+  // Sole writer of entrance rise / fade pose (animation controller).
   const anim = new THREE.Group();
   anim.name = "ar-professional-card-anim";
-  root.add(anim);
+  interaction.add(anim);
+
+  const initialInteraction = {
+    rotation: { ...transform.rotation },
+    scale: transform.scale,
+  };
+
+  function resetInteractionPose() {
+    interaction.rotation.set(
+      initialInteraction.rotation.x,
+      initialInteraction.rotation.y,
+      initialInteraction.rotation.z,
+    );
+    interaction.scale.setScalar(initialInteraction.scale);
+  }
 
   const shape = createRoundedRectShape(THREE, size.width, size.height, size.cornerRadius);
   const bodyGeometry = new THREE.ExtrudeGeometry(shape, {
@@ -334,7 +358,10 @@ export function createProfessionalCard3D(THREE, options = {}) {
 
   return {
     group,
-    root,
+    /** @deprecated use placement — kept as alias for older tests */
+    root: placement,
+    placement,
+    interaction,
     anim,
     body,
     frontFace,
@@ -343,9 +370,12 @@ export function createProfessionalCard3D(THREE, options = {}) {
     outlineMaterial,
     size,
     riseHeight: transform.riseHeight,
-    idleRotation: { ...transform.rotation },
+    initialRotation: { ...transform.rotation },
+    initialScale: transform.scale,
+    interactionConfig,
     /** Document-local normal axis used for rise. */
     riseAxis: "z",
+    resetInteractionPose,
     dispose() {
       group.removeFromParent?.();
       disposables.forEach((item) => {

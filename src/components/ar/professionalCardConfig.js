@@ -1,15 +1,15 @@
 /**
  * Centralized calibration for the AR Professional Card.
- * Tune position/scale/rise on-device without changing card architecture.
+ * Tune position/scale/interaction on-device without changing card architecture.
  *
  * Document UV uses top-left style (u: left→right, vTop: top→bottom).
- * Origin targets the stable header band (portrait / names / contact / QR region).
+ * Origin targets the visual center of the CV page.
  */
 
-/** Normalized document origin for the card's emergence point. */
+/** Normalized document origin for the card center. */
 export const PROFESSIONAL_CARD_ORIGIN = {
   u: 0.5,
-  vTop: 0.105,
+  vTop: 0.5,
 };
 
 /**
@@ -24,16 +24,33 @@ export const PROFESSIONAL_CARD_SIZE = {
 };
 
 /**
- * Resting / idle pose relative to the document origin.
+ * Resting placement relative to the document origin.
  * `riseHeight` is the final lift above the document plane after entrance.
- * Kept modest so rotation jitter from tracking is not lever-arm amplified.
+ * Initial rotation is nearly front-facing for immediate readability.
  */
 export const PROFESSIONAL_CARD_TRANSFORM = {
-  position: { x: 0, y: 0, z: 0.01 },
+  /** Extra local offset from the UV origin (document-local units). */
+  position: { x: 0, y: 0, z: 0.012 },
   scale: 1,
-  /** Idle readable three-quarter pose (radians). */
-  rotation: { x: -0.18, y: 0.38, z: 0.02 },
-  riseHeight: 0.08,
+  /** Near front-facing; tiny tip for depth without wobble. */
+  rotation: { x: -0.05, y: 0, z: 0 },
+  riseHeight: 0.05,
+};
+
+/**
+ * Direct touch manipulation limits (applied only to the interaction group).
+ */
+export const PROFESSIONAL_CARD_INTERACTION = {
+  minScale: 0.72,
+  maxScale: 1.8,
+  /** Radians per CSS pixel for one-finger drag. */
+  rotationSensitivity: 0.0052,
+  /** Ignore sub-threshold pointer jitter before rotation starts (CSS px). */
+  dragThresholdPx: 6,
+  /** Vertical (local X) clamp — keeps the card readable. */
+  clampXRad: { min: -1.2, max: 0.4 },
+  /** Horizontal (local Y) clamp. */
+  clampYRad: { min: -Math.PI * 0.95, max: Math.PI * 0.95 },
 };
 
 /**
@@ -63,15 +80,11 @@ export const PROFESSIONAL_CARD_STABILIZATION = {
   sessionResetMs: 1400,
 };
 
-/** Entrance + loss lifecycle timings (ms). */
+/** Entrance + loss lifecycle timings (ms). No automatic tilt/flip. */
 export const PROFESSIONAL_CARD_TIMING = {
-  /** Wait after target-found before starting entrance (tracking settle). */
-  stabilizeDelayMs: 380,
-  outlineMs: 320,
-  riseMs: 720,
-  tiltMs: 420,
-  flipMs: 900,
-  settleMs: 700,
+  /** Wait after target-found before starting entrance (usually 0 when gated by acquisition). */
+  stabilizeDelayMs: 0,
+  riseMs: 420,
   /** Soft hide duration on target lost. */
   loseFadeMs: 220,
   /**
@@ -85,12 +98,8 @@ export const PROFESSIONAL_CARD_TIMING = {
 
 /** Reduced-motion: short fade/rise only. */
 export const PROFESSIONAL_CARD_REDUCED_MOTION_TIMING = {
-  stabilizeDelayMs: 120,
-  outlineMs: 0,
-  riseMs: 360,
-  tiltMs: 0,
-  flipMs: 0,
-  settleMs: 0,
+  stabilizeDelayMs: 0,
+  riseMs: 280,
   loseFadeMs: 140,
   lostJitterMs: 700,
   sessionResetMs: 1400,

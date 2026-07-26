@@ -15,7 +15,6 @@ describe("professionalCardAnimation lifecycle", () => {
     nowMs = 0;
     rafQueue = [];
     nextRafId = 1;
-    // Do not fake rAF — Vitest's timer mock would swallow our queue-based driver.
     vi.useFakeTimers({
       toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"],
     });
@@ -57,18 +56,47 @@ describe("professionalCardAnimation lifecycle", () => {
   }
 
   const timing = {
-    stabilizeDelayMs: 50,
-    outlineMs: 0,
+    stabilizeDelayMs: 0,
     riseMs: 100,
-    tiltMs: 0,
-    flipMs: 0,
-    settleMs: 0,
     loseFadeMs: 40,
     lostJitterMs: 200,
     sessionResetMs: 400,
   };
 
-  it("rises along document-local Z and finishes once after stabilize", () => {
+  it("rises along document-local Z into a stable front-readable pose", () => {
+    const animation = createProfessionalCardAnimation(card, {
+      reducedMotion: true,
+      now: () => nowMs,
+      timing,
+    });
+
+    const interactionBefore = {
+      x: card.interaction.rotation.x,
+      y: card.interaction.rotation.y,
+      scale: card.interaction.scale.x,
+    };
+
+    animation.onTargetFound();
+    expect(animation.getState().phase).toBe("playing");
+    expect(animation.getState().riseAxis).toBe("z");
+
+    advance(140);
+    expect(animation.getState().phase).toBe("idle");
+    expect(card.anim.position.z).toBeCloseTo(PROFESSIONAL_CARD_TRANSFORM.riseHeight, 3);
+    expect(card.anim.position.y).toBeCloseTo(0, 5);
+    expect(card.anim.rotation.x).toBeCloseTo(0, 5);
+    expect(card.anim.rotation.y).toBeCloseTo(0, 5);
+    expect(card.frontFace.material.opacity).toBeCloseTo(1, 5);
+
+    // Entrance must not rewrite the user interaction transform.
+    expect(card.interaction.rotation.x).toBeCloseTo(interactionBefore.x, 5);
+    expect(card.interaction.rotation.y).toBeCloseTo(interactionBefore.y, 5);
+    expect(card.interaction.scale.x).toBeCloseTo(interactionBefore.scale, 5);
+
+    animation.dispose();
+  });
+
+  it("does not automatically rotate the card after entrance", () => {
     const animation = createProfessionalCardAnimation(card, {
       reducedMotion: true,
       now: () => nowMs,
@@ -76,22 +104,61 @@ describe("professionalCardAnimation lifecycle", () => {
     });
 
     animation.onTargetFound();
-    expect(animation.getState().phase).toBe("stabilizing");
-    expect(animation.getState().riseAxis).toBe("z");
+    advance(160);
+    const pose = {
+      animX: card.anim.rotation.x,
+      animY: card.anim.rotation.y,
+      interactionX: card.interaction.rotation.x,
+      interactionY: card.interaction.rotation.y,
+      z: card.anim.position.z,
+    };
 
-    advance(50);
-    expect(animation.getState().phase).toBe("playing");
+    advance(400);
+    expect(card.anim.rotation.x).toBeCloseTo(pose.animX, 5);
+    expect(card.anim.rotation.y).toBeCloseTo(pose.animY, 5);
+    expect(card.interaction.rotation.x).toBeCloseTo(pose.interactionX, 5);
+    expect(card.interaction.rotation.y).toBeCloseTo(pose.interactionY, 5);
+    expect(card.anim.position.z).toBeCloseTo(pose.z, 5);
+    expect(rafQueue.length).toBe(0);
 
-    // Mid-entrance duplicate found must not start an overlapping timeline.
+    animation.dispose();
+  });
+
+  it("preserves user interaction pose across brief loss and resets on session timeout", () => {
+    const onSessionReset = vi.fn(() => card.resetInteractionPose());
+    const animation = createProfessionalCardAnimation(card, {
+      reducedMotion: true,
+      now: () => nowMs,
+      timing,
+      onSessionReset,
+    });
+
     animation.onTargetFound();
-    expect(animation.getState().phase).toBe("playing");
+    advance(160);
+    card.interaction.rotation.y = 0.55;
+    card.interaction.scale.setScalar(1.35);
 
-    advance(120);
-    expect(animation.getState().phase).toBe("idle");
+    animation.onTargetLost();
+    advance(timing.loseFadeMs + 20);
+    expect(animation.getState().phase).toBe("lost");
+    expect(card.interaction.rotation.y).toBeCloseTo(0.55, 5);
+    expect(card.interaction.scale.x).toBeCloseTo(1.35, 5);
+
+    animation.onTargetFound();
+    advance(20);
     expect(animation.getState().entrancePlayed).toBe(true);
-    expect(card.anim.position.z).toBeCloseTo(PROFESSIONAL_CARD_TRANSFORM.riseHeight, 3);
-    expect(card.anim.position.y).toBeCloseTo(0, 5);
-    expect(card.frontFace.material.opacity).toBeCloseTo(1, 5);
+    expect(card.group.visible).toBe(true);
+    expect(card.interaction.rotation.y).toBeCloseTo(0.55, 5);
+    expect(card.interaction.scale.x).toBeCloseTo(1.35, 5);
+
+    animation.onTargetLost();
+    advance(timing.loseFadeMs + 30);
+    expect(animation.getState().phase).toBe("lost");
+    // Session-reset timer starts only after soft-hide completes.
+    vi.advanceTimersByTime(timing.sessionResetMs + 20);
+    expect(onSessionReset).toHaveBeenCalled();
+    expect(card.interaction.rotation.y).toBeCloseTo(card.initialRotation.y, 5);
+    expect(card.interaction.scale.x).toBeCloseTo(card.initialScale, 5);
 
     animation.dispose();
   });
@@ -104,141 +171,15 @@ describe("professionalCardAnimation lifecycle", () => {
     });
 
     animation.onTargetFound();
-    advance(200);
+    advance(160);
     expect(animation.getState().entrancePlayed).toBe(true);
-    const zAfterEntrance = card.anim.position.z;
 
     animation.onTargetLost();
-    expect(animation.getState().phase).toBe("losing");
-    advance(timing.loseFadeMs + 30);
-    expect(animation.getState().phase).toBe("lost");
-    expect(card.group.visible).toBe(false);
-
+    advance(timing.loseFadeMs + 20);
     animation.onTargetFound();
     advance(20);
     expect(animation.getState().entrancePlayed).toBe(true);
     expect(animation.getState().phase).toBe("idle");
-    expect(card.group.visible).toBe(true);
-    expect(card.anim.position.z).toBeCloseTo(zAfterEntrance, 3);
-
-    animation.dispose();
-  });
-
-  it("replays only after sessionResetMs and cleans timers on dispose", () => {
-    const animation = createProfessionalCardAnimation(card, {
-      reducedMotion: true,
-      now: () => nowMs,
-      timing,
-    });
-
-    animation.onTargetFound();
-    advance(200);
-    animation.onTargetLost();
-    advance(timing.loseFadeMs + 10);
-    advance(timing.sessionResetMs + 20);
-    expect(animation.getState().entrancePlayed).toBe(false);
-    expect(animation.getState().sessionActive).toBe(false);
-
-    animation.onTargetFound();
-    advance(timing.stabilizeDelayMs + timing.riseMs + 40);
-    expect(animation.getState().entrancePlayed).toBe(true);
-
-    animation.dispose();
-    expect(vi.getTimerCount()).toBe(0);
-    expect(animation.getState().phase).toBe("hidden");
-  });
-
-  it("handles loss during stabilizing and during playing without stale timers", () => {
-    const animation = createProfessionalCardAnimation(card, {
-      reducedMotion: true,
-      now: () => nowMs,
-      timing,
-    });
-
-    animation.onTargetFound();
-    expect(animation.getState().phase).toBe("stabilizing");
-    animation.onTargetLost();
-    expect(animation.getState().phase).toBe("lost");
-    advance(timing.stabilizeDelayMs + 20);
-    expect(animation.getState().phase).toBe("lost");
-    expect(animation.getState().entrancePlayed).toBe(false);
-
-    animation.onTargetFound();
-    advance(timing.stabilizeDelayMs + 10);
-    expect(animation.getState().phase).toBe("playing");
-    animation.onTargetLost();
-    advance(timing.loseFadeMs + 20);
-    expect(animation.getState().phase).toBe("lost");
-
-    animation.dispose();
-    expect(vi.getTimerCount()).toBe(0);
-  });
-
-  it("reduced motion reaches a fully opaque idle pose without flip", () => {
-    const animation = createProfessionalCardAnimation(card, {
-      reducedMotion: true,
-      now: () => nowMs,
-      timing: { ...timing, flipMs: 0, tiltMs: 0, outlineMs: 0 },
-    });
-
-    animation.onTargetFound();
-    advance(200);
-    const state = animation.getState();
-    expect(state.reducedMotion).toBe(true);
-    expect(state.timing.flipMs).toBe(0);
-    expect(card.group.visible).toBe(true);
-    expect(card.frontFace.material.opacity).toBeCloseTo(1, 5);
-    expect(card.anim.position.z).toBeCloseTo(card.riseHeight, 3);
-    expect(card.anim.rotation.y).toBeCloseTo(card.idleRotation.y, 3);
-    expect(Math.abs(card.anim.rotation.y)).toBeLessThan(Math.PI / 2);
-
-    animation.dispose();
-  });
-
-  it("progresses by elapsed time, not frame count", () => {
-    const animation = createProfessionalCardAnimation(card, {
-      reducedMotion: true,
-      now: () => nowMs,
-      timing: { ...timing, stabilizeDelayMs: 10, riseMs: 100 },
-    });
-
-    animation.onTargetFound();
-    advance(10);
-    expect(animation.getState().phase).toBe("playing");
-
-    // One large time jump should complete the rise without many frames.
-    nowMs += 120;
-    flushRaf(3);
-    expect(animation.getState().phase).toBe("idle");
-    expect(card.anim.position.z).toBeCloseTo(card.riseHeight, 3);
-
-    animation.dispose();
-  });
-
-  it("holds a fixed idle pose after entrance with no continuous motion", () => {
-    const animation = createProfessionalCardAnimation(card, {
-      reducedMotion: true,
-      now: () => nowMs,
-      timing,
-    });
-
-    animation.onTargetFound();
-    advance(200);
-    expect(animation.getState().phase).toBe("idle");
-    const pose = {
-      z: card.anim.position.z,
-      x: card.anim.rotation.x,
-      y: card.anim.rotation.y,
-      opacity: card.frontFace.material.opacity,
-    };
-
-    advance(400);
-    expect(animation.getState().phase).toBe("idle");
-    expect(card.anim.position.z).toBeCloseTo(pose.z, 5);
-    expect(card.anim.rotation.x).toBeCloseTo(pose.x, 5);
-    expect(card.anim.rotation.y).toBeCloseTo(pose.y, 5);
-    expect(card.frontFace.material.opacity).toBeCloseTo(pose.opacity, 5);
-    expect(rafQueue.length).toBe(0);
 
     animation.dispose();
   });

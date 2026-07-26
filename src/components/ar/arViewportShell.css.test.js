@@ -12,9 +12,13 @@ describe("ar-viewport-shell CSS fallback", () => {
 
     expect(block).toMatch(/position:\s*fixed/);
     expect(block).toMatch(/inset:\s*0/);
-    expect(block).toMatch(/width:\s*100vw/);
-    expect(block).toMatch(/height:\s*100(?:vh|dvh)/);
+    expect(block).toMatch(/width:\s*100(?:%|vw)/);
+    expect(block).toMatch(/height:\s*100(?:%|vh|dvh)/);
+    expect(block).toMatch(/touch-action:\s*none/);
+    expect(block).toMatch(/user-select:\s*none/);
     // Single shell only — no competing camera-shell fixed layer in CSS.
     expect(css).not.toMatch(/\.ar-camera-shell\s*\{/);
+    expect(css).toMatch(/\.ar-camera-stage\s*\{/);
+    expect(css).toMatch(/\.ar-tracking-container\s*\{/);
   });
 });

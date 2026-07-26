@@ -106,7 +106,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("starts exactly one MindAR session with a Professional Card and no Risk Lens labels", async () => {
+  it("starts exactly one MindAR session with Decision Core and no Risk Lens labels", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group, addAnchor, renderer, resize } = mockMindAR();
 
@@ -128,12 +128,13 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
     const presentation = group.children.find(
-      (child) => child?.name === "ar-professional-card-presentation",
+      (child) => child?.name === "ar-decision-core-presentation",
     );
     expect(presentation).toBeTruthy();
     expect(
-      presentation.children.some((child) => child?.name === "ar-professional-card"),
+      presentation.children.some((child) => child?.name === "ar-decision-core"),
     ).toBe(true);
+    expect(group.children.some((child) => child?.name === "ar-decision-core")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-professional-card")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-lens-layer")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-governance-lens")).toBe(false);
@@ -154,7 +155,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     shell.remove();
   });
 
-  it("wires card entrance to target found/lost without diagnostics hooks", async () => {
+  it("wires Decision Core entrance to target found/lost without diagnostics hooks", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { addAnchor, renderer } = mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
@@ -249,7 +250,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(addSpy).toHaveBeenCalled();
     expect(group.children.some((child) => isVisuallyPresentObject3D(child))).toBe(true);
     expect(
-      group.children.some((child) => child?.name === "ar-professional-card-presentation"),
+      group.children.some((child) => child?.name === "ar-decision-core-presentation"),
     ).toBe(true);
 
     await adapter.stop();

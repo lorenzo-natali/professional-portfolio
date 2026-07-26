@@ -2,7 +2,26 @@ import {
   PROFESSIONAL_CARD_REDUCED_MOTION_TIMING,
   PROFESSIONAL_CARD_TIMING,
 } from "./professionalCardConfig";
+import { DECISION_CORE_GLOW, DECISION_CORE_TIMING } from "./decisionCoreConfig";
 import { getCardOpacity, setCardOpacity } from "./createProfessionalCard3D";
+
+function readOpacity(artifact) {
+  if (typeof artifact.getOpacity === "function") return artifact.getOpacity();
+  if (typeof artifact.setOpacity === "function" && artifact.coreMaterial) {
+    const material = artifact.coreMaterial;
+    const base = material.userData?.baseOpacity ?? 1;
+    return base > 0 ? material.opacity / base : 0;
+  }
+  return getCardOpacity(artifact);
+}
+
+function writeOpacity(artifact, opacity) {
+  if (typeof artifact.setOpacity === "function") {
+    artifact.setOpacity(opacity);
+    return;
+  }
+  setCardOpacity(artifact.group, opacity);
+}
 
 function prefersReducedMotion() {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -13,24 +32,25 @@ function easeOutCubic(t) {
   return 1 - (1 - t) ** 3;
 }
 
-function easeInOutCubic(t) {
-  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-}
-
 function lerp(a, b, t) {
   return a + (b - a) * t;
 }
 
 /**
- * Lifecycle controller for the professional card entrance / loss / session reset.
+ * Lifecycle controller for restrained card entrance / loss / session reset.
  *
- * Rise uses document-local Z (MindAR image-plane normal), never screen/viewport axes.
+ * Writes only:
+ * - anim.position.z (document-local rise)
+ * - opacity / visibility
+ *
+ * Does not rotate or scale the card after entrance. User gestures own interaction.
  *
  * @param {ReturnType<import("./createProfessionalCard3D").createProfessionalCard3D>} card
  * @param {{
  *   reducedMotion?: boolean,
  *   timing?: typeof PROFESSIONAL_CARD_TIMING,
  *   now?: () => number,
+ *   onSessionReset?: () => void,
  * }} [options]
  */
 export function createProfessionalCardAnimation(card, options = {}) {
@@ -39,6 +59,7 @@ export function createProfessionalCardAnimation(card, options = {}) {
     options.timing ??
     (reducedMotion ? PROFESSIONAL_CARD_REDUCED_MOTION_TIMING : PROFESSIONAL_CARD_TIMING);
   const now = options.now ?? (() => performance.now());
+  const onSessionReset = options.onSessionReset;
 
   let disposed = false;
   /** @type {"hidden"|"stabilizing"|"playing"|"idle"|"losing"|"lost"} */
@@ -49,7 +70,6 @@ export function createProfessionalCardAnimation(card, options = {}) {
   let stabilizeTimer = 0;
   let sessionResetTimer = 0;
 
-  const idle = card.idleRotation;
   const riseHeight = card.riseHeight;
 
   function clearRaf() {
@@ -70,37 +90,23 @@ export function createProfessionalCardAnimation(card, options = {}) {
     }
   }
 
-  function setOutlineOpacity(value) {
-    if (!card.outlineMaterial) return;
-    card.outlineMaterial.opacity = Math.min(Math.max(value, 0), 1);
-    card.outlineMaterial.needsUpdate = true;
-  }
-
   /**
-   * @param {{
-   *   lift?: number,
-   *   rotX?: number,
-   *   rotY?: number,
-   *   rotZ?: number,
-   *   opacity?: number,
-   *   outline?: number,
-   * }} pose
+   * @param {{ lift?: number, opacity?: number }} pose
    */
-  function applyPose({
-    lift = 0,
-    rotX = 0,
-    rotY = 0,
-    rotZ = 0,
-    opacity = 1,
-    outline = 0,
-  }) {
-    // Rise along document-local normal (Z). Keep XY fixed so the card stays over the header origin.
+  function applyPose({ lift = 0, opacity = 1, glow }) {
+    // Rise along document-local normal (Z). Keep XY and rotation fixed on anim.
     card.anim.position.x = 0;
     card.anim.position.y = 0;
     card.anim.position.z = lift;
-    card.anim.rotation.set(rotX, rotY, rotZ);
-    setCardOpacity(card.group, opacity);
-    setOutlineOpacity(outline);
+    card.anim.rotation.set(0, 0, 0);
+    writeOpacity(card, opacity);
+    if (typeof glow === "number" && typeof card.setCoreGlow === "function") {
+      card.setCoreGlow(glow);
+    }
+    if (card.outlineMaterial) {
+      card.outlineMaterial.opacity = 0;
+      card.outlineMaterial.needsUpdate = true;
+    }
   }
 
   function snapToIdle() {
@@ -110,62 +116,9 @@ export function createProfessionalCardAnimation(card, options = {}) {
     card.group.visible = true;
     applyPose({
       lift: riseHeight,
-      rotX: idle.x,
-      rotY: idle.y,
-      rotZ: idle.z,
       opacity: 1,
-      outline: 0,
+      glow: DECISION_CORE_GLOW.idle,
     });
-  }
-
-  function runKeyframeSequence(keyframes, onComplete) {
-    clearRaf();
-    let started = null;
-    const total = keyframes.reduce((sum, frame) => sum + frame.durationMs, 0);
-
-    const tick = (frameTime) => {
-      if (disposed || phase !== "playing") return;
-      // Prefer rAF timestamp when available; fall back to injected clock for tests.
-      const tNow = typeof frameTime === "number" ? frameTime : now();
-      if (started == null) started = tNow;
-      const elapsed = tNow - started;
-      let cursor = 0;
-      let applied = null;
-
-      for (let i = 0; i < keyframes.length; i += 1) {
-        const frame = keyframes[i];
-        const end = cursor + frame.durationMs;
-        if (elapsed < end || i === keyframes.length - 1) {
-          const localT =
-            frame.durationMs <= 0
-              ? 1
-              : Math.min(1, Math.max(0, (elapsed - cursor) / frame.durationMs));
-          const eased = (frame.ease ?? easeInOutCubic)(localT);
-          applied = {
-            lift: lerp(frame.from.lift, frame.to.lift, eased),
-            rotX: lerp(frame.from.rotX, frame.to.rotX, eased),
-            rotY: lerp(frame.from.rotY, frame.to.rotY, eased),
-            rotZ: lerp(frame.from.rotZ, frame.to.rotZ, eased),
-            opacity: lerp(frame.from.opacity, frame.to.opacity, eased),
-            outline: lerp(frame.from.outline, frame.to.outline, eased),
-          };
-          break;
-        }
-        cursor = end;
-      }
-
-      if (applied) applyPose(applied);
-
-      if (elapsed >= total) {
-        snapToIdle();
-        onComplete?.();
-        return;
-      }
-
-      rafId = requestAnimationFrame(tick);
-    };
-
-    rafId = requestAnimationFrame(tick);
   }
 
   function playEntrance() {
@@ -175,116 +128,45 @@ export function createProfessionalCardAnimation(card, options = {}) {
     card.group.visible = true;
     sessionActive = true;
 
-    const start = {
-      lift: 0,
-      rotX: 0,
-      rotY: 0,
-      rotZ: 0,
-      opacity: 0,
-      outline: 0,
+    clearRaf();
+    let started = null;
+    const duration = Math.max(timing.riseMs, 1);
+    const glowPulseMs = DECISION_CORE_TIMING.glowPulseMs;
+    const fromLift = 0;
+    const fromOpacity = 0;
+
+    const tick = (frameTime) => {
+      if (disposed || phase !== "playing") return;
+      const tNow = typeof frameTime === "number" ? frameTime : now();
+      if (started == null) started = tNow;
+      const elapsed = tNow - started;
+      const t = Math.min(1, elapsed / duration);
+      const eased = easeOutCubic(t);
+      // Soft glow pulse once during entrance, then settle to idle.
+      const pulseT = Math.min(1, elapsed / Math.max(1, glowPulseMs));
+      const glow =
+        pulseT < 1
+          ? lerp(DECISION_CORE_GLOW.idle, DECISION_CORE_GLOW.pulsePeak, Math.sin(pulseT * Math.PI))
+          : DECISION_CORE_GLOW.idle;
+      applyPose({
+        lift: lerp(fromLift, riseHeight, eased),
+        opacity: lerp(fromOpacity, 1, eased),
+        glow,
+      });
+      if (t >= 1) {
+        snapToIdle();
+        return;
+      }
+      rafId = requestAnimationFrame(tick);
     };
 
-    if (reducedMotion || timing.flipMs <= 0) {
-      runKeyframeSequence([
-        {
-          durationMs: Math.max(timing.riseMs, 1),
-          ease: easeOutCubic,
-          from: start,
-          to: {
-            lift: riseHeight,
-            rotX: idle.x,
-            rotY: idle.y,
-            rotZ: idle.z,
-            opacity: 1,
-            outline: 0,
-          },
-        },
-      ]);
-      return;
-    }
-
-    // Keep a small positive lift once the card has volume so tilt/flip clear the CV plane.
-    const flushLift = Math.max(card.size?.thickness ?? 0.016, 0.012) * 0.55;
-    const afterOutline = {
-      lift: flushLift,
-      rotX: 0,
-      rotY: 0,
-      rotZ: 0,
-      opacity: 0.15,
-      outline: 1,
-    };
-    const afterRise = {
-      lift: riseHeight,
-      rotX: -0.08,
-      rotY: 0.1,
-      rotZ: 0,
-      opacity: 1,
-      outline: 0.12,
-    };
-    const afterTilt = {
-      lift: riseHeight,
-      rotX: -0.4,
-      rotY: 0.16,
-      rotZ: 0.03,
-      opacity: 1,
-      outline: 0,
-    };
-    // Partial turn: back faces the viewer without completing a full spin through the page.
-    const afterFlip = {
-      lift: riseHeight,
-      rotX: -0.18,
-      rotY: Math.PI * 0.7,
-      rotZ: 0.02,
-      opacity: 1,
-      outline: 0,
-    };
-    const settled = {
-      lift: riseHeight,
-      rotX: idle.x,
-      rotY: idle.y,
-      rotZ: idle.z,
-      opacity: 1,
-      outline: 0,
-    };
-
-    runKeyframeSequence([
-      {
-        durationMs: timing.outlineMs,
-        ease: easeOutCubic,
-        from: start,
-        to: afterOutline,
-      },
-      {
-        durationMs: timing.riseMs,
-        ease: easeOutCubic,
-        from: afterOutline,
-        to: afterRise,
-      },
-      {
-        durationMs: timing.tiltMs,
-        ease: easeInOutCubic,
-        from: afterRise,
-        to: afterTilt,
-      },
-      {
-        durationMs: timing.flipMs,
-        ease: easeInOutCubic,
-        from: afterTilt,
-        to: afterFlip,
-      },
-      {
-        durationMs: timing.settleMs,
-        ease: easeInOutCubic,
-        from: afterFlip,
-        to: settled,
-      },
-    ]);
+    rafId = requestAnimationFrame(tick);
   }
 
   function beginStabilizeAndEnter() {
     if (disposed) return;
 
-    // Same recognition session after brief loss: resume readable idle, never overlap timelines.
+    // Same recognition session after brief loss: resume readable idle.
     if (sessionActive && entrancePlayed) {
       clearRaf();
       clearTimers();
@@ -292,7 +174,7 @@ export function createProfessionalCardAnimation(card, options = {}) {
       return;
     }
 
-    // Entrance was interrupted by loss before completion — finish to idle without replaying.
+    // Entrance interrupted by loss before completion — finish to idle without replaying.
     if (sessionActive && !entrancePlayed && (phase === "lost" || phase === "losing")) {
       clearRaf();
       clearTimers();
@@ -306,7 +188,6 @@ export function createProfessionalCardAnimation(card, options = {}) {
 
     clearTimers();
     phase = "stabilizing";
-    // Zero/negative delay: start synchronously (acquisition already gated entrance).
     if (timing.stabilizeDelayMs <= 0) {
       playEntrance();
       return;
@@ -322,11 +203,8 @@ export function createProfessionalCardAnimation(card, options = {}) {
     clearRaf();
     phase = "losing";
     let loseStartedAt = null;
-    const opacityBeforeLose = Math.max(getCardOpacity(card), 0.05);
+    const opacityBeforeLose = Math.max(readOpacity(card), 0.05);
     const fromLift = card.anim.position.z;
-    const fromX = card.anim.rotation.x;
-    const fromYRot = card.anim.rotation.y;
-    const fromZ = card.anim.rotation.z;
 
     const tick = (frameTime) => {
       if (disposed || phase !== "losing") return;
@@ -336,11 +214,7 @@ export function createProfessionalCardAnimation(card, options = {}) {
       const eased = easeOutCubic(t);
       applyPose({
         lift: fromLift,
-        rotX: fromX,
-        rotY: fromYRot,
-        rotZ: fromZ,
         opacity: lerp(opacityBeforeLose, 0, eased),
-        outline: 0,
       });
       if (t >= 1) {
         card.group.visible = false;
@@ -355,7 +229,6 @@ export function createProfessionalCardAnimation(card, options = {}) {
 
   function onTargetFound() {
     if (disposed) return;
-    // Cancel only the session-reset timer; do not clear an in-flight stabilize unnecessarily twice.
     if (sessionResetTimer) {
       clearTimeout(sessionResetTimer);
       sessionResetTimer = 0;
@@ -369,7 +242,6 @@ export function createProfessionalCardAnimation(card, options = {}) {
     if (phase === "stabilizing") {
       clearTimers();
       phase = "lost";
-      // Keep sessionActive false until entrance actually started.
       return;
     }
 
@@ -377,7 +249,6 @@ export function createProfessionalCardAnimation(card, options = {}) {
       return;
     }
 
-    // playing | idle
     softHide(() => {
       if (disposed) return;
       sessionResetTimer = window.setTimeout(() => {
@@ -386,7 +257,13 @@ export function createProfessionalCardAnimation(card, options = {}) {
         sessionActive = false;
         entrancePlayed = false;
         phase = "hidden";
-        applyPose({ lift: 0, rotX: 0, rotY: 0, rotZ: 0, opacity: 0, outline: 0 });
+        applyPose({ lift: 0, opacity: 0 });
+        // Gesture controller is the sole interaction writer — including reset.
+        if (onSessionReset) {
+          onSessionReset();
+        } else {
+          card.resetInteractionPose?.();
+        }
       }, timing.sessionResetMs);
     });
   }

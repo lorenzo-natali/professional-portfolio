@@ -41,39 +41,49 @@ describe("createProfessionalCard3D", () => {
     card.dispose();
   });
 
-  it("places the card from PROFESSIONAL_CARD_ORIGIN in target-local coordinates", () => {
+  it("centers the card on the CV using target-local placement + interaction hierarchy", () => {
     const card = createProfessionalCard3D(THREE);
     const plane = createDocumentPlane();
-    const expected = plane.toWorldFromTopLeft(
-      PROFESSIONAL_CARD_ORIGIN.u,
-      PROFESSIONAL_CARD_ORIGIN.vTop,
-      DOCUMENT_PLANE_Z,
-    );
+    const pageCenter = plane.toWorldFromTopLeft(0.5, 0.5, DOCUMENT_PLANE_Z);
 
-    expect(card.root.position.x).toBeCloseTo(
-      expected.x + PROFESSIONAL_CARD_TRANSFORM.position.x,
+    expect(PROFESSIONAL_CARD_ORIGIN).toEqual({ u: 0.5, vTop: 0.5 });
+    // Document-plane center is the geometric middle of the tracked target.
+    expect(pageCenter.x).toBeCloseTo(0, 5);
+    expect(pageCenter.y).toBeCloseTo(0, 5);
+    expect(card.placement.position.x).toBeCloseTo(
+      pageCenter.x + PROFESSIONAL_CARD_TRANSFORM.position.x,
       5,
     );
-    expect(card.root.position.y).toBeCloseTo(
-      expected.y + PROFESSIONAL_CARD_TRANSFORM.position.y,
+    expect(card.placement.position.y).toBeCloseTo(
+      pageCenter.y + PROFESSIONAL_CARD_TRANSFORM.position.y,
       5,
     );
-    expect(card.root.position.z).toBeCloseTo(
-      expected.z + PROFESSIONAL_CARD_TRANSFORM.position.z,
+    expect(card.placement.position.z).toBeCloseTo(
+      pageCenter.z + PROFESSIONAL_CARD_TRANSFORM.position.z,
       5,
     );
-    expect(card.root.position.y).toBeGreaterThan(0);
+    expect(Math.abs(card.placement.position.x)).toBeLessThan(0.05);
+    expect(Math.abs(card.placement.position.y)).toBeLessThan(0.05);
+    expect(Number.isFinite(card.placement.position.z)).toBe(true);
+    // Placement must not depend on viewport/screen metrics.
+    expect(JSON.stringify(card.group.userData.calibration)).not.toMatch(
+      /innerWidth|innerHeight|visualViewport|clientWidth/,
+    );
+    expect(card.interaction.parent).toBe(card.placement);
+    expect(card.anim.parent).toBe(card.interaction);
+    expect(card.interaction.rotation.x).toBeCloseTo(PROFESSIONAL_CARD_TRANSFORM.rotation.x, 5);
+    expect(card.interaction.rotation.y).toBeCloseTo(0, 5);
+    expect(Math.abs(card.interaction.rotation.x)).toBeLessThan(0.2);
+    expect(card.frontFace.position.z).toBeGreaterThan(0);
     expect(card.riseHeight).toBe(PROFESSIONAL_CARD_TRANSFORM.riseHeight);
     expect(card.group.userData.calibration.origin).toEqual(PROFESSIONAL_CARD_ORIGIN);
 
-    const shifted = createProfessionalCard3D(THREE, {
-      origin: { u: 0.2, vTop: 0.2 },
-    });
-    expect(shifted.root.position.x).not.toBeCloseTo(card.root.position.x, 3);
-    expect(shifted.root.position.y).not.toBeCloseTo(card.root.position.y, 3);
+    const names = [];
+    card.group.traverse((node) => names.push(node.name));
+    expect(names).toContain("ar-professional-card-placement");
+    expect(names).toContain("ar-professional-card-interaction");
 
     card.dispose();
-    shifted.dispose();
   });
 
   it("disposes geometries, materials and textures completely", () => {

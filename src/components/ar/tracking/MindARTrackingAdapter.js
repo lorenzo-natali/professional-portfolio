@@ -5,9 +5,11 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createProfessionalCard3D } from "../createProfessionalCard3D";
+import { createDecisionCore3D } from "../createDecisionCore3D";
+import { createDecisionCoreTapController } from "../createDecisionCoreTapController";
 import { createProfessionalCardAnimation } from "../professionalCardAnimation";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
+import { createCardGestureController } from "../createCardGestureController";
 import {
   PROFESSIONAL_CARD_TIMING,
   PROFESSIONAL_CARD_REDUCED_MOTION_TIMING,
@@ -28,6 +30,11 @@ export function applyCameraLayerStacking(container, renderer) {
   container.style.width = "100%";
   container.style.height = "100%";
   container.style.overflow = "hidden";
+  // Gesture events hit the container (children use pointer-events: none).
+  container.style.pointerEvents = "auto";
+  container.style.touchAction = "none";
+  container.style.userSelect = "none";
+  container.style.webkitUserSelect = "none";
 
   const video = container.querySelector("video");
   if (video) {
@@ -106,9 +113,11 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let professionalCard = null;
-  let professionalCardAnimation = null;
+  let decisionCore = null;
+  let decisionCoreAnimation = null;
+  let decisionCoreTap = null;
   let poseStabilizer = null;
+  let gestureController = null;
   let presentationRoot = null;
   let lastFrameTimeMs = 0;
 
@@ -155,44 +164,74 @@ export function createMindARTrackingAdapter({
           renderer.setClearAlpha(0);
         }
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.78);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.62);
         scene.add(ambient);
-        const keyLight = new THREE.DirectionalLight(0xf8fafc, 0.42);
-        keyLight.position.set(0.35, 0.85, 1.15);
+        const keyLight = new THREE.DirectionalLight(0xf4f7fb, 0.55);
+        keyLight.position.set(0.4, 0.95, 1.2);
         scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0xb8c4d4, 0.22);
+        fillLight.position.set(-0.6, 0.2, 0.8);
+        scene.add(fillLight);
 
         // Tracking hierarchy:
-        // MindAR anchor (raw) → presentation (filtered) → professional card → anim → geometry
+        // MindAR anchor (raw)
+        //   → presentation (filtered)
+        //     → placement (CV center)
+        //       → interaction (user gestures)
+        //         → anim (entrance rise) → Decision Core
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
         presentationRoot = new THREE.Group();
-        presentationRoot.name = "ar-professional-card-presentation";
-        presentationRoot.userData.kind = "ar-professional-card-presentation";
+        presentationRoot.name = "ar-decision-core-presentation";
+        presentationRoot.userData.kind = "ar-decision-core-presentation";
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        professionalCard = createProfessionalCard3D(THREE);
-        // Acquisition window lives in the pose stabilizer — avoid a second delay here.
+        decisionCore = createDecisionCore3D(THREE);
         const reducedMotion =
           typeof window !== "undefined" &&
           window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
         const baseTiming = reducedMotion
           ? PROFESSIONAL_CARD_REDUCED_MOTION_TIMING
           : PROFESSIONAL_CARD_TIMING;
-        professionalCardAnimation = createProfessionalCardAnimation(professionalCard, {
+        decisionCoreAnimation = createProfessionalCardAnimation(decisionCore, {
           reducedMotion,
           timing: { ...baseTiming, stabilizeDelayMs: 0 },
+          onSessionReset: () => {
+            decisionCoreTap?.collapseAll({ animate: false });
+            gestureController?.reset();
+          },
         });
-        presentationRoot.add(professionalCard.group);
+        presentationRoot.add(decisionCore.group);
+
+        decisionCoreTap = createDecisionCoreTapController(THREE, {
+          artifact: decisionCore,
+          camera,
+          domElement: container,
+          isEnabled: () => decisionCoreAnimation?.getState?.().phase === "idle",
+        });
+
+        gestureController = createCardGestureController({
+          domElement: container,
+          interaction: decisionCore.interaction,
+          config: decisionCore.interactionConfig,
+          initialRotation: decisionCore.initialRotation,
+          initialScale: decisionCore.initialScale,
+          isEnabled: () => {
+            const phase = decisionCoreAnimation?.getState?.().phase;
+            return phase === "idle" || phase === "playing" || phase === "losing";
+          },
+          onTap: (point) => decisionCoreTap?.handleTap(point),
+        });
 
         poseStabilizer = createAnchorPoseStabilizer(THREE, {
           rawAnchor: anchor.group,
           presentation: presentationRoot,
           onAcquisitionReady: () => {
-            professionalCardAnimation?.onTargetFound();
+            decisionCoreAnimation?.onTargetFound();
           },
         });
 
@@ -202,7 +241,7 @@ export function createMindARTrackingAdapter({
         };
         anchor.onTargetLost = () => {
           poseStabilizer?.onTargetLost();
-          professionalCardAnimation?.onTargetLost();
+          decisionCoreAnimation?.onTargetLost();
           callbacks.onTargetLost?.();
         };
 
@@ -269,6 +308,20 @@ export function createMindARTrackingAdapter({
       viewportCleanup = null;
 
       try {
+        gestureController?.dispose();
+      } catch {
+        // ignore
+      }
+      gestureController = null;
+
+      try {
+        decisionCoreTap?.dispose();
+      } catch {
+        // ignore
+      }
+      decisionCoreTap = null;
+
+      try {
         poseStabilizer?.dispose();
       } catch {
         // ignore
@@ -276,18 +329,18 @@ export function createMindARTrackingAdapter({
       poseStabilizer = null;
 
       try {
-        professionalCardAnimation?.dispose();
+        decisionCoreAnimation?.dispose();
       } catch {
         // ignore
       }
-      professionalCardAnimation = null;
+      decisionCoreAnimation = null;
 
       try {
-        professionalCard?.dispose();
+        decisionCore?.dispose();
       } catch {
         // ignore
       }
-      professionalCard = null;
+      decisionCore = null;
 
       try {
         presentationRoot?.removeFromParent?.();
