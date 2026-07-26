@@ -23,7 +23,9 @@ describe("ARGovernanceIntro entry CTA", () => {
     expect(
       screen.queryByRole("button", { name: "Explore 2D Governance Brief" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Back to portfolio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Beyond the CV" })).toBeInTheDocument();
+    expect(screen.queryByText("AR Governance View")).not.toBeInTheDocument();
   });
 
   it("shows Activate Camera when the .mind target is available", async () => {
@@ -54,7 +56,7 @@ describe("ARGovernanceIntro entry CTA", () => {
       screen.queryByRole("button", { name: "Explore 2D Governance Brief" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("2D Governance Brief")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Back to portfolio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
   });
 
   it("never requests camera permission from the intro screen", async () => {

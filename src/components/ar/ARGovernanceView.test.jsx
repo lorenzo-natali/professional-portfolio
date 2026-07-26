@@ -66,9 +66,9 @@ describe("ARGovernanceView entry flow", () => {
     expect(shell.style.width).toBe("390px");
     expect(shell.style.height).toBe("700px");
 
-    const introTitle = await screen.findByRole("heading", { name: "AR Governance View" });
+    const introTitle = await screen.findByRole("heading", { name: "Beyond the CV" });
     expect(shell.contains(introTitle)).toBe(true);
-    expect(await screen.findByRole("button", { name: "Back to portfolio" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
   });
 
   it("shows a centered desktop gate without the 2D brief CTA", () => {
