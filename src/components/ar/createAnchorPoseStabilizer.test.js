@@ -7,8 +7,11 @@ import {
 } from "./createAnchorPoseStabilizer";
 
 function makeHierarchy() {
+  // Mirror MindAR anchors: matrixAutoUpdate disabled, matrix written directly.
   const rawAnchor = new THREE.Group();
   rawAnchor.name = "raw-anchor";
+  rawAnchor.matrixAutoUpdate = false;
+  rawAnchor.visible = false;
   const presentation = new THREE.Group();
   presentation.name = "ar-professional-card-presentation";
   rawAnchor.add(presentation);
@@ -19,10 +22,15 @@ function makeHierarchy() {
 }
 
 function setRawPose(rawAnchor, { x = 0, y = 0, z = 0, qx = 0, qy = 0, qz = 0, qw = 1, s = 1 } = {}) {
-  rawAnchor.position.set(x, y, z);
-  rawAnchor.quaternion.set(qx, qy, qz, qw).normalize();
-  rawAnchor.scale.setScalar(s);
-  rawAnchor.updateMatrix();
+  const pos = new THREE.Vector3(x, y, z);
+  const quat = new THREE.Quaternion(qx, qy, qz, qw).normalize();
+  const scale = new THREE.Vector3(s, s, s);
+  rawAnchor.matrix.compose(pos, quat, scale);
+  // Leave TRS properties at defaults — MindAR does not keep them in sync.
+  rawAnchor.position.set(0, 0, 0);
+  rawAnchor.quaternion.identity();
+  rawAnchor.scale.set(1, 1, 1);
+  rawAnchor.matrixWorldNeedsUpdate = true;
 }
 
 function readWorldPose(object) {
@@ -58,6 +66,7 @@ describe("createAnchorPoseStabilizer", () => {
   const fastConfig = {
     acquisitionMs: 80,
     minAcquisitionSamples: 3,
+    maxAcquisitionMs: 200,
     translationTauSec: 0.12,
     rotationTauSec: 0.12,
     scaleTauSec: 0.12,
@@ -278,6 +287,63 @@ describe("createAnchorPoseStabilizer", () => {
     const restored = readWorldPose(hierarchy.presentation);
     expect(restored.pos.distanceTo(stable.pos)).toBeLessThan(0.02);
     expect(restored.pos.x).not.toBeCloseTo(9, 1);
+    stabilizer.dispose();
+  });
+
+  it("regression: never calls updateMatrix on a MindAR-style anchor (preserves tracked matrix)", () => {
+    const hierarchy = makeHierarchy();
+    const tracked = new THREE.Matrix4().compose(
+      new THREE.Vector3(1.5, 0.25, -2),
+      new THREE.Quaternion(),
+      new THREE.Vector3(0.8, 0.8, 0.8),
+    );
+    hierarchy.rawAnchor.matrix.copy(tracked);
+    const updateSpy = vi.spyOn(hierarchy.rawAnchor, "updateMatrix");
+
+    const stabilizer = createStabilizer(hierarchy);
+    hierarchy.rawAnchor.visible = true;
+    stabilizer.onTargetFound();
+    for (let i = 0; i < 10; i += 1) {
+      nowMs += 20;
+      // MindAR re-writes the matrix each frame; TRS props stay at defaults.
+      hierarchy.rawAnchor.matrix.copy(tracked);
+      stabilizer.update(0.02);
+    }
+
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(hierarchy.rawAnchor.matrix.elements[12]).toBeCloseTo(1.5, 5);
+    expect(hierarchy.rawAnchor.matrix.elements[14]).toBeCloseTo(-2, 5);
+    expect(stabilizer.getState().state).toBe("tracking");
+
+    const world = readWorldPose(hierarchy.presentation);
+    expect(world.pos.x).toBeCloseTo(1.5, 1);
+    expect(world.scale.x).toBeGreaterThan(0.5);
+    stabilizer.dispose();
+  });
+
+  it("bounded visibility: finishes acquisition by maxAcquisitionMs with any valid samples", () => {
+    const hierarchy = makeHierarchy();
+    const onReady = vi.fn();
+    const stabilizer = createStabilizer(hierarchy, {
+      onAcquisitionReady: onReady,
+      config: {
+        acquisitionMs: 500,
+        minAcquisitionSamples: 50,
+        maxAcquisitionMs: 120,
+      },
+    });
+
+    setRawPose(hierarchy.rawAnchor, { x: 0.7, y: 0.1, z: 0.2 });
+    stabilizer.onTargetFound();
+    for (let i = 0; i < 8; i += 1) {
+      nowMs += 20;
+      setRawPose(hierarchy.rawAnchor, { x: 0.7, y: 0.1, z: 0.2 });
+      stabilizer.update(0.02);
+    }
+
+    expect(onReady).toHaveBeenCalled();
+    expect(stabilizer.getState().state).toBe("tracking");
+    expect(stabilizer.getState().sampleCount).toBeLessThan(50);
     stabilizer.dispose();
   });
 });

@@ -103,23 +103,53 @@ export function createAnchorPoseStabilizer(THREE, options) {
     }
   }
 
-  function readRawPose() {
-    rawAnchor.updateMatrix();
-    matRaw.copy(rawAnchor.matrix);
-    matRaw.decompose(rawPos, rawQuat, rawScale);
+  function isFiniteVec3(v) {
+    return Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
+  }
+
+  function isFiniteQuat(q) {
+    return (
+      Number.isFinite(q.x) &&
+      Number.isFinite(q.y) &&
+      Number.isFinite(q.z) &&
+      Number.isFinite(q.w)
+    );
   }
 
   /**
-   * Authoritative writer: presentation local = inv(raw) * display
+   * Read the MindAR-authored anchor matrix.
+   *
+   * MindAR sets `anchor.group.matrixAutoUpdate = false` and writes `group.matrix`
+   * directly each tracking update. Calling `updateMatrix()` would recompose from
+   * default position/quaternion/scale and destroy the tracked pose (identity).
+   */
+  function readRawPose() {
+    matRaw.copy(rawAnchor.matrix);
+    matRaw.decompose(rawPos, rawQuat, rawScale);
+    return (
+      isFiniteVec3(rawPos) &&
+      isFiniteQuat(rawQuat) &&
+      isFiniteVec3(rawScale) &&
+      Math.abs(rawScale.x) > 1e-8 &&
+      Math.abs(rawScale.y) > 1e-8 &&
+      Math.abs(rawScale.z) > 1e-8
+    );
+  }
+
+  /**
+   * Authoritative writer: presentation local = inv(rawMatrix) * display
    * so world(presentation) == display while remaining under the MindAR anchor.
    * @param {import("three").Vector3} pos
    * @param {import("three").Quaternion} quat
    * @param {import("three").Vector3} scale
    */
   function writePresentation(pos, quat, scale) {
+    if (!isFiniteVec3(pos) || !isFiniteQuat(quat) || !isFiniteVec3(scale)) return;
     matSmooth.compose(pos, quat, scale);
-    rawAnchor.updateMatrix();
-    matInv.copy(rawAnchor.matrix).invert();
+    // Use the MindAR matrix as-is — never updateMatrix() on the raw anchor.
+    matInv.copy(rawAnchor.matrix);
+    if (Math.abs(matInv.determinant()) < 1e-12) return;
+    matInv.invert();
     presentation.matrix.multiplyMatrices(matInv, matSmooth);
     presentation.matrixWorldNeedsUpdate = true;
   }
@@ -179,7 +209,7 @@ export function createAnchorPoseStabilizer(THREE, options) {
   }
 
   function pushAcquisitionSample() {
-    readRawPose();
+    if (!readRawPose()) return false;
     acquisitionSamples.push({
       pos: rawPos.clone(),
       quat: rawQuat.clone(),
@@ -189,6 +219,18 @@ export function createAnchorPoseStabilizer(THREE, options) {
     if (acquisitionSamples.length > 48) {
       acquisitionSamples.shift();
     }
+    return true;
+  }
+
+  function shouldFinishAcquisition(elapsedMs) {
+    const samples = acquisitionSamples.length;
+    if (samples < 1) return false;
+    if (elapsedMs >= config.acquisitionMs && samples >= config.minAcquisitionSamples) {
+      return true;
+    }
+    // Bounded visibility invariant: never stay hidden indefinitely while found.
+    const maxMs = config.maxAcquisitionMs ?? Math.max(config.acquisitionMs * 2, 900);
+    return elapsedMs >= maxMs;
   }
 
   function applyDeadZone() {
@@ -308,10 +350,7 @@ export function createAnchorPoseStabilizer(THREE, options) {
     if (state === "acquiring") {
       pushAcquisitionSample();
       const elapsed = now() - acquisitionStartedAt;
-      if (
-        elapsed >= config.acquisitionMs &&
-        acquisitionSamples.length >= config.minAcquisitionSamples
-      ) {
+      if (shouldFinishAcquisition(elapsed)) {
         finishAcquisition();
       } else {
         // Hold presentation at identity relative to raw until filter is ready —

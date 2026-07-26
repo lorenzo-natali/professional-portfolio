@@ -240,6 +240,8 @@ export function createMindARTrackingAdapter({
           const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
           lastFrameTimeMs = tNow;
           // Single authoritative writer for the presentation transform.
+          // Reads MindAR's anchor.matrix directly (matrixAutoUpdate=false) —
+          // never call updateMatrix() on the raw anchor.
           poseStabilizer?.update(dtSec);
           renderer.render(scene, camera);
         });

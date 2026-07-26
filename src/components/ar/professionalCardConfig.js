@@ -44,6 +44,11 @@ export const PROFESSIONAL_CARD_STABILIZATION = {
   /** Collect pose samples before revealing / starting entrance. */
   acquisitionMs: 320,
   minAcquisitionSamples: 6,
+  /**
+   * Hard bound: if the target stays found with valid poses, entrance must start
+   * by this time even if the preferred sample count was not reached.
+   */
+  maxAcquisitionMs: 900,
   /** Exponential smoothing time constants (frame-rate independent). */
   translationTauSec: 0.14,
   rotationTauSec: 0.18,

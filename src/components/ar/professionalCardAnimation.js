@@ -306,6 +306,11 @@ export function createProfessionalCardAnimation(card, options = {}) {
 
     clearTimers();
     phase = "stabilizing";
+    // Zero/negative delay: start synchronously (acquisition already gated entrance).
+    if (timing.stabilizeDelayMs <= 0) {
+      playEntrance();
+      return;
+    }
     stabilizeTimer = window.setTimeout(() => {
       stabilizeTimer = 0;
       if (disposed || phase !== "stabilizing") return;
