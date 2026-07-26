@@ -403,10 +403,11 @@ body {
 }
 
 /*
- * AR fullscreen stack under document.body:
- *   .ar-portal-host > .ar-viewport-shell > .ar-camera-stage > .ar-tracking-container
- * Use fixed/absolute + inset:0 + width/height:auto. Never 100vw, visualViewport.width,
- * camera aspect, or JS pixel pinning of the shell/stage/container.
+ * AR fullscreen stack under document.documentElement:
+ *   .ar-portal-host (only fixed owner)
+ *     > .ar-viewport-shell (absolute filler)
+ *       > .ar-camera-stage > .ar-tracking-container
+ * Never 100vw, visualViewport.width, camera aspect, or JS pixel pinning of the shell.
  */
 .ar-portal-host {
   position: fixed;
@@ -428,7 +429,7 @@ body {
 }
 
 .ar-viewport-shell {
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: auto;
   height: auto;

@@ -21,8 +21,10 @@ import {
 } from "../createArRuntimeAudit";
 import {
   bindArViewportListeners,
+  measureArResizePipeline,
   normalizeMindArLayerStyles,
   recordArViewportLifecycle,
+  recordArViewportResizeProbe,
   syncArViewportShell,
   syncTrackingContainerToShell as syncTrackingContainerFullscreen,
 } from "../arViewport";
@@ -158,11 +160,24 @@ export function bindMindArVideoResize(mindarThree, options = {}) {
   const run = (phase = "video-resize") => {
     try {
       if (video.videoWidth > 0 && video.videoHeight > 0) {
+        recordArViewportResizeProbe(
+          measureArResizePipeline(shell, container, {
+            step: `${phase}:before`,
+            reason: phase,
+          }),
+        );
         syncArViewportShell(shell);
         syncTrackingContainerToShell(container, shell);
         mindarThree.resize();
         normalizeMindArLayerStyles(container, { renderer: mindarThree.renderer });
+        const after = measureArResizePipeline(shell, container, {
+          step: `${phase}:after-normalize`,
+          reason: phase,
+          resized: true,
+        });
+        recordArViewportResizeProbe(after);
         recordArViewportLifecycle(shell, phase, {
+          resizeCause: after.cause,
           mindArInline: {
             video: {
               width: video.style.width,
@@ -453,8 +468,9 @@ export function createMindARTrackingAdapter({
         mindarThree = new MindARThree({
           container,
           imageTargetSrc: sessionBlobUrl,
-          filterMinCF: 0.0001,
-          filterBeta: 0.001,
+          // Near MindAR library defaults — prior filterBeta:0.001 caused heavy lag/seasickness.
+          filterMinCF: 0.001,
+          filterBeta: 1000,
           warmupTolerance: 5,
           missTolerance: 10,
           uiLoading: "no",
@@ -582,18 +598,81 @@ export function createMindARTrackingAdapter({
           },
         });
 
-        syncArViewportShell(shell);
-        syncTrackingContainerToShell(container, shell);
-        try {
-          mindarThree.resize();
-        } catch {
-          // ignore
-        }
-        applyCameraLayerStacking(container, renderer, {
-          canvasPointerEvents: "auto",
-          shell,
-        });
-        recordArViewportLifecycle(shell, "after-first-normalize");
+        /** @type {{ width: number, height: number }} */
+        let lastContainerSize = { width: 0, height: 0 };
+
+        /**
+         * Sync shell → optional MindAR.resize → normalize, with gap probes.
+         * Video CSS ownership stays unchanged until probes confirm media_sizing.
+         * @param {string} reason
+         * @param {{ forceResize?: boolean }} [opts]
+         */
+        const runViewportPipeline = (reason, opts = {}) => {
+          recordArViewportResizeProbe(
+            measureArResizePipeline(shell, container, {
+              step: `${reason}:before`,
+              reason,
+            }),
+          );
+
+          syncArViewportShell(shell);
+          syncTrackingContainerToShell(container, shell);
+
+          const width = container.clientWidth;
+          const height = container.clientHeight;
+          const sizeChanged =
+            width !== lastContainerSize.width || height !== lastContainerSize.height;
+          const shouldResize = Boolean(opts.forceResize) || sizeChanged;
+          let resized = false;
+          if (shouldResize && width > 0 && height > 0) {
+            try {
+              mindarThree?.resize?.();
+              resized = true;
+              lastContainerSize = { width, height };
+            } catch {
+              // ignore
+            }
+          }
+
+          recordArViewportResizeProbe(
+            measureArResizePipeline(shell, container, {
+              step: `${reason}:after-mindar-resize`,
+              reason,
+              resized,
+              skippedResize: !shouldResize,
+              containerSize: { width, height },
+            }),
+          );
+
+          applyCameraLayerStacking(container, renderer, {
+            canvasPointerEvents: "auto",
+            shell,
+          });
+
+          const after = measureArResizePipeline(shell, container, {
+            step: `${reason}:after-normalize`,
+            reason,
+            resized,
+            skippedResize: !shouldResize,
+            containerSize: { width, height },
+          });
+          recordArViewportResizeProbe(after);
+          recordArViewportLifecycle(shell, reason, {
+            resizeCause: after.cause,
+            resized,
+            skippedResize: !shouldResize,
+          });
+          recordArRuntimeAuditPhase(`viewport-pipeline:${reason}`, {
+            cause: after.cause,
+            resized,
+            skippedResize: !shouldResize,
+            gaps: after.gaps,
+            rects: after.rects,
+          });
+          return after;
+        };
+
+        runViewportPipeline("after-first-normalize", { forceResize: true });
         videoResizeCleanup = bindMindArVideoResize(mindarThree, { container, shell });
 
         interestTap = createInterestObjectsTapController({
@@ -610,19 +689,8 @@ export function createMindARTrackingAdapter({
 
         const onViewportChange = () => {
           if (!running || !mindarThree) return;
-          syncArViewportShell(shell);
-          syncTrackingContainerToShell(container, shell);
-          try {
-            mindarThree.resize();
-          } catch {
-            // ignore
-          }
-          applyCameraLayerStacking(container, renderer, {
-            canvasPointerEvents: "auto",
-            shell,
-          });
+          runViewportPipeline("viewport-change");
           interestTap?.update?.();
-          recordArViewportLifecycle(shell, "viewport-change");
         };
         running = true;
         viewportCleanup = bindArViewportListeners(onViewportChange);
@@ -648,18 +716,7 @@ export function createMindARTrackingAdapter({
         lifecycleTimers.push(
           window.setTimeout(() => {
             if (sessionGeneration !== sessionToken) return;
-            syncArViewportShell(shell);
-            syncTrackingContainerToShell(container, shell);
-            try {
-              mindarThree?.resize?.();
-            } catch {
-              // ignore
-            }
-            applyCameraLayerStacking(container, renderer, {
-              canvasPointerEvents: "auto",
-              shell,
-            });
-            recordArViewportLifecycle(shell, "after-500ms");
+            runViewportPipeline("after-500ms", { forceResize: true });
           }, 500),
         );
       } catch (error) {

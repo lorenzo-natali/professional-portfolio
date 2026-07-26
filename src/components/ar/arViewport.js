@@ -1,8 +1,9 @@
 /**
  * AR fullscreen viewport helpers.
  *
- * Authority: CSS `position:fixed; inset:0; width/height:auto` on the portal host
- * and shell. Never size from visualViewport.width, 100vw, screen.width, or camera aspect.
+ * Authority: only the portal host is `position:fixed`. Shell/stage/container are
+ * absolute fillers (`inset:0; width/height:auto`). Never size from
+ * visualViewport.width, 100vw, screen.width, or camera aspect.
  * visualViewport is for event binding + diagnostics only.
  */
 
@@ -121,8 +122,9 @@ export function syncArViewportShell(shell, host = null) {
   }
 
   if (!shell) return;
+  // Shell is an absolute filler of the fixed host — avoid nested position:fixed.
   applyInlineStyles(shell, {
-    ...FULLSCREEN_FIXED,
+    ...FULLSCREEN_ABSOLUTE,
     zIndex: "1",
     background: shell.style.background || "",
     pointerEvents: "auto",
@@ -508,4 +510,131 @@ export function recordArViewportLifecycle(shell, phase, extra = {}) {
     window.__arViewportLifecycle.splice(0, window.__arViewportLifecycle.length - 40);
   }
   return snap;
+}
+
+/**
+ * Classify whether a visible right strip is more likely ancestor layout vs media sizing.
+ * Keep video ownership unchanged until field evidence confirms mediaGap.
+ *
+ * @param {ReturnType<typeof collectArViewportMetrics>} metrics
+ */
+export function classifyArResizeGapCause(metrics) {
+  const docW = metrics?.documentElement?.clientWidth ?? 0;
+  const shellRight = metrics?.shell?.rect?.right ?? 0;
+  const stageRight = metrics?.stage?.rect?.right ?? shellRight;
+  const containerW = metrics?.container?.rect?.width ?? 0;
+  const videoW = metrics?.video?.rect?.width ?? 0;
+  const canvasW = metrics?.canvas?.rect?.width ?? 0;
+  const videoLeft = metrics?.video?.rect?.left ?? 0;
+  const containerLeft = metrics?.container?.rect?.left ?? 0;
+  const vv = metrics?.visualViewport;
+
+  const ancestorGapRight = Math.max(0, docW - Math.max(shellRight, stageRight));
+  const mediaShortfall = Math.max(0, containerW - Math.max(videoW, canvasW));
+  const videoOffsetLeft = videoLeft - containerLeft;
+
+  const ancestorNarrow = ancestorGapRight > 2;
+  const mediaNarrow =
+    !ancestorNarrow &&
+    containerW > 1 &&
+    (videoW < containerW - 4 || canvasW < containerW - 2 || Math.abs(videoOffsetLeft) > 2);
+  const safariViewportDiffers = Boolean(
+    vv &&
+      (Math.abs(vv.width - (metrics?.window?.innerWidth ?? 0)) > 1 ||
+        Math.abs(vv.offsetLeft ?? 0) > 0.5),
+  );
+
+  /** @type {"ancestor_layout" | "media_sizing" | "safari_viewport" | "none" | "ambiguous"} */
+  let primary = "none";
+  if (ancestorNarrow && mediaNarrow) primary = "ambiguous";
+  else if (ancestorNarrow) primary = "ancestor_layout";
+  else if (mediaNarrow) primary = "media_sizing";
+  else if (safariViewportDiffers && ancestorGapRight > 0.5) primary = "safari_viewport";
+
+  return {
+    primary,
+    ancestorNarrow,
+    mediaNarrow,
+    safariViewportDiffers,
+    ancestorGapRight: Number(ancestorGapRight.toFixed(2)),
+    mediaShortfall: Number(mediaShortfall.toFixed(2)),
+    videoOffsetLeft: Number(videoOffsetLeft.toFixed(2)),
+    shellPosition: metrics?.shell?.style?.position ?? metrics?.shell?.inline?.position ?? null,
+    hostPosition:
+      metrics?.portalHost?.style?.position ?? metrics?.portalHost?.inline?.position ?? null,
+    videoInline: metrics?.video?.inline ?? null,
+    canvasInline: metrics?.canvas?.inline ?? null,
+  };
+}
+
+/**
+ * Measure one step of the resize pipeline for on-device gap diagnosis.
+ * @param {HTMLElement | null} shell
+ * @param {HTMLElement | null} [container]
+ * @param {{
+ *   step?: string,
+ *   reason?: string,
+ *   resized?: boolean,
+ *   skippedResize?: boolean,
+ *   containerSize?: { width: number, height: number } | null,
+ * }} [options]
+ */
+export function measureArResizePipeline(shell, container = null, options = {}) {
+  const metrics = collectArViewportMetrics(shell, { phase: options.step ?? "resize-probe" });
+  const resolvedContainer =
+    container || shell?.querySelector?.("[data-ar-tracking-container='true']") || null;
+  const cause = classifyArResizeGapCause(metrics);
+  return {
+    timestamp: Date.now(),
+    step: options.step ?? "resize-probe",
+    reason: options.reason ?? null,
+    resized: Boolean(options.resized),
+    skippedResize: Boolean(options.skippedResize),
+    containerSize: options.containerSize ?? {
+      width: resolvedContainer?.clientWidth ?? 0,
+      height: resolvedContainer?.clientHeight ?? 0,
+    },
+    cause,
+    gaps: metrics.gaps,
+    acceptance: metrics.acceptance,
+    rects: {
+      docW: metrics.documentElement.clientWidth,
+      innerW: metrics.window.innerWidth,
+      screenW: metrics.screen?.width ?? null,
+      visualViewport: metrics.visualViewport,
+      portalHost: metrics.portalHost?.rect ?? null,
+      shell: metrics.shell?.rect ?? null,
+      stage: metrics.stage?.rect ?? null,
+      container: metrics.container?.rect ?? null,
+      video: metrics.video?.rect ?? null,
+      canvas: metrics.canvas?.rect ?? null,
+    },
+    inline: {
+      hostPosition: metrics.portalHost?.inline?.position ?? null,
+      shellPosition: metrics.shell?.inline?.position ?? null,
+      video: metrics.video?.inline ?? null,
+      canvas: metrics.canvas?.inline ?? null,
+    },
+  };
+}
+
+/**
+ * Append a resize-pipeline probe to window.__arViewportResizeLog (capped).
+ * @param {ReturnType<typeof measureArResizePipeline>} probe
+ */
+export function recordArViewportResizeProbe(probe) {
+  if (typeof window === "undefined" || !probe) return probe;
+  if (!window.__arViewportResizeLog) window.__arViewportResizeLog = [];
+  window.__arViewportResizeLog.push(probe);
+  if (window.__arViewportResizeLog.length > 60) {
+    window.__arViewportResizeLog.splice(0, window.__arViewportResizeLog.length - 60);
+  }
+  console.info("[ar-viewport-resize]", probe.step, {
+    primary: probe.cause?.primary,
+    ancestorGapRight: probe.cause?.ancestorGapRight,
+    mediaShortfall: probe.cause?.mediaShortfall,
+    resized: probe.resized,
+    skippedResize: probe.skippedResize,
+  });
+  return probe;
 }

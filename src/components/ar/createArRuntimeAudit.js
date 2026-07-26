@@ -317,6 +317,10 @@ export async function buildArRuntimeAuditReport() {
       gapAnalysis: gap,
       elements,
       metrics,
+      resizePipelineLog:
+        typeof window !== "undefined" && Array.isArray(window.__arViewportResizeLog)
+          ? window.__arViewportResizeLog.slice(-24)
+          : [],
     },
     lifecycle: [...lifecycleLog],
     mutations: [...mutationLog].slice(-60),

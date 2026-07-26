@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   bindArViewportListeners,
+  classifyArResizeGapCause,
   collectArViewportMetrics,
   ensureArPortalHost,
+  measureArResizePipeline,
   normalizeMindArLayerStyles,
+  recordArViewportResizeProbe,
   syncArViewportShell,
   syncTrackingContainerToShell,
   teardownArPortalHost,
@@ -41,6 +44,7 @@ describe("arViewport shell", () => {
 
     syncArViewportShell(shell);
 
+    expect(shell.style.position).toBe("absolute");
     expect(shell.style.left).toBe("0px");
     expect(shell.style.right).toBe("0px");
     expect(shell.style.width).toBe("auto");
@@ -144,5 +148,58 @@ describe("arViewport shell", () => {
     expect(metrics.gaps.gapLeft).toBeCloseTo(0, 5);
     expect(metrics.gaps.gapRight).toBeCloseTo(0, 5);
     expect(metrics.acceptance.gapRightOk).toBe(true);
+  });
+
+  it("classifies ancestor layout vs media sizing for the right strip", () => {
+    const ancestor = classifyArResizeGapCause({
+      documentElement: { clientWidth: 390 },
+      window: { innerWidth: 390 },
+      visualViewport: { width: 390, offsetLeft: 0 },
+      shell: { rect: { right: 360, width: 360 } },
+      stage: { rect: { right: 360, width: 360 } },
+      container: { rect: { width: 360, left: 0 } },
+      video: { rect: { width: 360, left: 0 } },
+      canvas: { rect: { width: 360 } },
+    });
+    expect(ancestor.primary).toBe("ancestor_layout");
+    expect(ancestor.ancestorNarrow).toBe(true);
+
+    const media = classifyArResizeGapCause({
+      documentElement: { clientWidth: 390 },
+      window: { innerWidth: 390 },
+      visualViewport: { width: 390, offsetLeft: 0 },
+      shell: { rect: { right: 390, width: 390 } },
+      stage: { rect: { right: 390, width: 390 } },
+      container: { rect: { width: 390, left: 0 } },
+      video: { rect: { width: 340, left: -10 } },
+      canvas: { rect: { width: 390 } },
+    });
+    expect(media.primary).toBe("media_sizing");
+    expect(media.mediaNarrow).toBe(true);
+  });
+
+  it("records resize probes onto window.__arViewportResizeLog", () => {
+    window.__arViewportResizeLog = [];
+    const host = ensureArPortalHost();
+    const shell = document.createElement("div");
+    shell.dataset.arViewportShell = "true";
+    const stage = document.createElement("div");
+    stage.dataset.arCameraStage = "true";
+    const container = document.createElement("div");
+    container.dataset.arTrackingContainer = "true";
+    stage.appendChild(container);
+    shell.appendChild(stage);
+    host.appendChild(shell);
+    syncArViewportShell(shell, host);
+
+    const probe = measureArResizePipeline(shell, container, {
+      step: "unit:after-normalize",
+      reason: "unit",
+      resized: false,
+      skippedResize: true,
+    });
+    recordArViewportResizeProbe(probe);
+    expect(window.__arViewportResizeLog.at(-1).step).toBe("unit:after-normalize");
+    expect(window.__arViewportResizeLog.at(-1).cause).toBeTruthy();
   });
 });

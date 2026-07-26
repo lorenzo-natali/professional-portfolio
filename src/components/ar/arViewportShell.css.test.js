@@ -6,22 +6,31 @@ import { describe, expect, it } from "vitest";
 const cssPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../index.css");
 
 describe("ar fullscreen CSS", () => {
-  it("defines portal host + shell + stage + container with inset:0 and width auto", () => {
+  it("keeps a single fixed portal host with absolute fillers below", () => {
     const css = readFileSync(cssPath, "utf8");
 
-    for (const selector of [
-      ".ar-portal-host",
-      ".ar-viewport-shell",
-      ".ar-camera-stage",
-      ".ar-tracking-container",
+    const host = css.match(/\.ar-portal-host\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    const shell = css.match(/\.ar-viewport-shell\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    const stage = css.match(/\.ar-camera-stage\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    const container = css.match(/\.ar-tracking-container\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+    expect(host).toMatch(/position:\s*fixed/);
+    expect(shell).toMatch(/position:\s*absolute/);
+    expect(stage).toMatch(/position:\s*absolute/);
+    expect(container).toMatch(/position:\s*absolute/);
+
+    for (const [name, block] of [
+      [".ar-portal-host", host],
+      [".ar-viewport-shell", shell],
+      [".ar-camera-stage", stage],
+      [".ar-tracking-container", container],
     ]) {
-      const block = css.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([\\s\\S]*?)\\}`))?.[1] ?? "";
-      expect(block, selector).toMatch(/inset:\s*0/);
-      expect(block, selector).toMatch(/width:\s*auto/);
-      expect(block, selector).toMatch(/height:\s*auto/);
-      expect(block, selector).toMatch(/max-width:\s*none/);
-      expect(block, selector).not.toMatch(/100vw/);
-      expect(block, selector).not.toMatch(/aspect-ratio/);
+      expect(block, name).toMatch(/inset:\s*0/);
+      expect(block, name).toMatch(/width:\s*auto/);
+      expect(block, name).toMatch(/height:\s*auto/);
+      expect(block, name).toMatch(/max-width:\s*none/);
+      expect(block, name).not.toMatch(/100vw/);
+      expect(block, name).not.toMatch(/aspect-ratio/);
     }
   });
 });

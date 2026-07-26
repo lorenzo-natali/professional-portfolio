@@ -31,6 +31,8 @@ describe("AR fullscreen layer constraints", () => {
     expect(main.contains(host)).toBe(false);
     expect(document.body.contains(host)).toBe(false);
     expect(shell.parentElement).toBe(host);
+    expect(host.style.position).toBe("fixed");
+    expect(shell.style.position).toBe("absolute");
     expect(host.style.maxWidth).toBe("none");
     expect(shell.style.maxWidth).toBe("none");
     expect(shell.style.width).toBe("auto");
