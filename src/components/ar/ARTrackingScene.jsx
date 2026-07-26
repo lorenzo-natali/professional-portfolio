@@ -12,7 +12,6 @@ export default function ARTrackingScene({
   onTargetLost,
   onError,
   onUnsupported,
-  onVideoReady,
 }) {
   const containerRef = useRef(null);
   const { adapter } = useARTracking();
@@ -22,7 +21,6 @@ export default function ARTrackingScene({
     onTargetLost,
     onError,
     onUnsupported,
-    onVideoReady,
   });
 
   useEffect(() => {
@@ -32,9 +30,8 @@ export default function ARTrackingScene({
       onTargetLost,
       onError,
       onUnsupported,
-      onVideoReady,
     };
-  }, [onReady, onTargetFound, onTargetLost, onError, onUnsupported, onVideoReady]);
+  }, [onReady, onTargetFound, onTargetLost, onError, onUnsupported]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -56,9 +53,6 @@ export default function ARTrackingScene({
       },
       onUnsupported: (reason) => {
         if (!cancelled) callbacksRef.current.onUnsupported?.(reason);
-      },
-      onVideoReady: (payload) => {
-        if (!cancelled) callbacksRef.current.onVideoReady?.(payload);
       },
     });
 

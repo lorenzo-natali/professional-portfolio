@@ -1,35 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import ARTrackingScene from "./ARTrackingScene";
 import ARAboutPanel from "./ARAboutPanel";
-import ARCameraDiagnosticsPanel from "./ARCameraDiagnosticsPanel";
-import { attachArCameraDiagnostics } from "./arCameraDiagnostics";
 
 /**
  * Camera AR slice: absolute stage inside the single portaled viewport shell.
- * Clean baseline HUD — no Lens selector or world annotations in this milestone.
- *
- * `diagnosticsEnabled` is the authoritative session flag from ARGovernanceView.
- * Panel mount and attach must not re-parse the URL.
+ * Clean baseline HUD — no Lens selector, world annotations, or debug overlays.
  */
-export default function ARCameraView({ onBack, onFallback, diagnosticsEnabled = false }) {
+export default function ARCameraView({ onBack, onFallback }) {
   const [tracking, setTracking] = useState("searching"); // searching | detected | lost
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [cameraSnapshot, setCameraSnapshot] = useState(null);
-  const [diagnosticsError, setDiagnosticsError] = useState(null);
-  const diagnosticsCleanupRef = useRef(null);
-  const diagnosticsEnabledRef = useRef(diagnosticsEnabled);
-
-  useEffect(() => {
-    diagnosticsEnabledRef.current = diagnosticsEnabled;
-  }, [diagnosticsEnabled]);
-
-  useEffect(
-    () => () => {
-      diagnosticsCleanupRef.current?.();
-      diagnosticsCleanupRef.current = null;
-    },
-    [],
-  );
 
   const handleTargetFound = () => {
     setTracking("detected");
@@ -38,35 +17,6 @@ export default function ARCameraView({ onBack, onFallback, diagnosticsEnabled = 
   const handleTargetLost = () => {
     setTracking((current) => (current === "searching" ? current : "lost"));
   };
-
-  const handleVideoReady = useCallback(({ video, container }) => {
-    if (!diagnosticsEnabledRef.current) return;
-
-    diagnosticsCleanupRef.current?.();
-    diagnosticsCleanupRef.current = null;
-
-    if (!video) {
-      setDiagnosticsError("Diagnostics unavailable: camera video element missing.");
-      return;
-    }
-
-    try {
-      const cleanup = attachArCameraDiagnostics({
-        video,
-        container,
-        onSnapshot: (snapshot) => {
-          setDiagnosticsError(null);
-          setCameraSnapshot(snapshot);
-        },
-        logInitial: true,
-        forceEnabled: true,
-      });
-      diagnosticsCleanupRef.current = cleanup;
-      setDiagnosticsError(null);
-    } catch {
-      setDiagnosticsError("Diagnostics attachment failed.");
-    }
-  }, []);
 
   const statusLabel =
     tracking === "searching"
@@ -84,20 +34,11 @@ export default function ARCameraView({ onBack, onFallback, diagnosticsEnabled = 
         onReady={() => setTracking((t) => (t === "searching" ? "searching" : t))}
         onTargetFound={handleTargetFound}
         onTargetLost={handleTargetLost}
-        onVideoReady={handleVideoReady}
         onError={() => onFallback("tracking-error")}
         onUnsupported={(reason) =>
           onFallback(reason === "target-unavailable" ? "target-unavailable" : "unsupported")
         }
       />
-
-      {diagnosticsEnabled && (
-        <ARCameraDiagnosticsPanel
-          snapshot={cameraSnapshot}
-          waiting={!cameraSnapshot && !diagnosticsError}
-          error={diagnosticsError}
-        />
-      )}
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
         {statusLabel && (

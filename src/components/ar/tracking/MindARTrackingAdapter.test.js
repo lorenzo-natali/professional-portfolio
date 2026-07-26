@@ -145,28 +145,23 @@ describe("createMindARTrackingAdapter camera slice", () => {
     shell.remove();
   });
 
-  it("exposes the MindAR video through onVideoReady without changing camera constraints", async () => {
+  it("starts MindAR without injecting camera constraint overrides", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
     const host = document.createElement("div");
-    const onVideoReady = vi.fn();
 
     await adapter.start(host, {
       onReady: vi.fn(),
-      onVideoReady,
       onUnsupported: vi.fn(),
       onError: vi.fn(),
     });
 
-    expect(onVideoReady).toHaveBeenCalledTimes(1);
-    const payload = onVideoReady.mock.calls[0][0];
-    expect(payload.container).toBe(host);
-    expect(payload.video).toBeInstanceOf(HTMLVideoElement);
-    expect(payload.video.tagName).toBe("VIDEO");
-
+    expect(host.querySelector("video")).toBeInstanceOf(HTMLVideoElement);
     const ctorOptions = mocks.MindARThree.mock.calls[0][0];
     expect(ctorOptions.uiLoading).toBe("no");
+    expect(ctorOptions).not.toHaveProperty("video");
+    expect(ctorOptions).not.toHaveProperty("filterVideoConstraints");
     expect(JSON.stringify(ctorOptions)).not.toMatch(/width|height|frameRate/);
 
     await adapter.stop();

@@ -8,7 +8,6 @@
  * @property {() => void} [onTargetLost]
  * @property {(error: Error) => void} [onError]
  * @property {(reason: string) => void} [onUnsupported]
- * @property {(payload: { video: HTMLVideoElement, container: HTMLElement }) => void} [onVideoReady]
  *
  * @typedef {object} TrackingAdapter
  * @property {(container: HTMLElement, callbacks: TrackingCallbacks) => Promise<void>} start

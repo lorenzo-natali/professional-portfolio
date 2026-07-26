@@ -185,12 +185,6 @@ export function createMindARTrackingAdapter({
         running = true;
         viewportCleanup = bindArViewportListeners(onViewportChange);
 
-        // Narrow seam for optional diagnostics — does not alter camera constraints.
-        const video = container.querySelector("video");
-        if (video) {
-          callbacks.onVideoReady?.({ video, container });
-        }
-
         callbacks.onReady?.();
 
         renderer.setAnimationLoop(() => {
