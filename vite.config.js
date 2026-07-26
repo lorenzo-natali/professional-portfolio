@@ -20,7 +20,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(rootDir, 'index.html'),
-        collectiblePreview: resolve(rootDir, 'collectible-preview.html'),
+        professionalEvolutionPreview: resolve(rootDir, 'professional-evolution-preview.html'),
       },
     },
   },

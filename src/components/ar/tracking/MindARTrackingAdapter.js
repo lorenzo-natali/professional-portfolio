@@ -5,19 +5,9 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createCollectible3D } from "../createCollectible3D";
-import {
-  attachCollectibleEnvironment,
-  configureCollectibleRenderer,
-  createCollectibleLighting,
-} from "../configureCollectiblePresentation";
-import { createProfessionalCardAnimation } from "../professionalCardAnimation";
+import { createProfessionalEvolutionLayer } from "../createProfessionalEvolutionLayer";
+import { createProfessionalEvolutionAnimation } from "../professionalEvolutionAnimation";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
-import { createCardGestureController } from "../createCardGestureController";
-import {
-  PROFESSIONAL_CARD_TIMING,
-  PROFESSIONAL_CARD_REDUCED_MOTION_TIMING,
-} from "../professionalCardConfig";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
@@ -34,8 +24,8 @@ export function applyCameraLayerStacking(container, renderer) {
   container.style.width = "100%";
   container.style.height = "100%";
   container.style.overflow = "hidden";
-  // Gesture events hit the container (children use pointer-events: none).
-  container.style.pointerEvents = "auto";
+  // Close control lives outside this container; AR canvas must not steal taps.
+  container.style.pointerEvents = "none";
   container.style.touchAction = "none";
   container.style.userSelect = "none";
   container.style.webkitUserSelect = "none";
@@ -105,6 +95,44 @@ function findViewportShell(container) {
   );
 }
 
+function configureEvolutionRenderer(THREE, renderer) {
+  if (!renderer) return;
+  if ("outputColorSpace" in renderer && "SRGBColorSpace" in THREE) {
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+  } else if ("outputEncoding" in renderer && "sRGBEncoding" in THREE) {
+    renderer.outputEncoding = THREE.sRGBEncoding;
+  }
+  renderer.setClearColor?.(0x000000, 0);
+  renderer.setClearAlpha?.(0);
+}
+
+function createEvolutionLighting(THREE, scene) {
+  const lights = [];
+  const ambient = new THREE.AmbientLight(0xffffff, 0.85);
+  ambient.name = "ar-pe-ambient";
+  scene.add(ambient);
+  lights.push(ambient);
+  const key = new THREE.DirectionalLight(0xf2f7fb, 0.35);
+  key.name = "ar-pe-key";
+  key.position.set(0.2, 0.8, 1.1);
+  scene.add(key);
+  lights.push(key);
+  return {
+    lights,
+    dispose() {
+      lights.forEach((light) => {
+        try {
+          light.removeFromParent?.();
+          light.dispose?.();
+        } catch {
+          // ignore
+        }
+      });
+      lights.length = 0;
+    },
+  };
+}
+
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
  * @returns {import("./createTrackingAdapter").TrackingAdapter}
@@ -117,13 +145,11 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let collectible = null;
-  let collectibleAnimation = null;
+  let evolutionLayer = null;
+  let evolutionAnimation = null;
   let poseStabilizer = null;
-  let gestureController = null;
   let presentationRoot = null;
   let presentationLighting = null;
-  let presentationEnvironment = null;
   let lastFrameTimeMs = 0;
 
   return {
@@ -164,60 +190,41 @@ export function createMindARTrackingAdapter({
         });
 
         const { renderer, scene, camera } = mindarThree;
-        configureCollectibleRenderer(THREE, renderer);
-        presentationLighting = createCollectibleLighting(THREE, scene);
-        presentationEnvironment = await attachCollectibleEnvironment(THREE, renderer, scene);
+        configureEvolutionRenderer(THREE, renderer);
+        presentationLighting = createEvolutionLighting(THREE, scene);
 
-        // Tracking hierarchy:
+        // Tracking hierarchy (exact):
         // MindAR anchor (raw)
         //   → presentation (filtered)
-        //     → placement (CV center)
-        //       → interaction (user gestures)
-        //         → anim (entrance rise) → collectible GLB
+        //     → placement
+        //       → entrance
+        //         → Professional Evolution content
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
         presentationRoot = new THREE.Group();
-        presentationRoot.name = "ar-collectible-presentation";
-        presentationRoot.userData.kind = "ar-collectible-presentation";
+        presentationRoot.name = "ar-professional-evolution-presentation";
+        presentationRoot.userData.kind = "ar-professional-evolution-presentation";
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        collectible = await createCollectible3D(THREE);
+        evolutionLayer = createProfessionalEvolutionLayer(THREE);
         const reducedMotion =
           typeof window !== "undefined" &&
           window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-        const baseTiming = reducedMotion
-          ? PROFESSIONAL_CARD_REDUCED_MOTION_TIMING
-          : PROFESSIONAL_CARD_TIMING;
-        collectibleAnimation = createProfessionalCardAnimation(collectible, {
+        evolutionAnimation = createProfessionalEvolutionAnimation(evolutionLayer, {
           reducedMotion,
-          timing: { ...baseTiming, stabilizeDelayMs: 0 },
-          onSessionReset: () => {
-            gestureController?.reset();
-          },
         });
-        presentationRoot.add(collectible.group);
-
-        gestureController = createCardGestureController({
-          domElement: container,
-          interaction: collectible.interaction,
-          config: collectible.interactionConfig,
-          initialRotation: collectible.initialRotation,
-          initialScale: collectible.initialScale,
-          isEnabled: () => {
-            const phase = collectibleAnimation?.getState?.().phase;
-            return phase === "idle" || phase === "playing" || phase === "losing";
-          },
-        });
+        // placement is the content root (group aliases placement; no wrapper).
+        presentationRoot.add(evolutionLayer.placement);
 
         poseStabilizer = createAnchorPoseStabilizer(THREE, {
           rawAnchor: anchor.group,
           presentation: presentationRoot,
           onAcquisitionReady: () => {
-            collectibleAnimation?.onTargetFound();
+            evolutionAnimation?.onTargetFound();
           },
         });
 
@@ -227,7 +234,7 @@ export function createMindARTrackingAdapter({
         };
         anchor.onTargetLost = () => {
           poseStabilizer?.onTargetLost();
-          collectibleAnimation?.onTargetLost();
+          evolutionAnimation?.onTargetLost();
           callbacks.onTargetLost?.();
         };
 
@@ -294,13 +301,6 @@ export function createMindARTrackingAdapter({
       viewportCleanup = null;
 
       try {
-        gestureController?.dispose();
-      } catch {
-        // ignore
-      }
-      gestureController = null;
-
-      try {
         poseStabilizer?.dispose();
       } catch {
         // ignore
@@ -308,25 +308,18 @@ export function createMindARTrackingAdapter({
       poseStabilizer = null;
 
       try {
-        collectibleAnimation?.dispose();
+        evolutionAnimation?.dispose();
       } catch {
         // ignore
       }
-      collectibleAnimation = null;
+      evolutionAnimation = null;
 
       try {
-        collectible?.dispose();
+        evolutionLayer?.dispose();
       } catch {
         // ignore
       }
-      collectible = null;
-
-      try {
-        presentationEnvironment?.dispose();
-      } catch {
-        // ignore
-      }
-      presentationEnvironment = null;
+      evolutionLayer = null;
 
       try {
         presentationLighting?.dispose();

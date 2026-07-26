@@ -6,6 +6,8 @@
  * Origin targets the visual center of the CV page.
  */
 
+import { AR_SESSION_RESET_MS } from "./arSessionTiming";
+
 /** Normalized document origin for the card center. */
 export const PROFESSIONAL_CARD_ORIGIN = {
   u: 0.5,
@@ -77,7 +79,7 @@ export const PROFESSIONAL_CARD_STABILIZATION = {
   /** Blend duration when re-acquiring after a brief freeze. */
   reacquisitionBlendMs: 220,
   /** Continuous loss longer than this clears the pose filter. */
-  sessionResetMs: 1400,
+  sessionResetMs: AR_SESSION_RESET_MS,
 };
 
 /** Entrance + loss lifecycle timings (ms). No automatic tilt/flip. */
@@ -93,7 +95,7 @@ export const PROFESSIONAL_CARD_TIMING = {
    */
   lostJitterMs: 700,
   /** After this much continuous loss, the next found starts a new entrance. */
-  sessionResetMs: 1400,
+  sessionResetMs: AR_SESSION_RESET_MS,
 };
 
 /** Reduced-motion: short fade/rise only. */
@@ -102,7 +104,7 @@ export const PROFESSIONAL_CARD_REDUCED_MOTION_TIMING = {
   riseMs: 280,
   loseFadeMs: 140,
   lostJitterMs: 700,
-  sessionResetMs: 1400,
+  sessionResetMs: AR_SESSION_RESET_MS,
 };
 
 export const PROFESSIONAL_CARD_CONTENT = {
