@@ -195,11 +195,13 @@ export function createInterestObjectsLayer(THREE, options = {}) {
       }
       syncDisplayRotation(entry);
     }
-    if (typeof patch.targetSize === "number" && patch.targetSize > 0 && entry.content) {
-      const ratio = patch.targetSize / entry.baseTargetSize;
+    if (typeof patch.targetSize === "number" && patch.targetSize > 0) {
       entry.config.targetSize = patch.targetSize;
-      entry.content.scale.setScalar(ratio);
-      seatInterestContent(THREE, entry.content);
+      if (entry.content) {
+        const ratio = patch.targetSize / entry.baseTargetSize;
+        entry.content.scale.setScalar(ratio);
+        seatInterestContent(THREE, entry.content);
+      }
     }
     if (typeof patch.targetHeight === "number" && patch.targetHeight > 0) {
       return applyPoseEdit(id, { targetSize: patch.targetHeight });

@@ -11,6 +11,10 @@ import {
   createInterestObjectsDebug,
   isInterestObjectsDebugEnabled,
 } from "../createInterestObjectsDebug";
+import {
+  createInterestObjectsCalibrate,
+  isInterestObjectsCalibrateEnabled,
+} from "../createInterestObjectsCalibrate";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
 import { INTEREST_OBJECTS_STABILIZATION } from "../interestObjectsConfig";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
@@ -255,6 +259,21 @@ function resolveInterestDebugEnabled() {
   return isInterestObjectsDebugEnabled({ forceFlag: AR_INTERESTS_DEBUG });
 }
 
+function resolveInterestCalibrateEnabled() {
+  // Field calibration on iPhone (query flag) — allowed outside Vite DEV builds.
+  return isInterestObjectsCalibrateEnabled();
+}
+
+function enableCalibrateCanvasHits(container, renderer) {
+  if (!container) return;
+  container.style.pointerEvents = "auto";
+  container.style.touchAction = "none";
+  if (renderer?.domElement) {
+    renderer.domElement.style.pointerEvents = "auto";
+    renderer.domElement.style.touchAction = "none";
+  }
+}
+
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
  * @returns {import("./createTrackingAdapter").TrackingAdapter}
@@ -271,6 +290,7 @@ export function createMindARTrackingAdapter({
   let interestLayer = null;
   let interestAnimation = null;
   let interestDebug = null;
+  let interestCalibrate = null;
   let poseStabilizer = null;
   let presentationRoot = null;
   let presentationLighting = null;
@@ -321,6 +341,13 @@ export function createMindARTrackingAdapter({
 
     lifecycleTimers.forEach((id) => clearTimeout(id));
     lifecycleTimers = [];
+
+    try {
+      interestCalibrate?.dispose();
+    } catch {
+      // ignore
+    }
+    interestCalibrate = null;
 
     try {
       interestDebug?.dispose();
@@ -460,6 +487,7 @@ export function createMindARTrackingAdapter({
         anchor.group.add(presentationRoot);
 
         const debugEnabled = resolveInterestDebugEnabled();
+        const calibrateEnabled = resolveInterestCalibrateEnabled();
         // Isolate this start() from any prior in-flight interest load callbacks.
         const sessionToken = ++sessionGeneration;
         /** @type {ReturnType<typeof createInterestObjectsLayer> | null} */
@@ -472,6 +500,7 @@ export function createMindARTrackingAdapter({
           onItemLoaded: (id) => {
             if (sessionGeneration !== sessionToken) return;
             if (interestLayer !== sessionLayer) return;
+            interestCalibrate?.onItemLoaded?.(id);
             if (interestAnimation !== sessionAnim || !sessionAnim) return;
             if (sessionAnim.getState?.()?.disposed) return;
             sessionAnim.onItemLoaded(id);
@@ -481,7 +510,7 @@ export function createMindARTrackingAdapter({
         presentationRoot.add(sessionLayer.placement);
 
         sessionAnim = createInterestObjectsAnimation(sessionLayer, {
-          showAllImmediately: debugEnabled,
+          showAllImmediately: debugEnabled || calibrateEnabled,
         });
         interestAnimation = sessionAnim;
 
@@ -560,11 +589,23 @@ export function createMindARTrackingAdapter({
           // ignore
         }
         applyCameraLayerStacking(container, renderer, {
-          canvasPointerEvents: "none",
+          canvasPointerEvents: calibrateEnabled ? "auto" : "none",
           shell,
         });
+        if (calibrateEnabled) enableCalibrateCanvasHits(container, renderer);
         recordArViewportLifecycle(shell, "after-first-normalize");
         videoResizeCleanup = bindMindArVideoResize(mindarThree, { container, shell });
+
+        if (calibrateEnabled) {
+          interestCalibrate = createInterestObjectsCalibrate({
+            THREE,
+            layer: sessionLayer,
+            camera,
+            domElement: renderer.domElement,
+            shell,
+            presentation: presentationRoot,
+          });
+        }
 
         const onViewportChange = () => {
           if (!running || !mindarThree) return;
@@ -576,9 +617,10 @@ export function createMindARTrackingAdapter({
             // ignore
           }
           applyCameraLayerStacking(container, renderer, {
-            canvasPointerEvents: "none",
+            canvasPointerEvents: calibrateEnabled ? "auto" : "none",
             shell,
           });
+          if (calibrateEnabled) enableCalibrateCanvasHits(container, renderer);
           recordArViewportLifecycle(shell, "viewport-change");
         };
         running = true;
@@ -612,9 +654,10 @@ export function createMindARTrackingAdapter({
               // ignore
             }
             applyCameraLayerStacking(container, renderer, {
-              canvasPointerEvents: "none",
+              canvasPointerEvents: calibrateEnabled ? "auto" : "none",
               shell,
             });
+            if (calibrateEnabled) enableCalibrateCanvasHits(container, renderer);
             recordArViewportLifecycle(shell, "after-500ms");
           }, 500),
         );

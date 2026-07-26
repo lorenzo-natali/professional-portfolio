@@ -72,16 +72,39 @@ export function createDocumentPlane({
      * Inverse of toWorldFromTopLeft for calibration / overlap tests.
      * @param {number} x
      * @param {number} y
+     * @param {{ clamp?: boolean }} [options]
      */
-    toTopLeftFromWorld(x, y) {
+    toTopLeftFromWorld(x, y, options = {}) {
+      const shouldClamp = options.clamp !== false;
       const u = (x - (-halfW + mx)) / contentWidth;
       const vBottom = (y - (-halfH + my)) / contentHeight;
+      const vTop = 1 - vBottom;
+      if (!shouldClamp) return { u, vTop };
       return {
         u: Math.min(Math.max(u, 0), 1),
-        vTop: Math.min(Math.max(1 - vBottom, 0), 1),
+        vTop: Math.min(Math.max(vTop, 0), 1),
       };
     },
+
+    /**
+     * Unclamped UV from local document XY (calibration drag).
+     * @param {number} x
+     * @param {number} y
+     */
+    toTopLeftFromWorldUnclamped(x, y) {
+      return this.toTopLeftFromWorld(x, y, { clamp: false });
+    },
   };
+}
+
+/**
+ * Soft-clamp UV so the pivot stays on the CV after a drag release.
+ * @param {number} value
+ * @param {number} [min]
+ * @param {number} [max]
+ */
+export function softClamp01(value, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, value));
 }
 
 export const DEFAULT_DOCUMENT_PLANE = createDocumentPlane();
