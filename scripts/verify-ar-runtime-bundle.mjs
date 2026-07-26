@@ -42,6 +42,7 @@ const requiredJs = [
   "MindARTrackingAdapter",
   "data-ar-portal-host",
   "CALIBRATE MODE — Activate Camera",
+  "CALIBRATE MODE ON",
 ];
 
 const requiredCss = ["data-ar-calibrating", "ar-portal-host"];

@@ -8,7 +8,7 @@ describe("lockArPage", () => {
     window.scrollTo(0, 0);
   });
 
-  it("locks html/body and restores scroll position on unlock", () => {
+  it("locks scroll without body position:fixed (iOS containing-block safe)", () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     vi.spyOn(window, "scrollX", "get").mockReturnValue(12);
     vi.spyOn(window, "scrollY", "get").mockReturnValue(240);
@@ -20,25 +20,25 @@ describe("lockArPage", () => {
     expect(document.documentElement.style.overflow).toBe("hidden");
     expect(document.documentElement.style.touchAction).toBe("none");
     expect(document.documentElement.style.overscrollBehavior).toBe("none");
-    expect(document.body.style.position).toBe("fixed");
-    expect(document.body.style.top).toBe("-240px");
-    // Never shift body with left:-scrollX — that broke iOS fixed containing blocks.
-    expect(document.body.style.left).toBe("0px");
-    expect(document.body.style.width).toBe("auto");
+    expect(document.documentElement.style.width).toBe("100%");
+    // Critical: never pin body fixed — that caused the iPhone right gap.
+    expect(document.body.style.position).toBe("");
+    expect(document.body.style.top).toBe("");
+    expect(document.body.style.width).toBe("100%");
     expect(document.body.style.maxWidth).toBe("none");
     expect(document.body.style.overflow).toBe("hidden");
     expect(document.body.style.touchAction).toBe("none");
+    expect(scrollTo).toHaveBeenCalledWith(0, 0);
 
     unlock();
 
-    expect(document.body.style.position).toBe("");
-    expect(document.body.style.top).toBe("");
     expect(document.body.style.overflow).toBe("auto");
+    expect(document.body.style.width).toBe("");
     expect(scrollTo).toHaveBeenCalledWith(12, 240);
 
     // Idempotent.
     unlock();
-    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledTimes(2);
   });
 });
 

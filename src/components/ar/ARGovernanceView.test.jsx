@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, within, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ARGovernanceView from "./ARGovernanceView";
+import {
+  captureArRuntimeFlags,
+  resetArRuntimeFlagsForTests,
+} from "./arRuntimeFlags";
 
 const mobileMock = vi.hoisted(() => ({ isMobile: true }));
 
@@ -29,6 +33,8 @@ describe("ARGovernanceView entry flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
+    resetArRuntimeFlagsForTests();
+    sessionStorage.clear();
     document.body.innerHTML = '<div id="root"></div>';
     document.querySelectorAll("[data-ar-portal-host='true']").forEach((el) => el.remove());
     mobileMock.isMobile = true;
@@ -110,7 +116,8 @@ describe("ARGovernanceView entry flow", () => {
 
     expect(root.hasAttribute("inert")).toBe(true);
     expect(root.style.pointerEvents).toBe("none");
-    expect(document.body.style.position).toBe("fixed");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.body.style.position).toBe("");
   });
 
   it("restores page lock on close", () => {
@@ -123,7 +130,7 @@ describe("ARGovernanceView entry flow", () => {
     expect(document.querySelector("[data-ar-viewport-shell='true']")).toBeNull();
     expect(root.hasAttribute("inert")).toBe(false);
     expect(root.style.pointerEvents).toBe("");
-    expect(document.body.style.position).toBe("");
+    expect(document.body.style.overflow).toBe("");
   });
 
   it("does not offer a 2D brief when the target is missing", async () => {
@@ -153,5 +160,22 @@ describe("ARGovernanceView entry flow", () => {
     await userEvent.click(activate);
 
     expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
+  });
+
+  it("auto-starts camera when arInterestsCalibrate is latched", async () => {
+    captureArRuntimeFlags({
+      href: "https://example.com/?arInterestsCalibrate=1",
+      pathname: "/",
+      search: "?arInterestsCalibrate=1",
+      hash: "",
+    });
+    mobileMock.isMobile = false;
+
+    render(<ARGovernanceView open onClose={vi.fn()} />);
+
+    const scope = portalScope();
+    expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
+    expect(scope.queryByRole("button", { name: "Activate Camera" })).toBeNull();
+    expect(scope.getByText(/CALIBRATE MODE/i)).toBeTruthy();
   });
 });

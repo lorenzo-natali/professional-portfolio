@@ -39,7 +39,7 @@ function unavailableCopy(reason) {
   }
 }
 
-function CalibrateEarlyBanner() {
+function CalibrateEarlyBanner({ autoCamera }) {
   const flags = getArRuntimeFlags();
   if (!flags.arInterestsCalibrate) return null;
   return (
@@ -48,18 +48,28 @@ function CalibrateEarlyBanner() {
       className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-3 pt-[max(0.45rem,env(safe-area-inset-top))]"
     >
       <div className="rounded bg-amber-700/95 px-3 py-1.5 text-center text-[11px] font-extrabold tracking-[0.08em] text-amber-50 uppercase">
-        CALIBRATE MODE — Activate Camera to edit layout
+        {autoCamera
+          ? "CALIBRATE MODE — camera starting"
+          : "CALIBRATE MODE — Activate Camera to edit layout"}
       </div>
     </div>
   );
 }
 
-function ARGovernanceExperience({ isMobile, onClose }) {
-  const flags = getArRuntimeFlags();
+function initialArScreen(isMobile, flags) {
   // Calibrate / audit field work must reach the camera path even when Safari
   // "Request Desktop Website" misclassifies the device.
   const allowCameraPath = isMobile || flags.arInterestsCalibrate || flags.arRuntimeAudit;
-  const [screen, setScreen] = useState(allowCameraPath ? "intro" : "desktop");
+  if (!allowCameraPath) return "desktop";
+  // Skip intro in calibrate mode — mount MindAR + Save final layout immediately.
+  if (flags.arInterestsCalibrate) return "camera";
+  return "intro";
+}
+
+function ARGovernanceExperience({ isMobile, onClose }) {
+  const flags = getArRuntimeFlags();
+  const allowCameraPath = isMobile || flags.arInterestsCalibrate || flags.arRuntimeAudit;
+  const [screen, setScreen] = useState(() => initialArScreen(isMobile, flags));
   const [unavailableReason, setUnavailableReason] = useState(null);
 
   useLayoutEffect(() => {
@@ -84,9 +94,9 @@ function ARGovernanceExperience({ isMobile, onClose }) {
         calibrateSkipReason: "desktop-gate (isMobile=false)",
       });
     }
-    if (screen === "intro" && flags.arInterestsCalibrate) {
+    if (flags.arInterestsCalibrate && screen === "camera") {
       console.info(
-        "[ar-interests-calibrate] flag latched — early banner visible; controller mounts after Activate Camera",
+        "[ar-interests-calibrate] auto-started camera — controller mounts with MindAR",
         { source: flags.calibrateSource },
       );
       setArRuntimeAuditState({ calibrateSkipReason: null });
@@ -101,7 +111,7 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 
   return (
     <>
-      <CalibrateEarlyBanner />
+      <CalibrateEarlyBanner autoCamera={flags.arInterestsCalibrate} />
 
       {screen === "desktop" && <ARDesktopGate onClose={onClose} />}
 

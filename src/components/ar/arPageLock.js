@@ -2,9 +2,9 @@
  * Reversible iOS-safe page lock while the AR experience is open.
  * Preserves scroll position and restores html/body styles on unlock.
  *
- * Important: do not offset body with left:-scrollX. On iOS Safari a shifted
- * position:fixed body can become the containing block for the AR portal host
- * and leave a dark vertical gap on the right of the screen.
+ * Do NOT use body { position: fixed }. On iOS Safari a fixed body becomes a
+ * containing block / layout root that can leave a persistent right-edge gap
+ * even when the AR portal is parented under <html>.
  */
 export function lockArPage() {
   if (typeof document === "undefined" || typeof window === "undefined") {
@@ -21,6 +21,7 @@ export function lockArPage() {
     htmlOverscroll: html.style.overscrollBehavior,
     htmlTouchAction: html.style.touchAction,
     htmlHeight: html.style.height,
+    htmlWidth: html.style.width,
     htmlTransform: html.style.transform,
     htmlFilter: html.style.filter,
     htmlPerspective: html.style.perspective,
@@ -47,26 +48,31 @@ export function lockArPage() {
   html.style.overscrollBehavior = "none";
   html.style.touchAction = "none";
   html.style.height = "100%";
+  html.style.width = "100%";
   html.style.transform = "none";
   html.style.filter = "none";
   html.style.perspective = "none";
 
+  // Keep body in normal flow — only freeze scroll/overscroll.
   body.style.overflow = "hidden";
   body.style.overscrollBehavior = "none";
   body.style.touchAction = "none";
-  body.style.position = "fixed";
-  body.style.top = `-${scrollY}px`;
-  body.style.left = "0px";
-  body.style.right = "0px";
-  body.style.bottom = "auto";
-  body.style.width = "auto";
-  body.style.height = "auto";
+  body.style.position = "";
+  body.style.top = "";
+  body.style.left = "";
+  body.style.right = "";
+  body.style.bottom = "";
+  body.style.width = "100%";
   body.style.maxWidth = "none";
+  body.style.height = "";
   body.style.margin = "0";
   body.style.padding = "0";
   body.style.transform = "none";
   body.style.filter = "none";
   body.style.perspective = "none";
+
+  // Freeze visual scroll without taking body out of flow.
+  window.scrollTo(0, 0);
 
   let unlocked = false;
   return () => {
@@ -77,6 +83,7 @@ export function lockArPage() {
     html.style.overscrollBehavior = previous.htmlOverscroll;
     html.style.touchAction = previous.htmlTouchAction;
     html.style.height = previous.htmlHeight;
+    html.style.width = previous.htmlWidth;
     html.style.transform = previous.htmlTransform;
     html.style.filter = previous.htmlFilter;
     html.style.perspective = previous.htmlPerspective;
