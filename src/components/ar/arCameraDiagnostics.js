@@ -336,6 +336,7 @@ export function waitForVideoDimensions(video, { timeoutMs = 8000, intervalMs = 5
  *   container?: HTMLElement|null,
  *   onSnapshot?: (snapshot: CameraQualitySnapshot) => void,
  *   logInitial?: boolean,
+ *   forceEnabled?: boolean,
  * }} options
  * @returns {() => void} cleanup
  */
@@ -344,8 +345,9 @@ export function attachArCameraDiagnostics({
   container = null,
   onSnapshot,
   logInitial = true,
+  forceEnabled = false,
 } = {}) {
-  if (!video || !isArCameraDebugEnabled()) {
+  if (!video || !(forceEnabled || isArCameraDebugEnabled())) {
     return () => {};
   }
 

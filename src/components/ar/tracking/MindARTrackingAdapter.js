@@ -5,8 +5,6 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createLensLayer } from "../createLensLayer";
-import { DEFAULT_LENS_ID } from "../lensCatalog";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
@@ -101,7 +99,6 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let lensLayer = null;
 
   return {
     isRunning: () => running,
@@ -149,20 +146,16 @@ export function createMindARTrackingAdapter({
         const light = new THREE.AmbientLight(0xffffff, 0.9);
         scene.add(light);
 
+        // Clean camera baseline: tracking anchor only — no Risk/Governance Lens content.
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
-        lensLayer = createLensLayer(THREE, { lensId: DEFAULT_LENS_ID });
-        anchor.group.add(lensLayer.group);
-
         anchor.onTargetFound = () => {
-          lensLayer?.onTargetFound();
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
-          lensLayer?.onTargetLost();
           callbacks.onTargetLost?.();
         };
 
@@ -206,12 +199,6 @@ export function createMindARTrackingAdapter({
         rafLoop = renderer;
       } catch (error) {
         running = false;
-        try {
-          lensLayer?.dispose();
-        } catch {
-          // ignore
-        }
-        lensLayer = null;
         const err = error instanceof Error ? error : new Error(String(error));
         if (isTargetLoadError(err)) {
           callbacks.onUnsupported?.("target-unavailable");
@@ -231,13 +218,6 @@ export function createMindARTrackingAdapter({
         // ignore
       }
       viewportCleanup = null;
-
-      try {
-        lensLayer?.dispose();
-      } catch {
-        // ignore
-      }
-      lensLayer = null;
 
       const instance = mindarThree;
       mindarThree = null;

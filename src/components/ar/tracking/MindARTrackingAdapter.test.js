@@ -108,7 +108,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("starts exactly one MindAR session and attaches the governance lens to the anchor", async () => {
+  it("starts exactly one MindAR session with a clean anchor and no Risk Lens content", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group, addAnchor, renderer, resize } = mockMindAR();
 
@@ -129,9 +129,9 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
-    expect(group.add).toHaveBeenCalledTimes(1);
-    expect(group.children[0].name).toBe("ar-lens-layer");
-    expect(group.children.some((child) => child.name === "ar-anchor-proof")).toBe(false);
+    expect(group.add).not.toHaveBeenCalled();
+    expect(group.children.some((child) => child?.name === "ar-lens-layer")).toBe(false);
+    expect(group.children.some((child) => child?.name === "ar-governance-lens")).toBe(false);
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
     expect(resize).toHaveBeenCalled();
@@ -172,9 +172,9 @@ describe("createMindARTrackingAdapter camera slice", () => {
     await adapter.stop();
   });
 
-  it("notifies target lost/found for the lens without leaving the camera session", async () => {
+  it("notifies target lost/found without leaving the camera session", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
-    const { group, addAnchor } = mockMindAR();
+    const { addAnchor } = mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
     const onTargetFound = vi.fn();
     const onTargetLost = vi.fn();
@@ -199,7 +199,6 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(onUnsupported).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(adapter.isRunning()).toBe(true);
-    expect(group.children[0].name).toBe("ar-lens-layer");
 
     await adapter.stop();
   });

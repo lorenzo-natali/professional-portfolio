@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AR_CAMERA_DEBUG,
   isArCameraDebugEnabled,
+  resetArCameraDebugLatch,
 } from "./arDebug";
 import {
   attachArCameraDiagnostics,
@@ -78,6 +79,7 @@ describe("ar camera diagnostics", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    resetArCameraDebugLatch();
     window.history.replaceState({}, "", "/");
   });
 

@@ -5,22 +5,25 @@ import { formatCameraDiagnosticsSummary } from "./arCameraDiagnostics";
  * Compact temporary diagnostics panel (debug flag only).
  * Placed top-left so it avoids the central CV framing area.
  */
-export default function ARCameraDiagnosticsPanel({ snapshot }) {
+export default function ARCameraDiagnosticsPanel({ snapshot, waiting = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const summary = useMemo(() => formatCameraDiagnosticsSummary(snapshot), [snapshot]);
-
-  if (!snapshot) return null;
+  const summary = useMemo(() => {
+    if (snapshot) return formatCameraDiagnosticsSummary(snapshot);
+    if (waiting) return "Waiting for camera video metadata…";
+    return "";
+  }, [snapshot, waiting]);
 
   const copy = async () => {
-    const payload = JSON.stringify(snapshot, null, 2);
+    const payload = snapshot
+      ? JSON.stringify(snapshot, null, 2)
+      : "AR camera diagnostics: waiting for video metadata";
     try {
       await navigator.clipboard?.writeText?.(payload);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Fallback for environments without clipboard permissions.
       const area = document.createElement("textarea");
       area.value = payload;
       document.body.appendChild(area);
@@ -35,7 +38,8 @@ export default function ARCameraDiagnosticsPanel({ snapshot }) {
   return (
     <div
       data-ar-camera-diagnostics="true"
-      className="pointer-events-auto absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-40 max-w-[min(18rem,calc(100vw-1rem))] rounded border border-slate-600/80 bg-slate-950/85 text-[10px] leading-snug text-slate-100 shadow-md backdrop-blur-[1px]"
+      data-ar-camera-diagnostics-waiting={waiting && !snapshot ? "true" : "false"}
+      className="pointer-events-auto absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-[60] max-w-[min(18rem,calc(100vw-1rem))] rounded border border-amber-500/50 bg-slate-950/90 text-[10px] leading-snug text-slate-100 shadow-md"
       style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace' }}
     >
       <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 px-2 py-1">
