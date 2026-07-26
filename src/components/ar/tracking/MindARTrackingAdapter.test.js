@@ -108,7 +108,7 @@ describe("createMindARTrackingAdapter camera slice", () => {
     expect(mocks.MindARThree).not.toHaveBeenCalled();
   });
 
-  it("starts exactly one MindAR session with a clean anchor and no Risk Lens content", async () => {
+  it("starts exactly one MindAR session with a Professional Card and no Risk Lens labels", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const { group, addAnchor, renderer, resize } = mockMindAR();
 
@@ -129,9 +129,11 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     expect(mocks.MindARThree).toHaveBeenCalledTimes(1);
     expect(addAnchor).toHaveBeenCalledTimes(1);
-    expect(group.add).not.toHaveBeenCalled();
+    expect(group.add).toHaveBeenCalled();
+    expect(group.children.some((child) => child?.name === "ar-professional-card")).toBe(true);
     expect(group.children.some((child) => child?.name === "ar-lens-layer")).toBe(false);
     expect(group.children.some((child) => child?.name === "ar-governance-lens")).toBe(false);
+    expect(group.children.some((child) => child?.userData?.kind === "ar-lens-layer")).toBe(false);
     expect(onReady).toHaveBeenCalledTimes(1);
     expect(renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
     expect(resize).toHaveBeenCalled();
@@ -143,6 +145,32 @@ describe("createMindARTrackingAdapter camera slice", () => {
 
     await adapter.stop();
     shell.remove();
+  });
+
+  it("wires card entrance to target found/lost without diagnostics hooks", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    const { addAnchor } = mockMindAR();
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+    const onTargetFound = vi.fn();
+    const onTargetLost = vi.fn();
+
+    await adapter.start(document.createElement("div"), {
+      onReady: vi.fn(),
+      onTargetFound,
+      onTargetLost,
+      onUnsupported: vi.fn(),
+      onError: vi.fn(),
+    });
+
+    const wired = addAnchor.mock.results[0].value;
+    expect(typeof wired.onTargetFound).toBe("function");
+    expect(typeof wired.onTargetLost).toBe("function");
+    wired.onTargetFound();
+    wired.onTargetLost();
+    expect(onTargetFound).toHaveBeenCalledTimes(1);
+    expect(onTargetLost).toHaveBeenCalledTimes(1);
+
+    await adapter.stop();
   });
 
   it("starts MindAR without injecting camera constraint overrides", async () => {

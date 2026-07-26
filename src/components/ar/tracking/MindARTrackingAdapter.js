@@ -5,6 +5,8 @@ import {
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
+import { createProfessionalCard3D } from "../createProfessionalCard3D";
+import { createProfessionalCardAnimation } from "../professionalCardAnimation";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
 
 /**
@@ -99,6 +101,8 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
+  let professionalCard = null;
+  let professionalCardAnimation = null;
 
   return {
     isRunning: () => running,
@@ -143,19 +147,28 @@ export function createMindARTrackingAdapter({
           renderer.setClearAlpha(0);
         }
 
-        const light = new THREE.AmbientLight(0xffffff, 0.9);
-        scene.add(light);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.78);
+        scene.add(ambient);
+        const keyLight = new THREE.DirectionalLight(0xf8fafc, 0.42);
+        keyLight.position.set(0.35, 0.85, 1.15);
+        scene.add(keyLight);
 
-        // Clean camera baseline: tracking anchor only — no Risk/Governance Lens content.
+        // Tracking anchor + Professional Card — no Risk/Governance Lens labels.
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
+        professionalCard = createProfessionalCard3D(THREE);
+        professionalCardAnimation = createProfessionalCardAnimation(professionalCard);
+        anchor.group.add(professionalCard.group);
+
         anchor.onTargetFound = () => {
+          professionalCardAnimation?.onTargetFound();
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
+          professionalCardAnimation?.onTargetLost();
           callbacks.onTargetLost?.();
         };
 
@@ -212,6 +225,20 @@ export function createMindARTrackingAdapter({
         // ignore
       }
       viewportCleanup = null;
+
+      try {
+        professionalCardAnimation?.dispose();
+      } catch {
+        // ignore
+      }
+      professionalCardAnimation = null;
+
+      try {
+        professionalCard?.dispose();
+      } catch {
+        // ignore
+      }
+      professionalCard = null;
 
       const instance = mindarThree;
       mindarThree = null;
