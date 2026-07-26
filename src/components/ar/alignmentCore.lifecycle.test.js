@@ -3,12 +3,12 @@ import * as THREE from "three";
 import { createValidMindFixture } from "./mindTargetFixture";
 import { createAlignmentInteraction } from "./createAlignmentInteraction";
 import { createAlignmentAnimator } from "./createAlignmentAnimator";
+import { createAlignmentCore } from "./createAlignmentCore";
 
 const mocks = vi.hoisted(() => ({
   loadArTargetBuffer: vi.fn(),
   MindARThree: vi.fn(),
-  createAlignmentCore: vi.fn(),
-  actualCreate: null,
+  createInterestObjectsLayer: vi.fn(),
 }));
 
 vi.mock("./checkArTargetAvailable", async (importOriginal) => {
@@ -19,26 +19,34 @@ vi.mock("./checkArTargetAvailable", async (importOriginal) => {
   };
 });
 
-vi.mock("./createAlignmentCore", async (importOriginal) => {
-  const actual = await importOriginal();
-  mocks.actualCreate = actual.createAlignmentCore;
-  mocks.createAlignmentCore.mockImplementation((...args) => {
-    const core = actual.createAlignmentCore(...args);
-    const realDispose = core.dispose.bind(core);
-    core.dispose = vi.fn(() => realDispose());
-    return core;
-  });
-  return {
-    ...actual,
-    createAlignmentCore: (...args) => mocks.createAlignmentCore(...args),
-  };
-});
+vi.mock("./createInterestObjectsLayer", () => ({
+  createInterestObjectsLayer: (...args) => mocks.createInterestObjectsLayer(...args),
+}));
 
 vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
   MindARThree: mocks.MindARThree,
 }));
 
 import { createMindARTrackingAdapter } from "./tracking/MindARTrackingAdapter";
+
+function makeInterestLayerStub() {
+  const placement = new THREE.Group();
+  placement.name = "ar-interest-objects-placement";
+  return {
+    placement,
+    group: placement,
+    entries: [],
+    items: [],
+    setVisible: vi.fn(),
+    applyEntranceProgress: vi.fn(),
+    resetVisualState: vi.fn(),
+    applyPoseEdit: vi.fn(),
+    getConfigSnapshot: vi.fn(),
+    getEntry: vi.fn(),
+    startLoading: vi.fn(async () => {}),
+    dispose: vi.fn(),
+  };
+}
 
 function mockMindAR({ startImpl } = {}) {
   const group = new THREE.Group();
@@ -72,11 +80,12 @@ function mockMindAR({ startImpl } = {}) {
   return { renderer };
 }
 
-describe("Alignment Core adapter lifecycle", () => {
+describe("Interest objects adapter lifecycle", () => {
   beforeEach(() => {
     mocks.loadArTargetBuffer.mockReset();
     mocks.MindARThree.mockReset();
-    mocks.createAlignmentCore.mockClear();
+    mocks.createInterestObjectsLayer.mockReset();
+    mocks.createInterestObjectsLayer.mockReturnValue(makeInterestLayerStub());
     vi.stubGlobal("URL", {
       createObjectURL: vi.fn(() => "blob:mind-target"),
       revokeObjectURL: vi.fn(),
@@ -104,8 +113,8 @@ describe("Alignment Core adapter lifecycle", () => {
     await adapter.start(container, { onError });
     expect(onError).toHaveBeenCalled();
     expect(adapter.isRunning()).toBe(false);
-    const coreInstance = mocks.createAlignmentCore.mock.results[0]?.value;
-    expect(coreInstance.dispose).toHaveBeenCalled();
+    const layerInstance = mocks.createInterestObjectsLayer.mock.results[0]?.value;
+    expect(layerInstance.dispose).toHaveBeenCalled();
     expect(URL.revokeObjectURL).toHaveBeenCalled();
 
     // Restart after failure.
@@ -138,9 +147,9 @@ describe("Alignment Core adapter lifecycle", () => {
   });
 });
 
-describe("atomic session reset with interaction", () => {
+describe("legacy Alignment Core unit reset (module kept, unwired)", () => {
   it("clears inertia when resetting during active drag bookkeeping", () => {
-    const core = mocks.actualCreate(THREE);
+    const core = createAlignmentCore(THREE);
     core.setVisible(true);
     const camera = new THREE.PerspectiveCamera();
     const dom = document.createElement("canvas");

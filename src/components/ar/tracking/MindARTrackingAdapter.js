@@ -1,13 +1,16 @@
 import { AR_TARGET_SRC } from "../arConfig";
-import { AR_SHOW_ANCHOR_PROOF } from "../arDebug";
+import { AR_SHOW_ANCHOR_PROOF, AR_INTERESTS_DEBUG } from "../arDebug";
 import {
   isTargetLoadError,
   loadArTargetBuffer,
 } from "../checkArTargetAvailable";
 import { createAnchorProofObject } from "../createAnchorProofObject";
-import { createAlignmentCore } from "../createAlignmentCore";
-import { createAlignmentAnimator } from "../createAlignmentAnimator";
-import { createAlignmentInteraction } from "../createAlignmentInteraction";
+import { createInterestObjectsLayer } from "../createInterestObjectsLayer";
+import { createInterestObjectsAnimation } from "../createInterestObjectsAnimation";
+import {
+  createInterestObjectsDebug,
+  isInterestObjectsDebugEnabled,
+} from "../createInterestObjectsDebug";
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
 import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
@@ -16,13 +19,13 @@ import { bindArViewportListeners, syncArViewportShell } from "../arViewport";
  * Lift MindAR's video above the container background (MindAR defaults to z-index: -2)
  * and keep the WebGL/CSS3D layers transparent above it.
  *
- * Canvas may receive pointers for Alignment Core rotation; Close stays outside
- * this container with pointer-events: auto.
+ * Canvas stays non-interactive for this milestone (static interest miniatures).
+ * Close stays outside this container with pointer-events: auto.
  */
 export function applyCameraLayerStacking(container, renderer, options = {}) {
   if (!container) return;
 
-  const canvasPointerEvents = options.canvasPointerEvents ?? "auto";
+  const canvasPointerEvents = options.canvasPointerEvents ?? "none";
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
@@ -103,7 +106,7 @@ function findViewportShell(container) {
   );
 }
 
-function configureAlignmentRenderer(THREE, renderer) {
+function configureInterestRenderer(THREE, renderer) {
   if (!renderer) return;
   if ("outputColorSpace" in renderer && "SRGBColorSpace" in THREE) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -121,27 +124,27 @@ function configureAlignmentRenderer(THREE, renderer) {
   renderer.setClearAlpha?.(0);
 }
 
-function createAlignmentLighting(THREE, scene) {
+function createInterestLighting(THREE, scene) {
   const lights = [];
   const hemi = new THREE.HemisphereLight(0xdde7f2, 0x1a1f28, 0.55);
-  hemi.name = "ar-ac-hemi";
+  hemi.name = "ar-interest-hemi";
   scene.add(hemi);
   lights.push(hemi);
 
   const key = new THREE.DirectionalLight(0xf4f7fb, 0.85);
-  key.name = "ar-ac-key";
+  key.name = "ar-interest-key";
   key.position.set(0.45, 0.9, 1.2);
   scene.add(key);
   lights.push(key);
 
   const fill = new THREE.DirectionalLight(0x9eb6ff, 0.28);
-  fill.name = "ar-ac-fill";
+  fill.name = "ar-interest-fill";
   fill.position.set(-0.7, 0.2, 0.6);
   scene.add(fill);
   lights.push(fill);
 
   const rim = new THREE.DirectionalLight(0x5ec8d6, 0.22);
-  rim.name = "ar-ac-rim";
+  rim.name = "ar-interest-rim";
   rim.position.set(0.1, -0.4, -0.9);
   scene.add(rim);
   lights.push(rim);
@@ -162,6 +165,11 @@ function createAlignmentLighting(THREE, scene) {
   };
 }
 
+function resolveInterestDebugEnabled() {
+  if (!import.meta.env.DEV) return false;
+  return isInterestObjectsDebugEnabled({ forceFlag: AR_INTERESTS_DEBUG });
+}
+
 /**
  * MindAR is confined to this adapter. Swap adapters without changing UI code.
  * @returns {import("./createTrackingAdapter").TrackingAdapter}
@@ -174,9 +182,9 @@ export function createMindARTrackingAdapter({
   let running = false;
   let rafLoop = null;
   let viewportCleanup = null;
-  let alignmentCore = null;
-  let alignmentAnimator = null;
-  let alignmentInteraction = null;
+  let interestLayer = null;
+  let interestAnimation = null;
+  let interestDebug = null;
   let poseStabilizer = null;
   let presentationRoot = null;
   let presentationLighting = null;
@@ -184,6 +192,8 @@ export function createMindARTrackingAdapter({
   let sessionResetTimer = 0;
   let sessionBlobUrl = null;
   let cleaning = false;
+  /** Invalidates async load callbacks from prior AR sessions. */
+  let sessionGeneration = 0;
 
   function clearSessionReset() {
     if (sessionResetTimer) {
@@ -192,20 +202,8 @@ export function createMindARTrackingAdapter({
     }
   }
 
-  function syncInteractionGate(phase) {
-    if (!alignmentInteraction) return;
-    if (phase === "aligning" || phase === "hidden") {
-      alignmentInteraction.setEnabled(false);
-    } else {
-      // split | merged
-      alignmentInteraction.setEnabled(true);
-    }
-  }
-
   function resetSessionAtomic() {
-    alignmentInteraction?.reset();
-    alignmentAnimator?.resetSession();
-    syncInteractionGate(alignmentAnimator?.getPhase?.() ?? "hidden");
+    interestAnimation?.resetSession();
   }
 
   /**
@@ -215,6 +213,8 @@ export function createMindARTrackingAdapter({
     if (cleaning) return;
     cleaning = true;
     running = false;
+    // Bump first so in-flight promise callbacks from this session become no-ops.
+    sessionGeneration += 1;
     clearSessionReset();
 
     try {
@@ -225,19 +225,18 @@ export function createMindARTrackingAdapter({
     viewportCleanup = null;
 
     try {
-      alignmentInteraction?.reset();
-      alignmentInteraction?.dispose();
+      interestDebug?.dispose();
     } catch {
       // ignore
     }
-    alignmentInteraction = null;
+    interestDebug = null;
 
     try {
-      alignmentAnimator?.dispose();
+      interestAnimation?.dispose();
     } catch {
       // ignore
     }
-    alignmentAnimator = null;
+    interestAnimation = null;
 
     try {
       poseStabilizer?.dispose();
@@ -247,11 +246,11 @@ export function createMindARTrackingAdapter({
     poseStabilizer = null;
 
     try {
-      alignmentCore?.dispose();
+      interestLayer?.dispose();
     } catch {
       // ignore
     }
-    alignmentCore = null;
+    interestLayer = null;
 
     try {
       presentationLighting?.dispose();
@@ -342,60 +341,94 @@ export function createMindARTrackingAdapter({
         });
 
         const { renderer, scene, camera } = mindarThree;
-        configureAlignmentRenderer(THREE, renderer);
-        presentationLighting = createAlignmentLighting(THREE, scene);
+        configureInterestRenderer(THREE, renderer);
+        presentationLighting = createInterestLighting(THREE, scene);
 
         // MindAR anchor (raw)
         //   → presentation (filtered)
-        //     → Alignment Core placement
+        //     → interest objects placement
         const anchor = mindarThree.addAnchor(0);
         if (showAnchorProof) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
         presentationRoot = new THREE.Group();
-        presentationRoot.name = "ar-alignment-core-presentation";
-        presentationRoot.userData.kind = "ar-alignment-core-presentation";
+        presentationRoot.name = "ar-interest-objects-presentation";
+        presentationRoot.userData.kind = "ar-interest-objects-presentation";
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        alignmentCore = createAlignmentCore(THREE);
-        presentationRoot.add(alignmentCore.placement);
+        const debugEnabled = resolveInterestDebugEnabled();
+        // Isolate this start() from any prior in-flight interest load callbacks.
+        const sessionToken = ++sessionGeneration;
+        /** @type {ReturnType<typeof createInterestObjectsLayer> | null} */
+        let sessionLayer = null;
+        /** @type {ReturnType<typeof createInterestObjectsAnimation> | null} */
+        let sessionAnim = null;
 
-        alignmentAnimator = createAlignmentAnimator(alignmentCore, {
-          THREE,
-          isDragging: () => alignmentInteraction?.isDragging?.() ?? false,
-          onPhaseChange: (phase) => {
-            syncInteractionGate(phase);
+        // Mount empty placeholders immediately — do not block the camera on GLBs.
+        sessionLayer = createInterestObjectsLayer(THREE, {
+          onItemLoaded: (id) => {
+            if (sessionGeneration !== sessionToken) return;
+            if (interestLayer !== sessionLayer) return;
+            if (interestAnimation !== sessionAnim || !sessionAnim) return;
+            if (sessionAnim.getState?.()?.disposed) return;
+            sessionAnim.onItemLoaded(id);
           },
         });
+        interestLayer = sessionLayer;
+        presentationRoot.add(sessionLayer.placement);
+
+        sessionAnim = createInterestObjectsAnimation(sessionLayer, {
+          showAllImmediately: debugEnabled,
+        });
+        interestAnimation = sessionAnim;
+
+        if (debugEnabled) {
+          interestDebug = createInterestObjectsDebug(sessionLayer, { enabled: true });
+        }
 
         poseStabilizer = createAnchorPoseStabilizer(THREE, {
           rawAnchor: anchor.group,
           presentation: presentationRoot,
           onAcquisitionReady: () => {
-            alignmentAnimator?.reveal();
-            syncInteractionGate(alignmentAnimator?.getPhase?.() ?? "split");
+            if (sessionGeneration !== sessionToken) return;
+            if (interestAnimation !== sessionAnim || !sessionAnim) return;
+            sessionAnim.onAcquisitionReady();
           },
         });
 
         anchor.onTargetFound = () => {
+          if (sessionGeneration !== sessionToken) return;
           clearSessionReset();
           poseStabilizer?.onTargetFound();
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
+          if (sessionGeneration !== sessionToken) return;
           poseStabilizer?.onTargetLost();
           clearSessionReset();
-          // Brief loss: keep last stable pose + sculpture. Full reset after shared threshold.
+          // Brief loss: keep last stable pose + objects. Full reset after shared threshold.
           sessionResetTimer = window.setTimeout(() => {
             sessionResetTimer = 0;
+            if (sessionGeneration !== sessionToken) return;
             resetSessionAtomic();
           }, AR_SESSION_RESET_MS);
           callbacks.onTargetLost?.();
         };
 
         // Camera permission / MindAR startup — failure must fully clean up.
+        // Interest GLBs load in the background after (and overlapping) camera start.
+        // Capture session refs now; never read live bindings at promise resolve time.
+        const interestLoadPromise = sessionLayer.startLoading();
+        void interestLoadPromise.then(() => {
+          if (sessionGeneration !== sessionToken) return;
+          if (interestLayer !== sessionLayer) return;
+          if (interestAnimation !== sessionAnim || !sessionAnim) return;
+          if (sessionAnim.getState?.()?.disposed) return;
+          sessionAnim.markLoadFinished();
+        });
+
         await mindarThree.start();
 
         syncArViewportShell(shell);
@@ -404,16 +437,7 @@ export function createMindARTrackingAdapter({
         } catch {
           // ignore
         }
-        applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
-
-        alignmentInteraction = createAlignmentInteraction({
-          domElement: renderer.domElement,
-          camera,
-          core: alignmentCore,
-          THREE,
-          getPhase: () => alignmentAnimator?.getPhase() ?? "hidden",
-        });
-        alignmentInteraction.setEnabled(false);
+        applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "none" });
 
         const onViewportChange = () => {
           if (!running || !mindarThree) return;
@@ -423,7 +447,7 @@ export function createMindARTrackingAdapter({
           } catch {
             // ignore
           }
-          applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
+          applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "none" });
         };
         running = true;
         viewportCleanup = bindArViewportListeners(onViewportChange);
@@ -436,8 +460,6 @@ export function createMindARTrackingAdapter({
           const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
           lastFrameTimeMs = tNow;
           poseStabilizer?.update(dtSec);
-          alignmentInteraction?.update();
-          alignmentAnimator?.update();
           renderer.render(scene, camera);
         });
         rafLoop = renderer;

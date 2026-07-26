@@ -209,20 +209,69 @@ export function createLabelMesh(THREE, text, options = {}) {
   return mesh;
 }
 
-/** Dispose label mesh resources. */
+/** Material texture slots commonly authored by glTF / Meshy exports. */
+export const DISPOSABLE_MATERIAL_TEXTURE_KEYS = [
+  "map",
+  "normalMap",
+  "roughnessMap",
+  "metalnessMap",
+  "aoMap",
+  "emissiveMap",
+  "alphaMap",
+  "bumpMap",
+  "displacementMap",
+  "lightMap",
+  "clearcoatMap",
+  "clearcoatNormalMap",
+  "clearcoatRoughnessMap",
+  "transmissionMap",
+  "thicknessMap",
+  "specularMap",
+  "specularColorMap",
+  "specularIntensityMap",
+  "sheenColorMap",
+  "sheenRoughnessMap",
+  "envMap",
+];
+
+/**
+ * Dispose geometries, materials and material textures under an Object3D.
+ * Shared textures are disposed once via a Set.
+ * @param {import("three").Object3D | null | undefined} object
+ */
 export function disposeObject3DResources(object) {
   if (!object) return;
+  /** @type {Set<unknown>} */
+  const disposedTextures = new Set();
+  /** @type {Set<unknown>} */
+  const disposedGeometries = new Set();
+  /** @type {Set<unknown>} */
+  const disposedMaterials = new Set();
+
+  function disposeTexture(texture) {
+    if (!texture || disposedTextures.has(texture)) return;
+    disposedTextures.add(texture);
+    texture.dispose?.();
+  }
+
   object.traverse((node) => {
     const extras = node.userData?.disposables;
     if (Array.isArray(extras)) {
       extras.forEach((item) => item?.dispose?.());
       node.userData.disposables = [];
     }
-    if (node.geometry) node.geometry.dispose?.();
+    if (node.geometry && !disposedGeometries.has(node.geometry)) {
+      disposedGeometries.add(node.geometry);
+      node.geometry.dispose?.();
+    }
     if (node.material) {
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       materials.forEach((mat) => {
-        mat.map?.dispose?.();
+        if (!mat || disposedMaterials.has(mat)) return;
+        disposedMaterials.add(mat);
+        DISPOSABLE_MATERIAL_TEXTURE_KEYS.forEach((key) => {
+          disposeTexture(mat[key]);
+        });
         mat.dispose?.();
       });
     }

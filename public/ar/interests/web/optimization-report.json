@@ -1,0 +1,898 @@
+{
+  "generatedAt": "2026-07-26T15:35:25.852Z",
+  "pipeline": "glTF Transform + Meshopt (no Draco)",
+  "sourceDir": "public/ar/interests",
+  "outputDir": "public/ar/interests/web",
+  "totals": {
+    "beforeBytes": 187865716,
+    "afterBytes": 8179868,
+    "beforeTriangles": 3651878,
+    "afterTriangles": 519741,
+    "beforeGpuTexMB": 554.65,
+    "afterGpuTexMB": 74.65,
+    "beforeMB": 179.16,
+    "afterMB": 7.8,
+    "transferReductionPct": 95.6
+  },
+  "assets": [
+    {
+      "id": "backpack",
+      "srcPath": "public/ar/interests/backpack.glb",
+      "outPath": "public/ar/interests/web/backpack.glb",
+      "notes": "aggressive; silhouette + straps",
+      "operations": [
+        "inspect",
+        "dedup",
+        "prune",
+        "textureCompress(resize=1024, jpeg)",
+        "simplify(ratio=0.11, error=0.0012)",
+        "weld",
+        "meshopt(level=medium)"
+      ],
+      "before": {
+        "fileBytes": 61748796,
+        "fileMB": 58.89,
+        "triangles": 965567,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 3,
+        "imageCount": 3,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 15681791,
+            "resolution": "4096x4096",
+            "resolutionXY": [
+              4096,
+              4096
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 89478484
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 294190,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "metallicRoughnessTexture"
+            ],
+            "gpuSize": 22369620
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 16415900,
+            "resolution": "4096x4096",
+            "resolutionXY": [
+              4096,
+              4096
+            ],
+            "slots": [
+              "normalTexture"
+            ],
+            "gpuSize": 89478484
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 192,
+        "bbox": {
+          "min": [
+            -0.73825,
+            -0.95063,
+            -0.69335
+          ],
+          "max": [
+            0.73636,
+            0.9485,
+            0.68772
+          ]
+        }
+      },
+      "after": {
+        "fileBytes": 1664908,
+        "fileMB": 1.59,
+        "triangles": 106208,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 3,
+        "imageCount": 3,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 251719,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 17228,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "metallicRoughnessTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 103977,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "normalTexture"
+            ],
+            "gpuSize": 5592404
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 16,
+        "bbox": {
+          "min": [
+            -0.73801,
+            -0.95055,
+            -0.69334
+          ],
+          "max": [
+            0.73643,
+            0.94831,
+            0.68762
+          ]
+        }
+      },
+      "reductionPct": 97.3,
+      "validation": {
+        "readable": true,
+        "hasMeshes": true,
+        "hasMaterials": true,
+        "hasImages": true,
+        "meshoptDeclared": true,
+        "noExternalUris": true,
+        "bboxCoherent": true,
+        "bboxDetail": {
+          "ok": true,
+          "ratios": [
+            0.9998847152806505,
+            0.9998578296377815,
+            0.9999203516114317
+          ]
+        },
+        "maxTextureEdge": 1024
+      },
+      "readyForLive": true,
+      "needsVisualReview": false
+    },
+    {
+      "id": "robot",
+      "srcPath": "public/ar/interests/robot.glb",
+      "outPath": "public/ar/interests/web/robot.glb",
+      "notes": "aggressive; preserve face/silhouette",
+      "operations": [
+        "inspect",
+        "dedup",
+        "prune",
+        "textureCompress(resize=1024, jpeg)",
+        "simplify(ratio=0.13, error=0.001)",
+        "weld",
+        "meshopt(level=medium)"
+      ],
+      "before": {
+        "fileBytes": 54571852,
+        "fileMB": 52.04,
+        "triangles": 765450,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 4,
+        "imageCount": 4,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 10750035,
+            "resolution": "4096x4096",
+            "resolutionXY": [
+              4096,
+              4096
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 89478484
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 1767960,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "metallicRoughnessTexture"
+            ],
+            "gpuSize": 22369620
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 13488441,
+            "resolution": "4096x4096",
+            "resolutionXY": [
+              4096,
+              4096
+            ],
+            "slots": [
+              "normalTexture"
+            ],
+            "gpuSize": 89478484
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 67393,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "emissiveTexture"
+            ],
+            "gpuSize": 22369620
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 213.33,
+        "bbox": {
+          "min": [
+            -0.6949,
+            -0.9507,
+            -0.50962
+          ],
+          "max": [
+            0.69361,
+            0.94878,
+            0.50835
+          ]
+        }
+      },
+      "after": {
+        "fileBytes": 1716440,
+        "fileMB": 1.64,
+        "triangles": 99508,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 4,
+        "imageCount": 4,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 186745,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 127585,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "metallicRoughnessTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 83186,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "normalTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 6454,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "emissiveTexture"
+            ],
+            "gpuSize": 5592404
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 21.33,
+        "bbox": {
+          "min": [
+            -0.69473,
+            -0.9507,
+            -0.50949
+          ],
+          "max": [
+            0.69294,
+            0.94878,
+            0.50834
+          ]
+        }
+      },
+      "reductionPct": 96.9,
+      "validation": {
+        "readable": true,
+        "hasMeshes": true,
+        "hasMaterials": true,
+        "hasImages": true,
+        "meshoptDeclared": true,
+        "noExternalUris": true,
+        "bboxCoherent": true,
+        "bboxDetail": {
+          "ok": true,
+          "ratios": [
+            0.9993950349655386,
+            1,
+            0.9998624713891372
+          ]
+        },
+        "maxTextureEdge": 1024
+      },
+      "readyForLive": true,
+      "needsVisualReview": false
+    },
+    {
+      "id": "fossil",
+      "srcPath": "public/ar/interests/fossil.glb",
+      "outPath": "public/ar/interests/web/fossil.glb",
+      "notes": "aggressive; preserve skull/horns",
+      "operations": [
+        "inspect",
+        "dedup",
+        "prune",
+        "textureCompress(resize=1024, jpeg)",
+        "simplify(ratio=0.13, error=0.0011)",
+        "weld",
+        "meshopt(level=medium)"
+      ],
+      "before": {
+        "fileBytes": 30850260,
+        "fileMB": 29.42,
+        "triangles": 936951,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 1,
+        "imageCount": 1,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 2722965,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 22369620
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 21.33,
+        "bbox": {
+          "min": [
+            -0.52851,
+            -0.85851,
+            -1.00022
+          ],
+          "max": [
+            0.52759,
+            0.85305,
+            0.99849
+          ]
+        }
+      },
+      "after": {
+        "fileBytes": 1625584,
+        "fileMB": 1.55,
+        "triangles": 121802,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 1,
+        "imageCount": 1,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 192977,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 5592404
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 5.33,
+        "bbox": {
+          "min": [
+            -0.52851,
+            -0.85847,
+            -1.00002
+          ],
+          "max": [
+            0.52759,
+            0.85289,
+            0.99819
+          ]
+        }
+      },
+      "reductionPct": 94.7,
+      "validation": {
+        "readable": true,
+        "hasMeshes": true,
+        "hasMaterials": true,
+        "hasImages": true,
+        "meshoptDeclared": true,
+        "noExternalUris": true,
+        "bboxCoherent": true,
+        "bboxDetail": {
+          "ok": true,
+          "ratios": [
+            1,
+            0.9998831475379186,
+            0.9997498386459266
+          ]
+        },
+        "maxTextureEdge": 1024
+      },
+      "readyForLive": true,
+      "needsVisualReview": true
+    },
+    {
+      "id": "plant",
+      "srcPath": "public/ar/interests/plant.glb",
+      "outPath": "public/ar/interests/web/plant.glb",
+      "notes": "aggressive; watch foliage gaps",
+      "operations": [
+        "inspect",
+        "dedup",
+        "prune",
+        "textureCompress(resize=1024, jpeg)",
+        "simplify(ratio=0.11, error=0.0014)",
+        "weld",
+        "meshopt(level=medium)"
+      ],
+      "before": {
+        "fileBytes": 22016812,
+        "fileMB": 21,
+        "triangles": 637594,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 1,
+        "imageCount": 1,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 1810618,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 22369620
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 21.33,
+        "bbox": {
+          "min": [
+            -0.88439,
+            -0.99788,
+            -0.93511
+          ],
+          "max": [
+            0.90105,
+            0.99882,
+            0.91857
+          ]
+        }
+      },
+      "after": {
+        "fileBytes": 1794892,
+        "fileMB": 1.71,
+        "triangles": 118331,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 1,
+        "imageCount": 1,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 255465,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 5592404
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 5.33,
+        "bbox": {
+          "min": [
+            -0.88324,
+            -0.99778,
+            -0.9342
+          ],
+          "max": [
+            0.90083,
+            0.99882,
+            0.91811
+          ]
+        }
+      },
+      "reductionPct": 91.8,
+      "validation": {
+        "readable": true,
+        "hasMeshes": true,
+        "hasMaterials": true,
+        "hasImages": true,
+        "meshoptDeclared": true,
+        "noExternalUris": true,
+        "bboxCoherent": true,
+        "bboxDetail": {
+          "ok": true,
+          "ratios": [
+            0.9992326821399767,
+            0.9999499173636499,
+            0.9992609296102888
+          ]
+        },
+        "maxTextureEdge": 1024
+      },
+      "readyForLive": true,
+      "needsVisualReview": true
+    },
+    {
+      "id": "book",
+      "srcPath": "public/ar/interests/book.glb",
+      "outPath": "public/ar/interests/web/book.glb",
+      "notes": "aggressive; cover readability",
+      "operations": [
+        "inspect",
+        "dedup",
+        "prune",
+        "textureCompress(resize=1024, jpeg)",
+        "simplify(ratio=0.19, error=0.001)",
+        "weld",
+        "meshopt(level=medium)"
+      ],
+      "before": {
+        "fileBytes": 16935508,
+        "fileMB": 16.15,
+        "triangles": 336320,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 4,
+        "imageCount": 4,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 2524853,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 22369620
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 1181767,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "metallicRoughnessTexture"
+            ],
+            "gpuSize": 22369620
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 2704492,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "normalTexture"
+            ],
+            "gpuSize": 22369620
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 307669,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "emissiveTexture"
+            ],
+            "gpuSize": 22369620
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 85.33,
+        "bbox": {
+          "min": [
+            -0.95071,
+            -0.01361,
+            -0.67386
+          ],
+          "max": [
+            0.94875,
+            0.34044,
+            0.67174
+          ]
+        }
+      },
+      "after": {
+        "fileBytes": 1048516,
+        "fileMB": 1,
+        "triangles": 63896,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 4,
+        "imageCount": 4,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 155987,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 106131,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "metallicRoughnessTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 78144,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "normalTexture"
+            ],
+            "gpuSize": 5592404
+          },
+          {
+            "mimeType": "image/jpeg",
+            "size": 21964,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "emissiveTexture"
+            ],
+            "gpuSize": 5592404
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 21.33,
+        "bbox": {
+          "min": [
+            -0.95068,
+            -0.01248,
+            -0.67389
+          ],
+          "max": [
+            0.94875,
+            0.34043,
+            0.67178
+          ]
+        }
+      },
+      "reductionPct": 93.8,
+      "validation": {
+        "readable": true,
+        "hasMeshes": true,
+        "hasMaterials": true,
+        "hasImages": true,
+        "meshoptDeclared": true,
+        "noExternalUris": true,
+        "bboxCoherent": true,
+        "bboxDetail": {
+          "ok": true,
+          "ratios": [
+            0.9999842060375054,
+            0.9967801158028526,
+            1.0000520214030915
+          ]
+        },
+        "maxTextureEdge": 1024
+      },
+      "readyForLive": true,
+      "needsVisualReview": false
+    },
+    {
+      "id": "evil-eye",
+      "srcPath": "public/ar/interests/evil-eye.glb",
+      "outPath": "public/ar/interests/web/evil-eye.glb",
+      "notes": "minimal geometry change; texture resize only",
+      "operations": [
+        "inspect",
+        "dedup",
+        "prune",
+        "textureCompress(resize=1024, jpeg)",
+        "simplify:skipped",
+        "meshopt(level=medium)"
+      ],
+      "before": {
+        "fileBytes": 1742488,
+        "fileMB": 1.66,
+        "triangles": 9996,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 1,
+        "imageCount": 1,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 1346212,
+            "resolution": "2048x2048",
+            "resolutionXY": [
+              2048,
+              2048
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 22369620
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 21.33,
+        "bbox": {
+          "min": [
+            -0.9931,
+            -0.9331,
+            -0.67347
+          ],
+          "max": [
+            1.00247,
+            0.94265,
+            0.65253
+          ]
+        }
+      },
+      "after": {
+        "fileBytes": 329528,
+        "fileMB": 0.31,
+        "triangles": 9996,
+        "meshCount": 1,
+        "materialCount": 1,
+        "textureCount": 1,
+        "imageCount": 1,
+        "images": [
+          {
+            "mimeType": "image/jpeg",
+            "size": 193498,
+            "resolution": "1024x1024",
+            "resolutionXY": [
+              1024,
+              1024
+            ],
+            "slots": [
+              "baseColorTexture"
+            ],
+            "gpuSize": 5592404
+          }
+        ],
+        "animationCount": 0,
+        "gpuTexEstimateMB": 5.33,
+        "bbox": {
+          "min": [
+            -0.9931,
+            -0.93308,
+            -0.67351
+          ],
+          "max": [
+            1.00247,
+            0.94263,
+            0.65256
+          ]
+        }
+      },
+      "reductionPct": 81.1,
+      "validation": {
+        "readable": true,
+        "hasMeshes": true,
+        "hasMaterials": true,
+        "hasImages": true,
+        "meshoptDeclared": true,
+        "noExternalUris": true,
+        "bboxCoherent": true,
+        "bboxDetail": {
+          "ok": true,
+          "ratios": [
+            1,
+            0.999978675196588,
+            1.000052790346908
+          ]
+        },
+        "maxTextureEdge": 1024
+      },
+      "readyForLive": true,
+      "needsVisualReview": false
+    }
+  ]
+}

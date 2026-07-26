@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AR Interests — Original vs Web GLB</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #12151a;
+        --panel: #1b2129;
+        --ink: #e8eef5;
+        --muted: #9aabbc;
+        --line: #2c3642;
+        --accent: #6ec8d6;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(1200px 600px at 20% -10%, #243041, var(--bg));
+        color: var(--ink);
+        min-height: 100vh;
+      }
+      header {
+        padding: 1.25rem 1.5rem 0.75rem;
+        border-bottom: 1px solid var(--line);
+      }
+      h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 1rem 1.5rem;
+      }
+      label { color: var(--muted); font-size: 0.85rem; }
+      select, button {
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.45rem 0.7rem;
+        font: inherit;
+      }
+      button { cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        padding: 0 1.5rem 1.5rem;
+      }
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        min-height: 420px;
+        display: flex;
+        flex-direction: column;
+      }
+      .panel h2 {
+        margin: 0;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .panel h2 span { color: var(--muted); font-weight: 400; }
+      canvas {
+        width: 100%;
+        height: 360px;
+        display: block;
+        background: #0d1014;
+      }
+      .meta {
+        padding: 0.75rem 1rem 1rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+      .badge {
+        color: var(--accent);
+        border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.75rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Beyond the CV — Interest GLB compare <span class="badge">DEV</span></h1>
+      <p>
+        Side-by-side original vs <code>public/ar/interests/web/</code>. Does not alter the live AR scene.
+      </p>
+    </header>
+    <div class="controls">
+      <label for="asset">Asset</label>
+      <select id="asset">
+        <option value="robot">robot</option>
+        <option value="evil-eye">evil-eye</option>
+        <option value="book">book</option>
+        <option value="fossil">fossil</option>
+        <option value="backpack">backpack</option>
+        <option value="plant">plant</option>
+      </select>
+      <button id="reload" type="button">Reload</button>
+      <label><input type="checkbox" id="spin" checked /> Auto-rotate</label>
+    </div>
+    <div class="grid">
+      <section class="panel">
+        <h2>Original <span id="meta-original">—</span></h2>
+        <canvas id="canvas-original"></canvas>
+        <div class="meta" id="info-original">Loading…</div>
+      </section>
+      <section class="panel">
+        <h2>Web optimized <span id="meta-web">—</span></h2>
+        <canvas id="canvas-web"></canvas>
+        <div class="meta" id="info-web">Loading…</div>
+      </section>
+    </div>
+    <script type="module" src="/src/ar-interests-compare.js"></script>
+  </body>
+</html>
