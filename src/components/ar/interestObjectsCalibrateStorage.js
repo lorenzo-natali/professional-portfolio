@@ -3,19 +3,106 @@ import { INTEREST_OBJECTS } from "./interestObjectsConfig";
 /** Versioned DEV key for autosave + Save final layout. */
 export const AR_INTEREST_FINAL_LAYOUT_STORAGE_KEY = "ar-interest-final-layout-dev-v1";
 
-/**
- * @param {{ search?: string, forceFlag?: boolean }} [options]
- */
-export function isInterestObjectsCalibrateEnabled({
-  search = typeof window !== "undefined" ? window.location.search : "",
-  forceFlag = false,
-} = {}) {
-  if (forceFlag) return true;
+/** Tab-scoped latch so calibrate survives soft navigations within the same session. */
+export const AR_INTERESTS_CALIBRATE_SESSION_KEY = "ar-interests-calibrate-session";
+
+function isTruthyCalibrateFlag(value) {
+  return value === "1" || value === "true" || value === "yes";
+}
+
+function isFalsyCalibrateFlag(value) {
+  return value === "0" || value === "false" || value === "no";
+}
+
+function readCalibrateParam(params) {
   try {
-    return new URLSearchParams(search).get("arInterestsCalibrate") === "1";
+    return params.get("arInterestsCalibrate");
+  } catch {
+    return null;
+  }
+}
+
+function persistCalibrateSession(enabled) {
+  try {
+    if (typeof sessionStorage === "undefined") return;
+    if (enabled) sessionStorage.setItem(AR_INTERESTS_CALIBRATE_SESSION_KEY, "1");
+    else sessionStorage.removeItem(AR_INTERESTS_CALIBRATE_SESSION_KEY);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
+function readCalibrateSession() {
+  try {
+    if (typeof sessionStorage === "undefined") return false;
+    return sessionStorage.getItem(AR_INTERESTS_CALIBRATE_SESSION_KEY) === "1";
   } catch {
     return false;
   }
+}
+
+/**
+ * @param {{
+ *   search?: string,
+ *   hash?: string,
+ *   href?: string,
+ *   forceFlag?: boolean,
+ *   useSession?: boolean,
+ * }} [options]
+ */
+export function isInterestObjectsCalibrateEnabled({
+  search = typeof window !== "undefined" ? window.location.search : "",
+  hash = typeof window !== "undefined" ? window.location.hash : "",
+  href = typeof window !== "undefined" ? window.location.href : "",
+  forceFlag = false,
+  useSession = true,
+} = {}) {
+  if (forceFlag) return true;
+
+  /** @type {string | null} */
+  let explicit = null;
+
+  try {
+    const fromSearch = readCalibrateParam(new URLSearchParams(search));
+    if (fromSearch != null) explicit = fromSearch;
+  } catch {
+    // ignore
+  }
+
+  if (explicit == null && hash) {
+    try {
+      const qIndex = hash.indexOf("?");
+      const hashQuery =
+        qIndex >= 0 ? hash.slice(qIndex + 1) : hash.startsWith("#") ? hash.slice(1) : hash;
+      const fromHash = readCalibrateParam(new URLSearchParams(hashQuery));
+      if (fromHash != null) explicit = fromHash;
+    } catch {
+      // ignore
+    }
+  }
+
+  if (explicit == null && href && /[?&#]arInterestsCalibrate=/i.test(href)) {
+    try {
+      const match = href.match(/[?&#]arInterestsCalibrate=([^&#]+)/i);
+      if (match?.[1] != null) explicit = decodeURIComponent(match[1]);
+    } catch {
+      // ignore
+    }
+  }
+
+  if (explicit != null) {
+    if (isFalsyCalibrateFlag(explicit)) {
+      persistCalibrateSession(false);
+      return false;
+    }
+    if (isTruthyCalibrateFlag(explicit)) {
+      persistCalibrateSession(true);
+      return true;
+    }
+    return false;
+  }
+
+  return useSession ? readCalibrateSession() : false;
 }
 
 /**

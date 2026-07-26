@@ -27,11 +27,53 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 describe("interest calibrate flag", () => {
-  it("enables only with arInterestsCalibrate=1", () => {
-    expect(isInterestObjectsCalibrateEnabled({ search: "" })).toBe(false);
-    expect(isInterestObjectsCalibrateEnabled({ search: "?foo=1" })).toBe(false);
-    expect(isInterestObjectsCalibrateEnabled({ search: "?arInterestsCalibrate=1" })).toBe(true);
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("enables with arInterestsCalibrate=1 or true", () => {
+    expect(isInterestObjectsCalibrateEnabled({ search: "", useSession: false })).toBe(false);
+    expect(isInterestObjectsCalibrateEnabled({ search: "?foo=1", useSession: false })).toBe(
+      false,
+    );
+    expect(
+      isInterestObjectsCalibrateEnabled({ search: "?arInterestsCalibrate=1", useSession: false }),
+    ).toBe(true);
+    expect(
+      isInterestObjectsCalibrateEnabled({
+        search: "?arInterestsCalibrate=true",
+        useSession: false,
+      }),
+    ).toBe(true);
     expect(isInterestObjectsCalibrateEnabled({ forceFlag: true })).toBe(true);
+  });
+
+  it("reads hash / href fallbacks and session latch", () => {
+    expect(
+      isInterestObjectsCalibrateEnabled({
+        search: "",
+        hash: "#/?arInterestsCalibrate=1",
+        useSession: false,
+      }),
+    ).toBe(true);
+    expect(
+      isInterestObjectsCalibrateEnabled({
+        search: "",
+        hash: "",
+        href: "https://example.com/app?arInterestsCalibrate=1",
+        useSession: false,
+      }),
+    ).toBe(true);
+
+    isInterestObjectsCalibrateEnabled({ search: "?arInterestsCalibrate=1" });
+    expect(isInterestObjectsCalibrateEnabled({ search: "", useSession: true })).toBe(true);
+
+    isInterestObjectsCalibrateEnabled({ search: "?arInterestsCalibrate=0" });
+    expect(isInterestObjectsCalibrateEnabled({ search: "", useSession: true })).toBe(false);
   });
 });
 
@@ -220,39 +262,48 @@ describe("interest calibrate gestures (controller smoke)", () => {
     document.body.innerHTML = "";
   });
 
-  it("wires pointer listeners and cleans them up", async () => {
+  it("wires pointer listeners on hit-layer and cleans them up", async () => {
     const { createInterestObjectsCalibrate } = await import("./createInterestObjectsCalibrate.js");
     const layer = createInterestObjectsLayer(THREE, {
       items: INTEREST_OBJECTS.slice(0, 1),
     });
+    const container = document.createElement("div");
+    container.className = "ar-tracking-container";
     const canvas = document.createElement("canvas");
     Object.defineProperty(canvas, "getBoundingClientRect", {
       value: () => ({ left: 0, top: 0, width: 300, height: 600, right: 300, bottom: 600 }),
     });
-    document.body.appendChild(canvas);
+    container.appendChild(canvas);
+    document.body.appendChild(container);
     const camera = new THREE.PerspectiveCamera();
     const shell = document.createElement("div");
     document.body.appendChild(shell);
 
-    const addSpy = vi.spyOn(canvas, "addEventListener");
-    const removeSpy = vi.spyOn(canvas, "removeEventListener");
     const calibrate = createInterestObjectsCalibrate({
       THREE,
       layer,
       camera,
       domElement: canvas,
+      container,
       shell,
     });
 
-    expect(addSpy).toHaveBeenCalledWith("pointerdown", expect.any(Function), expect.any(Object));
-    expect(addSpy).toHaveBeenCalledWith("pointermove", expect.any(Function), expect.any(Object));
-    expect(addSpy).toHaveBeenCalledWith("pointerup", expect.any(Function), expect.any(Object));
-    expect(addSpy).toHaveBeenCalledWith("pointercancel", expect.any(Function), expect.any(Object));
-    expect(canvas.style.touchAction).toBe("none");
+    const hit = container.querySelector("[data-ar-calibrate-hit='true']");
+    expect(hit).toBeTruthy();
+    expect(container.dataset.arCalibrating).toBe("true");
+    expect(document.querySelector("[data-ar-interests-calibrate-ui='true']")).toBeTruthy();
+    expect(
+      document.body.textContent?.includes("CALIBRATE MODE") ||
+        shell.textContent?.includes("CALIBRATE MODE"),
+    ).toBe(true);
 
+    const addSpy = vi.spyOn(hit, "addEventListener");
+    // Listeners already attached; verify dispose removes hit-layer + HUD.
     calibrate.dispose();
-    expect(removeSpy).toHaveBeenCalledWith("pointerdown", expect.any(Function), expect.any(Object));
+    expect(container.querySelector("[data-ar-calibrate-hit='true']")).toBeNull();
     expect(document.querySelector("[data-ar-interests-calibrate-ui='true']")).toBeNull();
+    expect(container.dataset.arCalibrating).toBeUndefined();
+    addSpy.mockRestore();
     layer.dispose();
   });
 
@@ -282,9 +333,9 @@ describe("interest calibrate gestures (controller smoke)", () => {
       shell,
     });
 
-    const saveBtn = [...shell.querySelectorAll("button")].find((b) =>
-      b.textContent?.includes("Save final layout"),
-    );
+    const saveBtn = [
+      ...document.querySelectorAll("[data-ar-interests-calibrate-ui='true'] button"),
+    ].find((b) => b.textContent?.includes("Save final layout"));
     expect(saveBtn).toBeTruthy();
     await saveBtn.click();
     expect(writeText).toHaveBeenCalled();
@@ -301,8 +352,10 @@ describe("interest calibrate gestures (controller smoke)", () => {
     const layer = createInterestObjectsLayer(THREE, {
       items: INTEREST_OBJECTS.slice(0, 1),
     });
+    const container = document.createElement("div");
     const canvas = document.createElement("canvas");
-    document.body.appendChild(canvas);
+    container.appendChild(canvas);
+    document.body.appendChild(container);
     const shell = document.createElement("div");
     document.body.appendChild(shell);
     const calibrate = createInterestObjectsCalibrate({
@@ -310,9 +363,11 @@ describe("interest calibrate gestures (controller smoke)", () => {
       layer,
       camera: new THREE.PerspectiveCamera(),
       domElement: canvas,
+      container,
       shell,
     });
-    canvas.dispatchEvent(
+    const hit = calibrate.hitLayer;
+    hit.dispatchEvent(
       new PointerEvent("pointerdown", {
         pointerId: 1,
         pointerType: "touch",
@@ -321,7 +376,7 @@ describe("interest calibrate gestures (controller smoke)", () => {
         bubbles: true,
       }),
     );
-    canvas.dispatchEvent(
+    hit.dispatchEvent(
       new PointerEvent("pointercancel", {
         pointerId: 1,
         pointerType: "touch",
@@ -333,5 +388,11 @@ describe("interest calibrate gestures (controller smoke)", () => {
     expect(calibrate.getSelectedId()).toBeNull();
     calibrate.dispose();
     layer.dispose();
+  });
+
+  it("css unlocks pointer-events while calibrating", () => {
+    const css = readFileSync(path.join(rootDir, "src/index.css"), "utf8");
+    expect(css).toMatch(/data-ar-calibrating/);
+    expect(css).toMatch(/pointer-events:\s*auto\s*!important/);
   });
 });

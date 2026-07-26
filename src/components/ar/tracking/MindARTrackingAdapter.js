@@ -48,6 +48,7 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
   if (!container) return;
 
   const canvasPointerEvents = options.canvasPointerEvents ?? "none";
+  const calibrating = canvasPointerEvents === "auto";
   const shell =
     options.shell ||
     container.closest?.("[data-ar-viewport-shell='true']") ||
@@ -59,10 +60,15 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
-  container.style.pointerEvents = "none";
+  // Keep container non-interactive in normal runtime; calibrate needs hits on
+  // canvas + dedicated hit-layer children (pointer-events:auto on children alone
+  // is not enough when some browsers swallow transparent WebGL touches).
+  container.style.pointerEvents = calibrating ? "auto" : "none";
   container.style.touchAction = "none";
   container.style.userSelect = "none";
   container.style.webkitUserSelect = "none";
+  if (calibrating) container.dataset.arCalibrating = "true";
+  else delete container.dataset.arCalibrating;
 
   const video = container.querySelector("video");
   if (video) {
@@ -77,6 +83,13 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
     canvas.style.pointerEvents = canvasPointerEvents;
     canvas.style.touchAction = "none";
   });
+
+  const hitLayer = container.querySelector?.("[data-ar-calibrate-hit='true']");
+  if (hitLayer instanceof HTMLElement) {
+    hitLayer.style.pointerEvents = calibrating ? "auto" : "none";
+    hitLayer.style.touchAction = "none";
+    hitLayer.style.zIndex = "8";
+  }
 
   if (renderer) {
     renderer.setClearColor?.(0x000000, 0);
@@ -266,11 +279,17 @@ function resolveInterestCalibrateEnabled() {
 
 function enableCalibrateCanvasHits(container, renderer) {
   if (!container) return;
+  container.dataset.arCalibrating = "true";
   container.style.pointerEvents = "auto";
   container.style.touchAction = "none";
   if (renderer?.domElement) {
     renderer.domElement.style.pointerEvents = "auto";
     renderer.domElement.style.touchAction = "none";
+  }
+  const hitLayer = container.querySelector?.("[data-ar-calibrate-hit='true']");
+  if (hitLayer instanceof HTMLElement) {
+    hitLayer.style.pointerEvents = "auto";
+    hitLayer.style.touchAction = "none";
   }
 }
 
@@ -488,6 +507,11 @@ export function createMindARTrackingAdapter({
 
         const debugEnabled = resolveInterestDebugEnabled();
         const calibrateEnabled = resolveInterestCalibrateEnabled();
+        if (calibrateEnabled) {
+          console.info(
+            "[ar-interests-calibrate] adapter start — flag active; objects reveal after CV lock",
+          );
+        }
         // Isolate this start() from any prior in-flight interest load callbacks.
         const sessionToken = ++sessionGeneration;
         /** @type {ReturnType<typeof createInterestObjectsLayer> | null} */
@@ -539,18 +563,26 @@ export function createMindARTrackingAdapter({
           if (sessionGeneration !== sessionToken) return;
           clearSessionReset();
           poseStabilizer?.onTargetFound();
+          // Calibrate: force entrance as soon as acquisition reports ready via stabilizer;
+          // also keep placement traversable if models already loaded.
+          if (calibrateEnabled && interestAnimation === sessionAnim && sessionAnim) {
+            sessionLayer?.setVisible?.(true);
+          }
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
           if (sessionGeneration !== sessionToken) return;
           poseStabilizer?.onTargetLost();
           clearSessionReset();
-          // Brief loss: keep last stable pose + objects. Full reset after shared threshold.
-          sessionResetTimer = window.setTimeout(() => {
-            sessionResetTimer = 0;
-            if (sessionGeneration !== sessionToken) return;
-            resetSessionAtomic();
-          }, AR_SESSION_RESET_MS);
+          // Calibrate must not wipe layout / hide objects after brief loss.
+          if (!calibrateEnabled) {
+            // Brief loss: keep last stable pose + objects. Full reset after shared threshold.
+            sessionResetTimer = window.setTimeout(() => {
+              sessionResetTimer = 0;
+              if (sessionGeneration !== sessionToken) return;
+              resetSessionAtomic();
+            }, AR_SESSION_RESET_MS);
+          }
           callbacks.onTargetLost?.();
         };
 
@@ -602,9 +634,11 @@ export function createMindARTrackingAdapter({
             layer: sessionLayer,
             camera,
             domElement: renderer.domElement,
+            container,
             shell,
             presentation: presentationRoot,
           });
+          enableCalibrateCanvasHits(container, renderer);
         }
 
         const onViewportChange = () => {

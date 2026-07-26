@@ -7,6 +7,12 @@ const mocks = vi.hoisted(() => ({
   MindARThree: vi.fn(),
   createInterestObjectsLayer: vi.fn(),
   createInterestObjectsAnimation: vi.fn(),
+  calibrateEnabled: false,
+  createInterestObjectsCalibrate: vi.fn(() => ({
+    dispose: vi.fn(),
+    onItemLoaded: vi.fn(),
+    enabled: true,
+  })),
   animInstances: /** @type {any[]} */ ([]),
 }));
 
@@ -25,6 +31,16 @@ vi.mock("../createInterestObjectsLayer", () => ({
 vi.mock("../createInterestObjectsAnimation", () => ({
   createInterestObjectsAnimation: (...args) => mocks.createInterestObjectsAnimation(...args),
 }));
+
+vi.mock("../createInterestObjectsCalibrate", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    isInterestObjectsCalibrateEnabled: () => mocks.calibrateEnabled,
+    createInterestObjectsCalibrate: (...args) =>
+      mocks.createInterestObjectsCalibrate(...args),
+  };
+});
 
 vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
   MindARThree: mocks.MindARThree,
@@ -142,6 +158,13 @@ describe("createMindARTrackingAdapter interest objects", () => {
     mocks.MindARThree.mockReset();
     mocks.createInterestObjectsLayer.mockReset();
     mocks.createInterestObjectsAnimation.mockReset();
+    mocks.createInterestObjectsCalibrate.mockReset();
+    mocks.createInterestObjectsCalibrate.mockImplementation(() => ({
+      dispose: vi.fn(),
+      onItemLoaded: vi.fn(),
+      enabled: true,
+    }));
+    mocks.calibrateEnabled = false;
     mocks.animInstances.length = 0;
     mocks.createInterestObjectsLayer.mockImplementation(() => makeInterestLayerStub());
     mocks.createInterestObjectsAnimation.mockImplementation((layer) => makeAnimationStub(layer));
@@ -310,6 +333,53 @@ describe("createMindARTrackingAdapter interest objects", () => {
     applyCameraLayerStacking(container, renderer);
     expect(container.style.pointerEvents).toBe("none");
     expect(canvas.style.pointerEvents).toBe("none");
+    expect(container.dataset.arCalibrating).toBeUndefined();
+  });
+
+  it("applyCameraLayerStacking unlocks hits in calibrate mode", () => {
+    const container = document.createElement("div");
+    const canvas = document.createElement("canvas");
+    const hit = document.createElement("div");
+    hit.dataset.arCalibrateHit = "true";
+    container.appendChild(canvas);
+    container.appendChild(hit);
+    const renderer = { setClearColor: vi.fn(), setClearAlpha: vi.fn(), domElement: canvas };
+    applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
+    expect(container.style.pointerEvents).toBe("auto");
+    expect(container.dataset.arCalibrating).toBe("true");
+    expect(canvas.style.pointerEvents).toBe("auto");
+    expect(hit.style.pointerEvents).toBe("auto");
+  });
+
+  it("calibrate mode mounts controller and skips session reset on target lost", async () => {
+    vi.useFakeTimers();
+    mocks.calibrateEnabled = true;
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    const layer = makeInterestLayerStub();
+    mocks.createInterestObjectsLayer.mockReturnValue(layer);
+    mockMindAR();
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    await adapter.start(container, {});
+
+    expect(mocks.createInterestObjectsCalibrate).toHaveBeenCalled();
+    expect(mocks.createInterestObjectsAnimation.mock.calls[0][1]).toMatchObject({
+      showAllImmediately: true,
+    });
+
+    const mindInstance = mocks.MindARThree.mock.results[0].value;
+    const anchorHandle = mindInstance.addAnchor.mock.results[0].value;
+    const anim = mocks.animInstances[0];
+
+    anchorHandle.onTargetFound();
+    anchorHandle.onTargetLost();
+    await vi.advanceTimersByTimeAsync(AR_SESSION_RESET_MS + 50);
+    expect(anim.resetSession).not.toHaveBeenCalled();
+    expect(layer.resetVisualState).not.toHaveBeenCalled();
+
+    await adapter.stop();
+    container.remove();
   });
 
   it("layersMatchContainer validates canvas and cover video against the container", () => {

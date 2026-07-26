@@ -43,11 +43,15 @@ export {
  * DEV touch calibration for interest miniatures on the CV.
  * Enable with `?arInterestsCalibrate=1`. Does not affect normal runtime.
  *
+ * Pointers attach to a dedicated hit layer (not the transparent WebGL canvas) so
+ * iOS Safari can receive touches reliably.
+ *
  * @param {{
  *   THREE: typeof import("three"),
  *   layer: ReturnType<typeof import("./createInterestObjectsLayer").createInterestObjectsLayer>,
  *   camera: import("three").Camera,
  *   domElement: HTMLElement,
+ *   container?: HTMLElement | null,
  *   shell?: HTMLElement | null,
  *   presentation?: import("three").Object3D | null,
  * }} options
@@ -57,6 +61,9 @@ export function createInterestObjectsCalibrate(options) {
   const layer = options.layer;
   const camera = options.camera;
   const domElement = options.domElement;
+  const container =
+    options.container ??
+    (domElement?.closest?.(".ar-tracking-container") || domElement?.parentElement || null);
   const shell = options.shell ?? null;
 
   const plane = layer.plane ?? createDocumentPlane();
@@ -92,6 +99,9 @@ export function createInterestObjectsCalibrate(options) {
   const stored = loadInterestLayoutFromStorage();
   if (stored) applyInterestLayoutToLayer(layer, stored);
 
+  // Keep placement traversable for raycasts once MindAR shows the anchor.
+  layer.setVisible?.(true);
+
   // CV border under the interest placement (local document space).
   cvFrame = createAnchorProofObject(THREE);
   cvFrame.name = "ar-interest-calibrate-cv-frame";
@@ -102,13 +112,36 @@ export function createInterestObjectsCalibrate(options) {
   selectionHelper.visible = false;
   layer.placement.add(selectionHelper);
 
+  // Transparent capture surface above MindAR video/canvas (iOS-safe).
+  const hitLayer = document.createElement("div");
+  hitLayer.dataset.arCalibrateHit = "true";
+  hitLayer.style.cssText = [
+    "position:absolute",
+    "inset:0",
+    "z-index:8",
+    "pointer-events:auto",
+    "touch-action:none",
+    "background:transparent",
+    "-webkit-user-select:none",
+    "user-select:none",
+  ].join(";");
+  if (container) {
+    container.dataset.arCalibrating = "true";
+    container.style.pointerEvents = "auto";
+    container.style.touchAction = "none";
+    container.appendChild(hitLayer);
+  } else {
+    document.body.appendChild(hitLayer);
+  }
+  const interactionSurface = hitLayer;
+
   // --- HUD -----------------------------------------------------------------
   const hud = document.createElement("div");
   hud.dataset.arInterestsCalibrateUi = "true";
   hud.style.cssText = [
-    "position:absolute",
+    "position:fixed",
     "inset:0",
-    "z-index:40",
+    "z-index:60",
     "pointer-events:none",
     "font:12px/1.35 ui-sans-serif, system-ui, -apple-system, sans-serif",
     "color:#f8fafc",
@@ -116,15 +149,21 @@ export function createInterestObjectsCalibrate(options) {
 
   const topBar = document.createElement("div");
   topBar.style.cssText =
-    "position:absolute;left:0;right:0;top:0;padding:max(0.55rem,env(safe-area-inset-top)) 0.75rem 0.4rem;display:flex;flex-direction:column;align-items:center;gap:0.25rem;";
+    "position:absolute;left:0;right:0;top:0;padding:max(0.55rem,env(safe-area-inset-top)) 0.75rem 0.4rem;display:flex;flex-direction:column;align-items:center;gap:0.3rem;";
+  const modeBanner = document.createElement("div");
+  modeBanner.style.cssText =
+    "pointer-events:none;padding:0.35rem 0.75rem;border-radius:0.4rem;background:rgba(180,83,9,0.92);color:#fffbeb;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;font-size:11px;";
+  modeBanner.textContent = "CALIBRATE MODE";
   const selectedLabel = document.createElement("div");
   selectedLabel.style.cssText =
     "pointer-events:none;padding:0.3rem 0.65rem;border-radius:999px;background:rgba(2,6,23,0.55);backdrop-filter:blur(6px);font-weight:600;letter-spacing:0.04em;";
   selectedLabel.textContent = "Nessun oggetto selezionato";
   const hint = document.createElement("div");
   hint.style.cssText =
-    "pointer-events:none;max-width:22rem;text-align:center;padding:0.25rem 0.5rem;color:#cbd5e1;font-size:11px;";
-  hint.textContent = "Tap to select · Drag to move · Pinch to resize · Twist to rotate";
+    "pointer-events:none;max-width:22rem;text-align:center;padding:0.25rem 0.5rem;color:#e2e8f0;font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,0.65);";
+  hint.textContent =
+    "Inquadra il CV → tap oggetto → drag / pinch / twist. Serve tracking attivo.";
+  topBar.appendChild(modeBanner);
   topBar.appendChild(selectedLabel);
   topBar.appendChild(hint);
   hud.appendChild(topBar);
@@ -176,8 +215,15 @@ export function createInterestObjectsCalibrate(options) {
   bottomBar.appendChild(status);
   hud.appendChild(bottomBar);
 
-  const host = shell || domElement.parentElement || document.body;
+  const portalHost =
+    typeof document !== "undefined"
+      ? document.querySelector("[data-ar-portal-host='true']")
+      : null;
+  const host = portalHost || shell || container || document.body;
   host.appendChild(hud);
+  console.info(
+    "[ar-interests-calibrate] enabled — tap after CV lock; hit-layer active",
+  );
 
   function setStatus(message, ms = 2200) {
     status.textContent = message;
@@ -188,6 +234,8 @@ export function createInterestObjectsCalibrate(options) {
       }, ms);
     }
   }
+
+  setStatus("Calibrate attivo — inquadra il CV", 3600);
 
   function updateSelectedLabel() {
     selectedLabel.textContent = selectedId
@@ -236,8 +284,12 @@ export function createInterestObjectsCalibrate(options) {
     return layout;
   }
 
+  function interactionRect() {
+    return interactionSurface.getBoundingClientRect();
+  }
+
   function raycastInterest(clientX, clientY) {
-    const rect = domElement.getBoundingClientRect();
+    const rect = interactionRect();
     const coords = clientToNdc(clientX, clientY, rect);
     ndc.set(coords.x, coords.y);
     raycaster.setFromCamera(ndc, camera);
@@ -254,7 +306,7 @@ export function createInterestObjectsCalibrate(options) {
   }
 
   function documentUvAtClient(clientX, clientY) {
-    const rect = domElement.getBoundingClientRect();
+    const rect = interactionRect();
     const coords = clientToNdc(clientX, clientY, rect);
     ndc.set(coords.x, coords.y);
     raycaster.setFromCamera(ndc, camera);
@@ -296,7 +348,7 @@ export function createInterestObjectsCalibrate(options) {
     event.preventDefault();
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     try {
-      domElement.setPointerCapture?.(event.pointerId);
+      interactionSurface.setPointerCapture?.(event.pointerId);
     } catch {
       // ignore
     }
@@ -385,7 +437,7 @@ export function createInterestObjectsCalibrate(options) {
     const wasDrag = mode === "drag";
     pointers.delete(event.pointerId);
     try {
-      domElement.releasePointerCapture?.(event.pointerId);
+      interactionSurface.releasePointerCapture?.(event.pointerId);
     } catch {
       // ignore
     }
@@ -436,7 +488,7 @@ export function createInterestObjectsCalibrate(options) {
     pointers.delete(event.pointerId);
     mode = "idle";
     try {
-      domElement.releasePointerCapture?.(event.pointerId);
+      interactionSurface.releasePointerCapture?.(event.pointerId);
     } catch {
       // ignore
     }
@@ -444,13 +496,15 @@ export function createInterestObjectsCalibrate(options) {
   }
 
   const listenerOpts = { passive: false };
-  domElement.addEventListener("pointerdown", onPointerDown, listenerOpts);
-  domElement.addEventListener("pointermove", onPointerMove, listenerOpts);
-  domElement.addEventListener("pointerup", endPointer, listenerOpts);
-  domElement.addEventListener("pointercancel", onPointerCancel, listenerOpts);
-  domElement.addEventListener("lostpointercapture", endPointer, listenerOpts);
-  domElement.style.touchAction = "none";
-  domElement.style.pointerEvents = "auto";
+  interactionSurface.addEventListener("pointerdown", onPointerDown, listenerOpts);
+  interactionSurface.addEventListener("pointermove", onPointerMove, listenerOpts);
+  interactionSurface.addEventListener("pointerup", endPointer, listenerOpts);
+  interactionSurface.addEventListener("pointercancel", onPointerCancel, listenerOpts);
+  interactionSurface.addEventListener("lostpointercapture", endPointer, listenerOpts);
+  if (domElement) {
+    domElement.style.touchAction = "none";
+    domElement.style.pointerEvents = "auto";
+  }
 
   // Re-apply layout size when late models finish loading.
   const onItemLoaded = (id) => {
@@ -534,6 +588,7 @@ export function createInterestObjectsCalibrate(options) {
     persist: persistDraft,
     exportLayout: () => buildInterestLayoutFromLayer(layer),
     onItemLoaded,
+    hitLayer: interactionSurface,
   };
 
   return {
@@ -541,18 +596,21 @@ export function createInterestObjectsCalibrate(options) {
     onItemLoaded,
     getSelectedId: () => selectedId,
     persistDraft,
+    hitLayer: interactionSurface,
     dispose() {
       if (disposed) return;
       disposed = true;
       cancelAnimationFrame(raf);
       if (saveFlashTimer) clearTimeout(saveFlashTimer);
-      domElement.removeEventListener("pointerdown", onPointerDown, listenerOpts);
-      domElement.removeEventListener("pointermove", onPointerMove, listenerOpts);
-      domElement.removeEventListener("pointerup", endPointer, listenerOpts);
-      domElement.removeEventListener("pointercancel", onPointerCancel, listenerOpts);
-      domElement.removeEventListener("lostpointercapture", endPointer, listenerOpts);
+      interactionSurface.removeEventListener("pointerdown", onPointerDown, listenerOpts);
+      interactionSurface.removeEventListener("pointermove", onPointerMove, listenerOpts);
+      interactionSurface.removeEventListener("pointerup", endPointer, listenerOpts);
+      interactionSurface.removeEventListener("pointercancel", onPointerCancel, listenerOpts);
+      interactionSurface.removeEventListener("lostpointercapture", endPointer, listenerOpts);
       pointers.clear();
+      hitLayer.remove();
       hud.remove();
+      if (container?.dataset?.arCalibrating) delete container.dataset.arCalibrating;
       selectionHelper?.removeFromParent?.();
       selectionHelper?.geometry?.dispose?.();
       selectionHelper?.material?.dispose?.();

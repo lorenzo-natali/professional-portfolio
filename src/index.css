@@ -507,6 +507,17 @@ body {
   background: transparent !important;
 }
 
+/* Interest calibrate mode: restore hits (CSS normally blocks canvas). */
+.ar-tracking-container[data-ar-calibrating="true"] {
+  pointer-events: auto !important;
+}
+
+.ar-tracking-container[data-ar-calibrating="true"] canvas,
+.ar-tracking-container[data-ar-calibrating="true"] [data-ar-calibrate-hit="true"] {
+  pointer-events: auto !important;
+  touch-action: none !important;
+}
+
 /* In-screen overlays — no document-flow header/footer chrome. */
 .ar-status-chip {
   margin: 0;
