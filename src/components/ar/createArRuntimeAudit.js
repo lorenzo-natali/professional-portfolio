@@ -389,6 +389,9 @@ export function createArRuntimeAudit(options = {}) {
   publishPortfolioBuildId();
   pushLifecycle("audit-enabled", { buildId: PORTFOLIO_BUILD_ID });
 
+  // With calibrate, keep a single small control — the multiline badge covers the scene.
+  const compactWithCalibrate = Boolean(flags.arInterestsCalibrate);
+
   const host = document.createElement("div");
   host.dataset.arRuntimeAuditUi = "true";
   host.style.cssText = [
@@ -396,6 +399,7 @@ export function createArRuntimeAudit(options = {}) {
     "left:0",
     "right:0",
     "bottom:0",
+    "top:0",
     "z-index:2147483646",
     "pointer-events:none",
     "font:11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -412,7 +416,7 @@ export function createArRuntimeAudit(options = {}) {
     "color:#fef2f2",
     "font-weight:700",
     "letter-spacing:0.04em",
-    "display:inline-block",
+    "display:" + (compactWithCalibrate ? "none" : "inline-block"),
     "max-width:min(96vw,28rem)",
     "white-space:pre-wrap",
   ].join(";");
@@ -420,20 +424,34 @@ export function createArRuntimeAudit(options = {}) {
 
   const copyBtn = document.createElement("button");
   copyBtn.type = "button";
-  copyBtn.textContent = "Copy runtime audit";
-  copyBtn.style.cssText = [
-    "pointer-events:auto",
-    "position:absolute",
-    "right:0.5rem",
-    "bottom:0.5rem",
-    "padding:0.55rem 0.75rem",
-    "border-radius:0.45rem",
-    "border:1px solid rgba(252,165,165,0.55)",
-    "background:rgba(69,10,10,0.95)",
-    "color:#fff1f2",
-    "font:12px/1.2 ui-sans-serif, system-ui, sans-serif",
-    "font-weight:700",
-  ].join(";");
+  copyBtn.textContent = compactWithCalibrate ? "Audit" : "Copy runtime audit";
+  copyBtn.style.cssText = compactWithCalibrate
+    ? [
+        "pointer-events:auto",
+        "position:absolute",
+        "right:0.45rem",
+        "top:max(0.4rem,env(safe-area-inset-top))",
+        "padding:0.35rem 0.55rem",
+        "border-radius:0.35rem",
+        "border:1px solid rgba(252,165,165,0.45)",
+        "background:rgba(69,10,10,0.9)",
+        "color:#fff1f2",
+        "font:11px/1.2 ui-sans-serif, system-ui, sans-serif",
+        "font-weight:700",
+      ].join(";")
+    : [
+        "pointer-events:auto",
+        "position:absolute",
+        "right:0.5rem",
+        "bottom:0.5rem",
+        "padding:0.55rem 0.75rem",
+        "border-radius:0.45rem",
+        "border:1px solid rgba(252,165,165,0.55)",
+        "background:rgba(69,10,10,0.95)",
+        "color:#fff1f2",
+        "font:12px/1.2 ui-sans-serif, system-ui, sans-serif",
+        "font-weight:700",
+      ].join(";");
   host.appendChild(copyBtn);
 
   function refreshBadge() {

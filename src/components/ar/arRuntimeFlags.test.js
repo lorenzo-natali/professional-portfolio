@@ -49,7 +49,8 @@ describe("arRuntimeFlags", () => {
     });
     expect(flags.arRuntimeAudit).toBe(true);
     expect(flags.arInterestsCalibrate).toBe(true);
-    expect(flags.arViewportDebug).toBe(true);
+    // Audit must not auto-enable the heavy viewport-outline HUD.
+    expect(flags.arViewportDebug).toBe(false);
   });
 
   it("resolveCalibrateFlagFromLocation supports hash and session", () => {

@@ -176,6 +176,5 @@ describe("ARGovernanceView entry flow", () => {
     const scope = portalScope();
     expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
     expect(scope.queryByRole("button", { name: "Activate Camera" })).toBeNull();
-    expect(scope.getByText(/CALIBRATE MODE/i)).toBeTruthy();
   });
 });

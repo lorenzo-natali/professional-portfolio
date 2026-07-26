@@ -135,7 +135,7 @@ export function createInterestObjectsCalibrate(options) {
   }
   const interactionSurface = hitLayer;
 
-  // --- HUD -----------------------------------------------------------------
+  // --- HUD (minimal: keep the camera plane readable on phone) --------------
   const hud = document.createElement("div");
   hud.dataset.arInterestsCalibrateUi = "true";
   hud.style.cssText = [
@@ -149,23 +149,18 @@ export function createInterestObjectsCalibrate(options) {
 
   const topBar = document.createElement("div");
   topBar.style.cssText =
-    "position:absolute;left:0;right:0;top:0;padding:max(0.55rem,env(safe-area-inset-top)) 0.75rem 0.4rem;display:flex;flex-direction:column;align-items:center;gap:0.3rem;";
+    "position:absolute;left:0.5rem;top:max(0.4rem,env(safe-area-inset-top));display:flex;flex-direction:column;align-items:flex-start;gap:0.25rem;max-width:min(70vw,14rem);";
+  // Compact mode chip (string kept for runtime/bundle checks).
   const modeBanner = document.createElement("div");
   modeBanner.style.cssText =
-    "pointer-events:none;padding:0.35rem 0.75rem;border-radius:0.4rem;background:rgba(180,83,9,0.92);color:#fffbeb;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;font-size:11px;";
+    "pointer-events:none;padding:0.2rem 0.45rem;border-radius:0.3rem;background:rgba(180,83,9,0.9);color:#fffbeb;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;font-size:10px;";
   modeBanner.textContent = "CALIBRATE MODE";
   const selectedLabel = document.createElement("div");
   selectedLabel.style.cssText =
-    "pointer-events:none;padding:0.3rem 0.65rem;border-radius:999px;background:rgba(2,6,23,0.55);backdrop-filter:blur(6px);font-weight:600;letter-spacing:0.04em;";
-  selectedLabel.textContent = "Nessun oggetto selezionato";
-  const hint = document.createElement("div");
-  hint.style.cssText =
-    "pointer-events:none;max-width:22rem;text-align:center;padding:0.25rem 0.5rem;color:#e2e8f0;font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,0.65);";
-  hint.textContent =
-    "Inquadra il CV → tap oggetto → drag / pinch / twist. Serve tracking attivo.";
+    "pointer-events:none;padding:0.25rem 0.5rem;border-radius:0.35rem;background:rgba(2,6,23,0.58);backdrop-filter:blur(6px);font-weight:600;letter-spacing:0.03em;font-size:11px;";
+  selectedLabel.textContent = "Tap an object";
   topBar.appendChild(modeBanner);
   topBar.appendChild(selectedLabel);
-  topBar.appendChild(hint);
   hud.appendChild(topBar);
 
   const bottomBar = document.createElement("div");
@@ -175,11 +170,12 @@ export function createInterestObjectsCalibrate(options) {
     "right:0",
     // Sit above the normal Close chip so it stays tappable.
     "bottom:calc(3.1rem + env(safe-area-inset-bottom))",
-    "padding:0.5rem 0.75rem",
+    "padding:0.35rem 0.6rem",
     "display:flex",
     "flex-wrap:wrap",
     "justify-content:center",
-    "gap:0.45rem",
+    "align-items:center",
+    "gap:0.35rem",
     "pointer-events:none",
   ].join(";");
 
@@ -190,8 +186,8 @@ export function createInterestObjectsCalibrate(options) {
     btn.style.cssText = [
       "pointer-events:auto",
       "border:1px solid rgba(148,163,184,0.45)",
-      "border-radius:999px",
-      "padding:0.55rem 0.85rem",
+      "border-radius:0.4rem",
+      "padding:0.45rem 0.7rem",
       "background:" + (primary ? "rgba(14,116,144,0.92)" : "rgba(2,6,23,0.62)"),
       "color:#f8fafc",
       "font:inherit",
@@ -204,13 +200,19 @@ export function createInterestObjectsCalibrate(options) {
   const resetSelectedBtn = makeButton("Reset selected");
   const resetAllBtn = makeButton("Reset all");
   const saveBtn = makeButton("Save final layout", true);
+  const toolsBtn = makeButton("Tools");
   const hideUiBtn = makeButton("Hide UI");
+  let toolsOpen = false;
+  resetSelectedBtn.style.display = "none";
+  resetAllBtn.style.display = "none";
+  hideUiBtn.style.display = "none";
   const status = document.createElement("div");
   status.style.cssText =
-    "width:100%;text-align:center;pointer-events:none;min-height:1.1rem;color:#86efac;font-size:11px;";
+    "width:100%;text-align:center;pointer-events:none;min-height:1rem;color:#86efac;font-size:10px;";
+  bottomBar.appendChild(saveBtn);
+  bottomBar.appendChild(toolsBtn);
   bottomBar.appendChild(resetSelectedBtn);
   bottomBar.appendChild(resetAllBtn);
-  bottomBar.appendChild(saveBtn);
   bottomBar.appendChild(hideUiBtn);
   bottomBar.appendChild(status);
   hud.appendChild(bottomBar);
@@ -235,12 +237,10 @@ export function createInterestObjectsCalibrate(options) {
     }
   }
 
-  setStatus("Calibrate attivo — inquadra il CV", 3600);
+  setStatus("Inquadra il CV · tap · pinch", 2800);
 
   function updateSelectedLabel() {
-    selectedLabel.textContent = selectedId
-      ? selectedId
-      : "Nessun oggetto selezionato";
+    selectedLabel.textContent = selectedId ? selectedId : "Tap an object";
     if (cvFrame) {
       const mat = /** @type {any} */ (
         cvFrame.getObjectByName("ar-anchor-proof-frame")?.material
@@ -374,7 +374,8 @@ export function createInterestObjectsCalibrate(options) {
     if (pts.length < 2) return;
     mode = "pinch";
     const [a, b] = pts;
-    pinchStartDistance = Math.max(pointerDistance(a, b), 1);
+    // Floor avoids near-zero start distance → huge ratio → object looks gone.
+    pinchStartDistance = Math.max(pointerDistance(a, b), 40);
     twistStartAngle = pointerAngle(a, b);
     const snap = layer.getConfigSnapshot(selectedId);
     pinchStartSize = snap?.targetSize ?? 0.1;
@@ -561,15 +562,41 @@ export function createInterestObjectsCalibrate(options) {
     window.__arInterestsCalibrateLayout = layout;
   });
 
+  function syncToolsVisibility() {
+    const showTools = toolsOpen && !uiHidden;
+    resetSelectedBtn.style.display = showTools ? "" : "none";
+    resetAllBtn.style.display = showTools ? "" : "none";
+    hideUiBtn.style.display = showTools || uiHidden ? "" : "none";
+    toolsBtn.textContent = toolsOpen ? "Less" : "Tools";
+  }
+
+  toolsBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toolsOpen = !toolsOpen;
+    syncToolsVisibility();
+  });
+
   hideUiBtn.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     uiHidden = !uiHidden;
-    topBar.style.display = uiHidden ? "none" : "flex";
-    resetSelectedBtn.style.display = uiHidden ? "none" : "";
-    resetAllBtn.style.display = uiHidden ? "none" : "";
-    saveBtn.style.display = uiHidden ? "none" : "";
-    hideUiBtn.textContent = uiHidden ? "Show UI" : "Hide UI";
+    if (uiHidden) {
+      toolsOpen = false;
+      topBar.style.display = "none";
+      saveBtn.style.display = "none";
+      toolsBtn.style.display = "none";
+      resetSelectedBtn.style.display = "none";
+      resetAllBtn.style.display = "none";
+      hideUiBtn.style.display = "";
+      hideUiBtn.textContent = "Show UI";
+    } else {
+      topBar.style.display = "flex";
+      saveBtn.style.display = "";
+      toolsBtn.style.display = "";
+      hideUiBtn.textContent = "Hide UI";
+      syncToolsVisibility();
+    }
   });
 
   let raf = 0;

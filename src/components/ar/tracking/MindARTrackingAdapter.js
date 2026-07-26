@@ -604,7 +604,12 @@ export function createMindARTrackingAdapter({
           poseStabilizer?.onTargetLost();
           clearSessionReset();
           // Calibrate must not wipe layout / hide objects after brief loss.
-          if (!calibrateEnabled) {
+          // MindAR also sets anchor.group.visible=false on lost — pinch/cover
+          // triggers that constantly, so keep the last pose visible while editing.
+          if (calibrateEnabled) {
+            anchor.group.visible = true;
+            sessionLayer?.setVisible?.(true);
+          } else {
             // Brief loss: keep last stable pose + objects. Full reset after shared threshold.
             sessionResetTimer = window.setTimeout(() => {
               sessionResetTimer = 0;
@@ -720,6 +725,11 @@ export function createMindARTrackingAdapter({
           const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
           lastFrameTimeMs = tNow;
           poseStabilizer?.update(dtSec);
+          // Re-assert every frame: MindAR clears visible on target-lost mid-gesture.
+          if (calibrateEnabled) {
+            anchor.group.visible = true;
+            sessionLayer?.setVisible?.(true);
+          }
           renderer.render(scene, camera);
           if (!firstFrameRecorded) {
             firstFrameRecorded = true;

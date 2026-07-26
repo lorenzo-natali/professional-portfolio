@@ -1,8 +1,8 @@
 import { getArRuntimeFlags } from "./arRuntimeFlags";
 
 /**
- * Document-level calibrate signal mounted before React / Beyond the CV.
- * Survives intro/desktop screens so the mode cannot be "invisible".
+ * Compact document-level calibrate chip before Beyond the CV opens.
+ * Removed as soon as the AR portal mounts so it does not cover the camera.
  *
  * @returns {() => void} dispose
  */
@@ -19,22 +19,23 @@ export function mountCalibrateBootBanner() {
   }
 
   el.setAttribute("role", "status");
-  el.textContent =
-    "CALIBRATE MODE ON — open Beyond the CV (camera starts automatically)";
+  el.textContent = "CALIBRATE MODE — tap Beyond the CV";
   el.style.cssText = [
     "position:fixed",
-    "left:0",
-    "right:0",
-    "top:0",
+    "left:50%",
+    "top:max(0.4rem,env(safe-area-inset-top))",
+    "transform:translateX(-50%)",
     "z-index:2147483647",
     "pointer-events:none",
-    "padding:max(0.55rem,env(safe-area-inset-top)) 0.75rem 0.45rem",
-    "background:rgba(180,83,9,0.96)",
+    "padding:0.35rem 0.7rem",
+    "border-radius:0.35rem",
+    "background:rgba(180,83,9,0.94)",
     "color:#fffbeb",
-    "font:700 12px/1.35 ui-sans-serif, system-ui, -apple-system, sans-serif",
-    "letter-spacing:0.06em",
+    "font:700 11px/1.3 ui-sans-serif, system-ui, -apple-system, sans-serif",
+    "letter-spacing:0.05em",
     "text-align:center",
     "text-transform:uppercase",
+    "max-width:min(92vw,20rem)",
   ].join(";");
 
   console.info("[ar-interests-calibrate] boot banner mounted", {
@@ -45,4 +46,10 @@ export function mountCalibrateBootBanner() {
   return () => {
     el?.remove();
   };
+}
+
+/** Hide the boot chip once the AR experience owns the screen. */
+export function hideCalibrateBootBanner() {
+  if (typeof document === "undefined") return;
+  document.querySelector("[data-ar-calibrate-boot-banner='true']")?.remove();
 }

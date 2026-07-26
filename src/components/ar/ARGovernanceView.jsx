@@ -19,6 +19,7 @@ import {
   isArViewportDebugEnabled,
 } from "./createArViewportDebug";
 import { getArRuntimeFlags } from "./arRuntimeFlags";
+import { hideCalibrateBootBanner } from "./mountCalibrateBootBanner";
 import {
   recordArRuntimeAuditPhase,
   setArRuntimeAuditState,
@@ -37,23 +38,6 @@ function unavailableCopy(reason) {
     default:
       return "The camera experience is unavailable right now.";
   }
-}
-
-function CalibrateEarlyBanner({ autoCamera }) {
-  const flags = getArRuntimeFlags();
-  if (!flags.arInterestsCalibrate) return null;
-  return (
-    <div
-      data-ar-calibrate-early-banner="true"
-      className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-3 pt-[max(0.45rem,env(safe-area-inset-top))]"
-    >
-      <div className="rounded bg-amber-700/95 px-3 py-1.5 text-center text-[11px] font-extrabold tracking-[0.08em] text-amber-50 uppercase">
-        {autoCamera
-          ? "CALIBRATE MODE — camera starting"
-          : "CALIBRATE MODE — Activate Camera to edit layout"}
-      </div>
-    </div>
-  );
 }
 
 function initialArScreen(isMobile, flags) {
@@ -111,8 +95,6 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 
   return (
     <>
-      <CalibrateEarlyBanner autoCamera={flags.arInterestsCalibrate} />
-
       {screen === "desktop" && <ARDesktopGate onClose={onClose} />}
 
       {screen === "intro" && (
@@ -170,6 +152,8 @@ export default function ARGovernanceView({ open, onClose }) {
     const root = document.getElementById("root");
     const unlockPage = lockArPage();
     setPortfolioInert(root, true);
+    // Free the camera plane — boot chip must not stack on top of calibrate HUD.
+    hideCalibrateBootBanner();
     recordArRuntimeAuditPhase("beyond-the-cv-open", {
       isMobile,
       flags: getArRuntimeFlags(),
@@ -185,8 +169,9 @@ export default function ARGovernanceView({ open, onClose }) {
     const unbindViewport = bindArViewportListeners(sync);
 
     const flags = getArRuntimeFlags();
+    // Explicit ?arViewportDebug=1 only — never auto-enable during calibrate/audit.
     const viewportDebug =
-      isArViewportDebugEnabled() || flags.arViewportDebug || flags.arRuntimeAudit
+      isArViewportDebugEnabled() || flags.arViewportDebug
         ? createArViewportDebug(shell, { enabled: true })
         : { dispose() {}, recordPhase() {} };
     viewportDebug.recordPhase?.("portal-mount-debug");

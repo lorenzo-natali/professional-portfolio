@@ -189,7 +189,9 @@ export function captureArRuntimeFlags(loc, options = {}) {
   latchedFlags = {
     arRuntimeAudit: audit,
     arInterestsCalibrate: calibrate.enabled,
-    arViewportDebug: viewportDebug || audit,
+    // Keep viewport outline HUD opt-in only — never piggy-back on audit/calibrate
+    // or the AR scene becomes unusable under stacked debug chrome.
+    arViewportDebug: viewportDebug,
     source,
     calibrateSource: calibrate.calibrateSource,
     href,
