@@ -27,20 +27,25 @@ export function syncTrackingContainerToShell(container, shell) {
   container.style.position = "absolute";
   container.style.left = "0px";
   container.style.top = "0px";
-  container.style.right = "auto";
-  container.style.bottom = "auto";
+  container.style.right = "0px";
+  container.style.bottom = "0px";
   container.style.margin = "0";
+  container.style.padding = "0";
   container.style.transform = "none";
   container.style.overflow = "hidden";
+  container.style.boxSizing = "border-box";
+  container.style.maxWidth = "none";
 
   const rect = getArShellRect(shell);
   if (rect?.width > 0 && rect?.height > 0) {
+    // Pin to the fullscreen shell client box so MindAR measures the real stage.
     container.style.width = `${Math.round(rect.width)}px`;
     container.style.height = `${Math.round(rect.height)}px`;
+    container.style.right = "auto";
+    container.style.bottom = "auto";
   } else {
-    container.style.inset = "0px";
-    container.style.width = "100%";
-    container.style.height = "100%";
+    container.style.width = "auto";
+    container.style.height = "auto";
   }
 }
 

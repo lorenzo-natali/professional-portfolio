@@ -41,14 +41,15 @@ describe("ARGovernanceView entry flow", () => {
     expect(document.querySelectorAll("[data-ar-viewport-shell='true']")).toHaveLength(1);
   });
 
-  it("keeps the shell viewport-anchored with intro content inside the visible shell", async () => {
+  it("keeps the shell fullscreen-anchored with intro content inside the visible shell", async () => {
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       value: {
-        width: 390,
-        height: 700,
-        offsetLeft: 0,
-        offsetTop: 0,
+        width: 360,
+        height: 640,
+        offsetLeft: 12,
+        offsetTop: 24,
+        scale: 1,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
       },
@@ -63,8 +64,13 @@ describe("ARGovernanceView entry flow", () => {
     const shell = document.querySelector("[data-ar-viewport-shell='true']");
     expect(shell.style.left).toBe("0px");
     expect(shell.style.top).toBe("0px");
-    expect(shell.style.width).toBe("390px");
-    expect(shell.style.height).toBe("700px");
+    expect(shell.style.right).toBe("0px");
+    expect(shell.style.bottom).toBe("0px");
+    expect(shell.style.width).toBe("auto");
+    expect(shell.style.height).toBe("auto");
+    // Must ignore the narrower visualViewport box that caused the right page gap.
+    expect(shell.style.width).not.toBe("360px");
+    expect(shell.style.left).not.toBe("12px");
 
     const introTitle = await screen.findByRole("heading", { name: "Beyond the CV" });
     expect(shell.contains(introTitle)).toBe(true);

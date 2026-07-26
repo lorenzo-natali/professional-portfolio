@@ -69,6 +69,15 @@ describe("createInterestObjectsLayer", () => {
     expect(onItemLoaded).toHaveBeenCalledTimes(6);
     expect(layer.entries.every((entry) => entry.loaded)).toBe(true);
 
+    const firstCall = mocks.loadInterestGlb.mock.calls[0][2];
+    expect(firstCall).toHaveProperty("canonicalRotation");
+    expect(firstCall).not.toHaveProperty("rotation");
+    expect(firstCall).not.toHaveProperty("upright");
+
+    const robot = layer.getEntry("robot");
+    expect(robot.display.rotation.z).toBeCloseTo(0.55, 5);
+    expect(robot.entrance.parent).toBe(robot.display);
+
     layer.applyEntranceProgress("book", 1);
     const book = layer.getEntry("book");
     expect(book.entrance.position.z).toBeCloseTo(0, 5);

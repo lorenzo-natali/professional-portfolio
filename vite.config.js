@@ -84,6 +84,8 @@ export default defineConfig({
           rootDir,
           'ar-tracking-features-experiment.html',
         ),
+        // DEV orientation calibration for interest GLBs (no MindAR).
+        arInterestOrientation: resolve(rootDir, 'ar-interest-orientation.html'),
       },
     },
   },

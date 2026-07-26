@@ -403,21 +403,21 @@ body {
 }
 
 /*
- * Single portaled AR viewport shell.
- * Use inset:0 + % sizing only — never 100vw (iOS Safari visualViewport mismatch → side bars).
- * JS syncArViewportShell overrides with visualViewport pixel box when available.
+ * Single portaled AR viewport shell — true fullscreen layer under document.body.
+ * Use fixed + inset:0 + width/height:auto. Never 100vw or visualViewport.width
+ * (the latter left a right-side gap exposing the portfolio page on iPhone Safari).
  */
 .ar-viewport-shell {
   position: fixed;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  height: 100dvh;
+  width: auto;
+  height: auto;
   max-width: none;
   max-height: none;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  box-sizing: border-box;
   background: #020617;
   z-index: 2147483000;
   transform: none;

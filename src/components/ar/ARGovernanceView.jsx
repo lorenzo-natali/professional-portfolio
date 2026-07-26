@@ -8,6 +8,10 @@ import ARUnavailablePanel from "./ARUnavailablePanel";
 import { useIsMobileDevice } from "./useIsMobileDevice";
 import { lockArPage, setPortfolioInert } from "./arPageLock";
 import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
+import {
+  createArViewportDebug,
+  isArViewportDebugEnabled,
+} from "./createArViewportDebug";
 
 function unavailableCopy(reason) {
   switch (reason) {
@@ -81,7 +85,13 @@ export default function ARGovernanceView({ open, onClose }) {
     sync();
     const unbindViewport = bindArViewportListeners(sync);
 
+    const viewportDebug =
+      import.meta.env.DEV && isArViewportDebugEnabled()
+        ? createArViewportDebug(shell, { enabled: true })
+        : { dispose() {} };
+
     return () => {
+      viewportDebug.dispose();
       unbindViewport();
       setPortfolioInert(root, false);
       unlockPage();

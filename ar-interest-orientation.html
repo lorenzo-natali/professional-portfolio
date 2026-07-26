@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AR Interests — Orientation calibration (DEV)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #10141a;
+        --panel: #1a2129;
+        --ink: #e8eef5;
+        --muted: #9aabbc;
+        --line: #2c3642;
+        --accent: #6ec8d6;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(900px 500px at 15% -10%, #243041, var(--bg));
+        color: var(--ink);
+        min-height: 100vh;
+      }
+      header {
+        padding: 1.1rem 1.4rem 0.7rem;
+        border-bottom: 1px solid var(--line);
+      }
+      h1 {
+        margin: 0 0 0.3rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+      p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+        align-items: center;
+        padding: 0.9rem 1.4rem;
+      }
+      label { color: var(--muted); font-size: 0.85rem; }
+      select, button {
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.45rem 0.7rem;
+        font: inherit;
+      }
+      button { cursor: pointer; }
+      button:hover, button.active { border-color: var(--accent); }
+      .views {
+        display: grid;
+        grid-template-columns: 1.4fr 1fr 1fr;
+        gap: 0.75rem;
+        padding: 0 1.4rem 1.2rem;
+      }
+      @media (max-width: 960px) {
+        .views { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        min-height: 280px;
+        display: flex;
+        flex-direction: column;
+      }
+      .panel h2 {
+        margin: 0;
+        padding: 0.65rem 0.9rem;
+        font-size: 0.9rem;
+        border-bottom: 1px solid var(--line);
+      }
+      canvas {
+        width: 100%;
+        height: 320px;
+        display: block;
+        background: #0d1014;
+      }
+      .meta {
+        padding: 0.7rem 0.9rem 1rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+        line-height: 1.45;
+        white-space: pre-wrap;
+      }
+      .badge {
+        color: var(--accent);
+        border: 1px solid color-mix(in srgb, var(--accent) 50%, transparent);
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.75rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Interest orientation calibration <span class="badge">DEV</span></h1>
+      <p>
+        Neutral Three.js views of live web GLBs with document-plane grounding
+        (<code>canonicalRotation</code> → scale → seat). Does not touch MindAR.
+      </p>
+    </header>
+    <div class="controls">
+      <label for="asset">Asset</label>
+      <select id="asset">
+        <option value="book">book</option>
+        <option value="evil-eye">evil-eye</option>
+        <option value="robot">robot</option>
+        <option value="fossil">fossil</option>
+        <option value="plant">plant</option>
+        <option value="backpack">backpack</option>
+      </select>
+      <button type="button" id="view-front" class="active">Front</button>
+      <button type="button" id="view-side">Side</button>
+      <button type="button" id="view-top">Top</button>
+      <label><input type="checkbox" id="show-native" /> Also show native (no canonical)</label>
+    </div>
+    <div class="views">
+      <section class="panel">
+        <h2>Canonical + grounded (production pipeline)</h2>
+        <canvas id="canvas-main"></canvas>
+        <div class="meta" id="info-main">Loading…</div>
+      </section>
+      <section class="panel">
+        <h2>Native GLB (no remap)</h2>
+        <canvas id="canvas-native"></canvas>
+        <div class="meta" id="info-native">—</div>
+      </section>
+      <section class="panel">
+        <h2>Config</h2>
+        <div class="meta" id="info-config">—</div>
+      </section>
+    </div>
+    <script type="module" src="/src/ar-interest-orientation.js"></script>
+  </body>
+</html>

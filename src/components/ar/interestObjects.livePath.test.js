@@ -74,7 +74,9 @@ describe("Interest objects live path", () => {
       expect(item.src).not.toMatch(/^ar\/interests\/[^/]+\.glb$/);
       expect(item.targetSize).toBeGreaterThan(0);
       expect(["x", "y", "z", "max"]).toContain(item.scaleAxis);
-      expect(item.upright).toBeTruthy();
+      expect(item.canonicalRotation).toBeTruthy();
+      expect(typeof item.displayYaw).toBe("number");
+      expect(typeof item.groundOffset).toBe("number");
       expect(typeof item.appearanceDelayMs).toBe("number");
     });
 

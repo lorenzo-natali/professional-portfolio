@@ -3,6 +3,12 @@
  * Positions use document UV (u left→right, vTop top→bottom).
  *
  * Document frame (MindAR): X right, Y up-on-page, Z out of paper (standing height).
+ *
+ * Orientation responsibilities (do not mix):
+ * - canonicalRotation — asset upright with base toward the paper, height along +Z
+ * - displayYaw / displayRotation — how the miniature faces on the page (after grounding)
+ * - groundOffset — small lift along document normal
+ * - entrance — animation only (rise/scale/fade)
  */
 
 /** Source GLBs under Vite `public/` (kept for pipeline / DEV compare; not live). */
@@ -11,16 +17,27 @@ export const INTEREST_OBJECTS_SOURCE_PATH = "ar/interests";
 /** Live web-optimized GLBs under Vite `public/`. */
 export const INTEREST_OBJECTS_BASE_PATH = "ar/interests/web";
 
-/** glTF Y-up → document Z-up (paper normal). */
-export const INTEREST_UPRIGHT_Y_TO_Z = { x: -Math.PI / 2, y: 0, z: 0 };
+/**
+ * glTF Y-up → document Z-up (paper normal / out of paper).
+ *
+ * Three.js rotateX(+π/2): +Y → +Z.
+ * The previous −π/2 mapped +Y → −Z and grounded models upside-down
+ * (head on paper, feet toward camera). Fossil never used this remap.
+ */
+export const INTEREST_CANONICAL_Y_UP_TO_Z_UP = { x: Math.PI / 2, y: 0, z: 0 };
 
-/** Already aligned with document Z-up (no remap). */
-export const INTEREST_UPRIGHT_IDENTITY = { x: 0, y: 0, z: 0 };
+/** Already aligned with document Z-up (no remap) — fossil. */
+export const INTEREST_CANONICAL_IDENTITY = { x: 0, y: 0, z: 0 };
+
+/** @deprecated use INTEREST_CANONICAL_Y_UP_TO_Z_UP */
+export const INTEREST_UPRIGHT_Y_TO_Z = INTEREST_CANONICAL_Y_UP_TO_Z_UP;
+
+/** @deprecated use INTEREST_CANONICAL_IDENTITY */
+export const INTEREST_UPRIGHT_IDENTITY = INTEREST_CANONICAL_IDENTITY;
 
 /**
  * Target display sizes in document units (CV width = 1).
  * Interpreted with each item's `scaleAxis` after final orientation.
- * Calibrated for iPhone AR readability (first pass — still miniature, not full-page).
  */
 export const INTEREST_TARGET_SIZES = {
   book: 0.16,
@@ -77,9 +94,10 @@ export const INTEREST_APPEARANCE_STAGGER_MS = 320;
  * @property {"knowledge"|"exploration"} group
  * @property {string} src
  * @property {{ u: number, vTop: number }} origin
- * @property {{ x: number, y: number, z: number }} position
- * @property {{ x: number, y: number, z: number }} rotation Euler after upright
- * @property {{ x: number, y: number, z: number }} upright Basis remap into document Z-up
+ * @property {{ x: number, y: number, z: number }} canonicalRotation Explicit upright euler
+ * @property {number} displayYaw Yaw around document Z after grounding
+ * @property {{ x: number, y: number }} [displayTilt] Optional tilt after grounding (not yaw)
+ * @property {number} groundOffset Lift along document normal after seating
  * @property {"x"|"y"|"z"|"max"} scaleAxis AABB axis used for uniform scale after orientation
  * @property {number} targetSize Desired size along scaleAxis (document units)
  * @property {number} appearanceDelayMs
@@ -92,10 +110,10 @@ export const INTEREST_OBJECTS = [
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/book.glb`,
     origin: { u: 0.2, vTop: 0.22 },
-    position: { x: 0, y: 0, z: 0.012 },
-    rotation: { x: 0, y: 0, z: 0.35 },
-    upright: INTEREST_UPRIGHT_Y_TO_Z,
-    // Flat cover after upright: scale by largest paper-plane extent.
+    // Flat cover on paper after Y→Z; scale by largest paper-plane extent.
+    canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
+    displayYaw: 0.35,
+    groundOffset: 0.012,
     scaleAxis: "max",
     targetSize: INTEREST_TARGET_SIZES.book,
     appearanceDelayMs: 0,
@@ -105,9 +123,10 @@ export const INTEREST_OBJECTS = [
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/evil-eye.glb`,
     origin: { u: 0.4, vTop: 0.18 },
-    position: { x: 0, y: 0, z: 0.012 },
-    rotation: { x: 0.12, y: -0.35, z: 0.08 },
-    upright: INTEREST_UPRIGHT_Y_TO_Z,
+    canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
+    displayYaw: 0.08,
+    displayTilt: { x: 0.12, y: -0.35 },
+    groundOffset: 0.012,
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES["evil-eye"],
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS,
@@ -117,9 +136,9 @@ export const INTEREST_OBJECTS = [
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/robot.glb`,
     origin: { u: 0.24, vTop: 0.48 },
-    position: { x: 0, y: 0, z: 0.012 },
-    rotation: { x: 0, y: 0, z: 0.55 },
-    upright: INTEREST_UPRIGHT_Y_TO_Z,
+    canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
+    displayYaw: 0.55,
+    groundOffset: 0.012,
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.robot,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 2,
@@ -129,10 +148,10 @@ export const INTEREST_OBJECTS = [
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/fossil.glb`,
     origin: { u: 0.74, vTop: 0.28 },
-    position: { x: 0, y: 0, z: 0.012 },
-    rotation: { x: 0, y: 0, z: -0.85 },
-    // Native tallest axis is Z — already document-normal aligned.
-    upright: INTEREST_UPRIGHT_IDENTITY,
+    // Native tallest axis is already document Z — do not apply Y→Z.
+    canonicalRotation: { ...INTEREST_CANONICAL_IDENTITY },
+    displayYaw: -0.85,
+    groundOffset: 0.012,
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.fossil,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 3,
@@ -142,9 +161,9 @@ export const INTEREST_OBJECTS = [
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/plant.glb`,
     origin: { u: 0.76, vTop: 0.58 },
-    position: { x: 0, y: 0, z: 0.012 },
-    rotation: { x: 0, y: 0, z: 0.25 },
-    upright: INTEREST_UPRIGHT_Y_TO_Z,
+    canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
+    displayYaw: 0.25,
+    groundOffset: 0.012,
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.plant,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 4,
@@ -154,9 +173,9 @@ export const INTEREST_OBJECTS = [
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/backpack.glb`,
     origin: { u: 0.68, vTop: 0.78 },
-    position: { x: 0, y: 0, z: 0.012 },
-    rotation: { x: 0, y: 0, z: -0.5 },
-    upright: INTEREST_UPRIGHT_Y_TO_Z,
+    canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
+    displayYaw: -0.5,
+    groundOffset: 0.012,
     scaleAxis: "z",
     targetSize: INTEREST_TARGET_SIZES.backpack,
     appearanceDelayMs: INTEREST_APPEARANCE_STAGGER_MS * 5,
@@ -171,4 +190,13 @@ export function resolveInterestAssetUrl(src, baseUrl = import.meta.env.BASE_URL 
   const base = String(baseUrl).endsWith("/") ? baseUrl : `${baseUrl}/`;
   const path = String(src).replace(/^\//, "");
   return `${base}${path}`;
+}
+
+/** Display euler after grounding (tilt + yaw). */
+export function getInterestDisplayRotation(config) {
+  return {
+    x: config.displayTilt?.x ?? 0,
+    y: config.displayTilt?.y ?? 0,
+    z: config.displayYaw ?? 0,
+  };
 }

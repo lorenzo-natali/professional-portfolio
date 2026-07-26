@@ -64,18 +64,20 @@ describe("Interest objects document layout", () => {
       const { content } = assembleInterestContent(THREE, proxy, {
         targetSize: item.targetSize,
         scaleAxis: item.scaleAxis,
-        upright: item.upright,
-        rotation: item.rotation,
+        canonicalRotation: item.canonicalRotation,
       });
 
       const root = new THREE.Group();
       const world = plane.toWorldFromTopLeft(
         item.origin.u,
         item.origin.vTop,
-        item.position.z,
+        item.groundOffset,
       );
-      root.position.set(world.x + item.position.x, world.y + item.position.y, world.z);
-      root.add(content);
+      root.position.set(world.x, world.y, world.z);
+      const display = new THREE.Group();
+      display.rotation.z = item.displayYaw;
+      display.add(content);
+      root.add(display);
       root.updateMatrixWorld(true);
 
       const box = new THREE.Box3().setFromObject(root);

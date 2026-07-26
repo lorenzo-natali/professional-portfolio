@@ -1,5 +1,5 @@
 import {
-  INTEREST_UPRIGHT_Y_TO_Z,
+  INTEREST_CANONICAL_Y_UP_TO_Z_UP,
   resolveInterestAssetUrl,
 } from "./interestObjectsConfig";
 
@@ -47,72 +47,87 @@ export function measureScaleAxis(size, scaleAxis = "z") {
 }
 
 /**
+ * Reject negative scales used as orientation hacks.
+ * @param {import("three").Object3D} root
+ */
+export function assertNoNegativeScale(root) {
+  let found = false;
+  root.traverse((node) => {
+    if (node.scale.x < 0 || node.scale.y < 0 || node.scale.z < 0) found = true;
+  });
+  return !found;
+}
+
+/**
  * Assemble a document-plane miniature:
- * orient → bbox → uniform scale by scaleAxis → bbox → seat min Z = 0 (center XY).
+ * canonicalRotation → bbox → uniform scale → bbox → seat min Z = 0 (center XY).
+ *
+ * Display yaw / tilt are applied by the placement layer AFTER this returns.
  *
  * @param {typeof import("three")} THREE
  * @param {import("three").Object3D} rawModel
  * @param {{
  *   targetSize: number,
  *   scaleAxis?: "x"|"y"|"z"|"max",
+ *   canonicalRotation?: { x: number, y: number, z: number },
  *   upright?: { x: number, y: number, z: number },
- *   rotation?: { x: number, y: number, z: number },
  * }} options
  */
 export function assembleInterestContent(THREE, rawModel, options) {
   const scaleAxis = options.scaleAxis ?? "z";
-  const upright = options.upright ?? INTEREST_UPRIGHT_Y_TO_Z;
-  const rotation = options.rotation ?? { x: 0, y: 0, z: 0 };
+  const canonicalRotation =
+    options.canonicalRotation ?? options.upright ?? INTEREST_CANONICAL_Y_UP_TO_Z_UP;
   const targetSize = options.targetSize;
 
-  const pose = new THREE.Group();
-  pose.name = "interest-pose-content";
+  const content = new THREE.Group();
+  content.name = "interest-pose-content";
 
-  const uprightGroup = new THREE.Group();
-  uprightGroup.name = "interest-upright";
-  uprightGroup.rotation.set(upright.x, upright.y, upright.z);
+  const canonicalGroup = new THREE.Group();
+  canonicalGroup.name = "interest-canonical";
+  canonicalGroup.rotation.set(
+    canonicalRotation.x,
+    canonicalRotation.y,
+    canonicalRotation.z,
+  );
 
   rawModel.position.set(0, 0, 0);
   rawModel.rotation.set(0, 0, 0);
   rawModel.scale.set(1, 1, 1);
-  uprightGroup.add(rawModel);
+  canonicalGroup.add(rawModel);
+  content.add(canonicalGroup);
 
-  pose.rotation.set(rotation.x, rotation.y, rotation.z);
-  pose.add(uprightGroup);
-
-  // 1–2. Orientation applied; 3. world matrices.
-  pose.updateMatrixWorld(true);
-
-  // 4. BBox after rotation.
-  const box = new THREE.Box3().setFromObject(pose);
+  // a–d. Canonical orientation applied; matrices updated; bbox.
+  content.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(content);
   const size = new THREE.Vector3();
   box.getSize(size);
 
-  // 5. Uniform scale from explicit axis metric.
+  // e–g. Uniform scale from explicit axis metric (never negative).
   const metric = measureScaleAxis(size, scaleAxis);
-  const normScale = targetSize / metric;
-  uprightGroup.scale.setScalar(normScale);
+  const normScale = Math.abs(targetSize / metric);
+  canonicalGroup.scale.setScalar(normScale);
 
-  // 6. Recompute bbox after scale.
-  pose.updateMatrixWorld(true);
-  box.setFromObject(pose);
+  content.updateMatrixWorld(true);
+  box.setFromObject(content);
   box.getSize(size);
   const center = new THREE.Vector3();
   box.getCenter(center);
 
-  // 7. Seat: min Z = 0, center on document XY.
-  pose.position.x -= center.x;
-  pose.position.y -= center.y;
-  pose.position.z -= box.min.z;
-  pose.updateMatrixWorld(true);
+  // h–i. Seat: min Z = 0, center on document XY. Display yaw is NOT applied here.
+  content.position.x -= center.x;
+  content.position.y -= center.y;
+  content.position.z -= box.min.z;
+  content.updateMatrixWorld(true);
 
-  const finalBox = new THREE.Box3().setFromObject(pose);
+  const finalBox = new THREE.Box3().setFromObject(content);
   const finalSize = new THREE.Vector3();
   finalBox.getSize(finalSize);
 
   return {
-    content: pose,
-    uprightGroup,
+    content,
+    canonicalGroup,
+    /** @deprecated alias of canonicalGroup */
+    uprightGroup: canonicalGroup,
     bounds: {
       size: finalSize,
       targetSize,
@@ -120,13 +135,15 @@ export function assembleInterestContent(THREE, rawModel, options) {
       nativeMetric: metric,
       scaleAxis,
       minZ: finalBox.min.z,
+      maxZ: finalBox.max.z,
+      canonicalRotation: { ...canonicalRotation },
     },
   };
 }
 
 /**
  * Re-seat an already-oriented content group so min Z = 0 and XY-centered.
- * Used after live debug rotation edits.
+ * Used after live debug scale edits. Does not touch display yaw.
  *
  * @param {typeof import("three")} THREE
  * @param {import("three").Object3D} content
@@ -152,8 +169,8 @@ export function seatInterestContent(THREE, content) {
  * @param {{
  *   targetSize: number,
  *   scaleAxis?: "x"|"y"|"z"|"max",
+ *   canonicalRotation?: { x: number, y: number, z: number },
  *   upright?: { x: number, y: number, z: number },
- *   rotation?: { x: number, y: number, z: number },
  * }} options
  */
 export async function loadInterestGlb(THREE, src, options) {
@@ -168,7 +185,8 @@ export async function loadInterestGlb(THREE, src, options) {
 
   return {
     model: assembled.content,
-    uprightGroup: assembled.uprightGroup,
+    canonicalGroup: assembled.canonicalGroup,
+    uprightGroup: assembled.canonicalGroup,
     bounds: assembled.bounds,
   };
 }
