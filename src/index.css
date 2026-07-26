@@ -363,40 +363,43 @@ body {
   }
 }
 
-/* AR CV Lens — SVG-projected wireframe cube (avoids CSS preserve-3d flattening). */
+/* AR entry button — static AR glyph + pill chrome. */
 .ar-lens-button:active {
   transform: scale(0.99);
 }
 
-.ar-cube-anchor {
+.ar-reticle-anchor {
   position: relative;
   z-index: 10;
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
+  /* A few px of air before the centered label */
+  margin-right: 6px;
   color: rgb(103 232 249 / 0.95);
-  transition: transform 0.2s ease, color 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 @media (min-width: 640px) {
-  .ar-cube-anchor {
-    width: 34px;
-    height: 34px;
+  .ar-reticle-anchor {
+    width: 48px;
+    height: 48px;
   }
 }
 
-.ar-lens-button:hover .ar-cube-anchor,
-.ar-lens-button:focus-visible .ar-cube-anchor {
-  transform: scale(1.05);
+/* Inherit the button’s existing brightness lift — no independent icon motion. */
+.ar-lens-button:hover .ar-reticle-anchor,
+.ar-lens-button:focus-visible .ar-reticle-anchor {
   color: rgb(165 243 252 / 1);
 }
 
-.ar-cube-svg {
+.ar-reticle-svg {
   display: block;
   overflow: visible;
+  shape-rendering: geometricPrecision;
 }
 
 /* Single portaled AR viewport shell — CSS pins to viewport; JS may override with visualViewport. */

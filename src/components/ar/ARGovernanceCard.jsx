@@ -1,139 +1,23 @@
-import { useEffect, useRef } from "react";
-import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
-
-const EDGES = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  [3, 0],
-  [4, 5],
-  [5, 6],
-  [6, 7],
-  [7, 4],
-  [0, 4],
-  [1, 5],
-  [2, 6],
-  [3, 7],
-];
-
-const CORNERS = [
-  [-1, -1, -1],
-  [1, -1, -1],
-  [1, 1, -1],
-  [-1, 1, -1],
-  [-1, -1, 1],
-  [1, -1, 1],
-  [1, 1, 1],
-  [-1, 1, 1],
-];
-
-const VIEW_CX = 16;
-const VIEW_CY = 16;
-const SCALE = 7.1;
-const PITCH_DEG = -30;
-/** Camera distance — must stay clearly larger than max |z| after rotation (~1.7). */
-const CAMERA_Z = 4.8;
-const FOCAL = 3.6;
-
-function projectCube(yawDeg) {
-  const yaw = (yawDeg * Math.PI) / 180;
-  const pitch = (PITCH_DEG * Math.PI) / 180;
-  const cy = Math.cos(yaw);
-  const sy = Math.sin(yaw);
-  const cx = Math.cos(pitch);
-  const sx = Math.sin(pitch);
-
-  return CORNERS.map(([x, y, z]) => {
-    const x1 = x * cy + z * sy;
-    const z1 = -x * sy + z * cy;
-    const y2 = y * cx - z1 * sx;
-    const z2 = y * sx + z1 * cx;
-    const depth = CAMERA_Z - z2;
-    const w = FOCAL / depth;
-    return {
-      x: VIEW_CX + x1 * w * SCALE,
-      y: VIEW_CY + y2 * w * SCALE,
-      z: z2,
-    };
-  });
-}
-
-function applyProjectedEdges(lines, yawDeg) {
-  const pts = projectCube(yawDeg);
-  for (let i = 0; i < EDGES.length; i += 1) {
-    const [a, b] = EDGES[i];
-    const line = lines[i];
-    if (!line) continue;
-    const pa = pts[a];
-    const pb = pts[b];
-    const depth = (pa.z + pb.z) * 0.5;
-    // Near edges: brighter + thicker; far edges: softer — reads as volume at ~28px.
-    const t = Math.min(1, Math.max(0, (depth + 1.6) / 3.2));
-    const alpha = 0.42 + t * 0.58;
-    const width = 0.95 + t * 0.55;
-
-    line.setAttribute("x1", pa.x.toFixed(2));
-    line.setAttribute("y1", pa.y.toFixed(2));
-    line.setAttribute("x2", pb.x.toFixed(2));
-    line.setAttribute("y2", pb.y.toFixed(2));
-    line.setAttribute("stroke-width", width.toFixed(2));
-    line.setAttribute("stroke-opacity", alpha.toFixed(2));
-  }
-}
-
-function WireframeCube() {
-  const reducedMotion = usePrefersReducedMotion();
-  const svgRef = useRef(null);
-
-  useEffect(() => {
-    const svg = svgRef.current;
-    if (!svg) return undefined;
-    const lines = [...svg.querySelectorAll("line")];
-
-    if (reducedMotion) {
-      applyProjectedEdges(lines, 42);
-      return undefined;
-    }
-
-    const periodMs = 13000;
-    let frameId = 0;
-    const start = performance.now();
-
-    const tick = (now) => {
-      const t = ((now - start) % periodMs) / periodMs;
-      applyProjectedEdges(lines, 42 + t * 360);
-      frameId = requestAnimationFrame(tick);
-    };
-
-    applyProjectedEdges(lines, 42);
-    frameId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frameId);
-  }, [reducedMotion]);
-
-  const initial = projectCube(42);
-
+/**
+ * Exact AR-view glyph from src/assets/ar-view-icon.svg.
+ * Filled paths inherit the button cyan through currentColor.
+ */
+function ArEntryIcon() {
   return (
-    <span className="ar-cube-anchor" aria-hidden="true">
+    <span className="ar-reticle-anchor" aria-hidden="true">
       <svg
-        ref={svgRef}
-        className="ar-cube-svg"
-        viewBox="0 0 32 32"
+        className="ar-reticle-svg"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 -0.08 20 20"
         width="100%"
         height="100%"
+        fill="currentColor"
         aria-hidden="true"
       >
-        {EDGES.map(([a, b], index) => (
-          <line
-            key={index}
-            x1={initial[a].x}
-            y1={initial[a].y}
-            x2={initial[b].x}
-            y2={initial[b].y}
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
-        ))}
+        <path d="M13.26,1.92H6.74a1.9,1.9,0,0,0-1.9,1.89V16a1.9,1.9,0,0,0,1.9,1.89h6.52A1.9,1.9,0,0,0,15.16,16V3.81A1.9,1.9,0,0,0,13.26,1.92ZM14.41,16a1.15,1.15,0,0,1-1.15,1.14H6.74A1.15,1.15,0,0,1,5.59,16V3.81A1.15,1.15,0,0,1,6.74,2.67h.75a.61.61,0,0,0,.61.62h3.8a.61.61,0,0,0,.61-.62h.75a1.15,1.15,0,0,1,1.15,1.14Z" />
+        <path d="M11.12,15.74H8.88a.38.38,0,0,0,0,.75h2.24a.38.38,0,1,0,0-.75Z" />
+        <path d="M9.05,10.9l.41.9A.38.38,0,0,0,10,12a.37.37,0,0,0,.18-.5L8.66,8.23A.39.39,0,0,0,8.31,8h0A.37.37,0,0,0,8,8.24L6.5,11.51a.39.39,0,0,0,.19.5l.15,0a.38.38,0,0,0,.35-.22l.41-.92ZM8.32,9.3l.38.85H7.94Z" />
+        <path d="M13.65,9.36a1.48,1.48,0,0,0-1.48-1.48H10.8a.37.37,0,0,0-.37.38s0,.05,0,.08v3.3a.37.37,0,0,0,.37.37.38.38,0,0,0,.38-.37v-.8h1.08l.7,1a.4.4,0,0,0,.31.16.36.36,0,0,0,.22-.07.37.37,0,0,0,.09-.52L13,10.58A1.46,1.46,0,0,0,13.65,9.36Zm-2.46-.73h1a.73.73,0,0,1,0,1.46h-1Z" />
       </svg>
     </span>
   );
@@ -144,16 +28,16 @@ export default function ARGovernanceCard({ onLaunch }) {
     <button
       type="button"
       onClick={onLaunch}
-      aria-label="Open AR CV Lens"
+      aria-label="Beyond the CV"
       className="ar-lens-button group relative flex w-full items-center justify-between rounded-full border border-cyan-400/75 bg-transparent px-5 py-3 text-cyan-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
       style={{
         boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
       }}
     >
-      <WireframeCube />
+      <ArEntryIcon />
 
-      <span className="absolute inset-x-0 text-center text-[12px] font-medium uppercase tracking-[0.28em] text-cyan-300">
-        AR CV Lens
+      <span className="absolute inset-x-0 text-center text-[12px] font-medium uppercase tracking-[0.22em] text-cyan-300">
+        Beyond the CV
       </span>
 
       <span
