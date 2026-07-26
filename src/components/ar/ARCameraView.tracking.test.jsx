@@ -97,4 +97,9 @@ describe("ARCameraView minimal HUD", () => {
     expect(screen.queryByText("Governance Lens Active")).not.toBeInTheDocument();
     expect(screen.queryByText("Interpretation")).not.toBeInTheDocument();
   });
+
+  it("does not render camera diagnostics without the debug flag", () => {
+    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
+    expect(container.querySelector("[data-ar-camera-diagnostics='true']")).toBeNull();
+  });
 });

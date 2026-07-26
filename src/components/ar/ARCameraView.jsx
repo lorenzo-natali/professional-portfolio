@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ARTrackingScene from "./ARTrackingScene";
 import ARAboutPanel from "./ARAboutPanel";
 import ARLensSelector from "./ARLensSelector";
+import ARCameraDiagnosticsPanel from "./ARCameraDiagnosticsPanel";
+import { isArCameraDebugEnabled } from "./arDebug";
+import { attachArCameraDiagnostics } from "./arCameraDiagnostics";
 import { DEFAULT_LENS_ID } from "./lensCatalog";
 
 /**
@@ -12,6 +15,17 @@ export default function ARCameraView({ onBack, onFallback }) {
   const [tracking, setTracking] = useState("searching"); // searching | detected | lost
   const [aboutOpen, setAboutOpen] = useState(false);
   const [activeLensId, setActiveLensId] = useState(DEFAULT_LENS_ID);
+  const [cameraSnapshot, setCameraSnapshot] = useState(null);
+  const diagnosticsCleanupRef = useRef(null);
+  const cameraDebugEnabled = isArCameraDebugEnabled();
+
+  useEffect(
+    () => () => {
+      diagnosticsCleanupRef.current?.();
+      diagnosticsCleanupRef.current = null;
+    },
+    [],
+  );
 
   const handleTargetFound = () => {
     setTracking("detected");
@@ -19,6 +33,17 @@ export default function ARCameraView({ onBack, onFallback }) {
 
   const handleTargetLost = () => {
     setTracking((current) => (current === "searching" ? current : "lost"));
+  };
+
+  const handleVideoReady = ({ video, container }) => {
+    if (!cameraDebugEnabled) return;
+    diagnosticsCleanupRef.current?.();
+    diagnosticsCleanupRef.current = attachArCameraDiagnostics({
+      video,
+      container,
+      onSnapshot: setCameraSnapshot,
+      logInitial: true,
+    });
   };
 
   const statusLabel =
@@ -39,11 +64,16 @@ export default function ARCameraView({ onBack, onFallback }) {
         onReady={() => setTracking((t) => (t === "searching" ? "searching" : t))}
         onTargetFound={handleTargetFound}
         onTargetLost={handleTargetLost}
+        onVideoReady={handleVideoReady}
         onError={() => onFallback("tracking-error")}
         onUnsupported={(reason) =>
           onFallback(reason === "target-unavailable" ? "target-unavailable" : "unsupported")
         }
       />
+
+      {cameraDebugEnabled && cameraSnapshot && (
+        <ARCameraDiagnosticsPanel snapshot={cameraSnapshot} />
+      )}
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
         {statusLabel && (
