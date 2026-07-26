@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "verify:ar-bundle": "node scripts/verify-ar-runtime-bundle.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "compile:ar-target": "node scripts/compile-ar-target.mjs",

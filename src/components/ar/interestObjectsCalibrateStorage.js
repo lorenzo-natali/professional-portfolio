@@ -42,6 +42,9 @@ function readCalibrateSession() {
 }
 
 /**
+ * Pure URL/session parse for calibrate. Production adapter prefers
+ * `getArRuntimeFlags()` (latched at script load) instead of re-reading location.
+ *
  * @param {{
  *   search?: string,
  *   hash?: string,

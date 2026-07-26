@@ -1,11 +1,27 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { execSync } from 'node:child_process'
 import { existsSync, readdirSync, unlinkSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const rootDir = dirname(fileURLToPath(import.meta.url))
+
+function readGitShortSha() {
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      cwd: rootDir,
+      encoding: 'utf8',
+    }).trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+const PORTFOLIO_COMMIT = readGitShortSha()
+const PORTFOLIO_BUILD_TIME = new Date().toISOString()
+const PORTFOLIO_BUILD_ID = `${PORTFOLIO_COMMIT}+${PORTFOLIO_BUILD_TIME}`
 
 const INTEREST_SOURCE_GLBS = [
   'robot.glb',
@@ -61,6 +77,11 @@ function stripArTargetExperimentsFromDist() {
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
+  define: {
+    __PORTFOLIO_COMMIT__: JSON.stringify(PORTFOLIO_COMMIT),
+    __PORTFOLIO_BUILD_TIME__: JSON.stringify(PORTFOLIO_BUILD_TIME),
+    __PORTFOLIO_BUILD_ID__: JSON.stringify(PORTFOLIO_BUILD_ID),
+  },
   plugins: [
     react(),
     tailwindcss(),

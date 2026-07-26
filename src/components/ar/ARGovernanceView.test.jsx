@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, within, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ARGovernanceView from "./ARGovernanceView";
 
@@ -19,16 +19,23 @@ vi.mock("./ARCameraView", () => ({
 
 import { checkArTargetAvailable } from "./checkArTargetAvailable";
 
+function portalScope() {
+  const host = document.querySelector("[data-ar-portal-host='true']");
+  expect(host).toBeTruthy();
+  return within(/** @type {HTMLElement} */ (host));
+}
+
 describe("ARGovernanceView entry flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
     document.body.innerHTML = '<div id="root"></div>';
+    document.querySelectorAll("[data-ar-portal-host='true']").forEach((el) => el.remove());
     mobileMock.isMobile = true;
     checkArTargetAvailable.mockResolvedValue(true);
   });
 
-  it("portals the AR root through ar-portal-host under document.body", () => {
+  it("portals the AR root through ar-portal-host under document.documentElement", () => {
     const main = document.createElement("main");
     document.getElementById("root").appendChild(main);
 
@@ -38,7 +45,7 @@ describe("ARGovernanceView entry flow", () => {
     const host = document.querySelector("[data-ar-portal-host='true']");
     expect(shell).toBeTruthy();
     expect(host).toBeTruthy();
-    expect(host.parentElement).toBe(document.body);
+    expect(host.parentElement).toBe(document.documentElement);
     expect(shell.parentElement).toBe(host);
     expect(main.contains(shell)).toBe(false);
     expect(document.querySelectorAll("[data-ar-viewport-shell='true']")).toHaveLength(1);
@@ -79,20 +86,22 @@ describe("ARGovernanceView entry flow", () => {
     expect(host.style.width).toBe("auto");
     expect(host.style.maxWidth).toBe("none");
 
-    const introTitle = await screen.findByRole("heading", { name: "Beyond the CV" });
+    const scope = portalScope();
+    const introTitle = await scope.findByRole("heading", { name: "Beyond the CV" });
     expect(shell.contains(introTitle)).toBe(true);
-    expect(await screen.findByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
+    expect(await scope.findByRole("button", { name: "Back to Portfolio" })).toBeTruthy();
   });
 
   it("shows a centered desktop gate without the 2D brief CTA", () => {
     mobileMock.isMobile = false;
     render(<ARGovernanceView open onClose={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { name: "Designed for smartphones." })).toBeInTheDocument();
-    expect(screen.queryByText("AR Governance View")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "View 2D Governance Brief" })).not.toBeInTheDocument();
-    expect(screen.queryByText("2D Governance Brief")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    const scope = portalScope();
+    expect(scope.getByRole("heading", { name: "Designed for smartphones." })).toBeTruthy();
+    expect(scope.queryByText("AR Governance View")).toBeNull();
+    expect(scope.queryByRole("button", { name: "View 2D Governance Brief" })).toBeNull();
+    expect(scope.queryByText("2D Governance Brief")).toBeNull();
+    expect(scope.getByRole("button", { name: "Close" })).toBeTruthy();
   });
 
   it("locks the portfolio root against pointer interaction while open", () => {
@@ -122,13 +131,14 @@ describe("ARGovernanceView entry flow", () => {
 
     render(<ARGovernanceView open onClose={vi.fn()} />);
 
+    const scope = portalScope();
     expect(
-      await screen.findByText(/The AR recognition experience is not currently available/),
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId("ar-camera-view")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Explore 2D Governance Brief" })).not.toBeInTheDocument();
-    expect(screen.queryByText("2D Governance Brief")).not.toBeInTheDocument();
-    expect(screen.queryByText("Governance view ready")).not.toBeInTheDocument();
+      await scope.findByText(/The AR recognition experience is not currently available/),
+    ).toBeTruthy();
+    expect(scope.queryByTestId("ar-camera-view")).toBeNull();
+    expect(scope.queryByRole("button", { name: "Explore 2D Governance Brief" })).toBeNull();
+    expect(scope.queryByText("2D Governance Brief")).toBeNull();
+    expect(scope.queryByText("Governance view ready")).toBeNull();
   });
 
   it("mounts the camera view only after Activate Camera when the target is available", async () => {
@@ -136,11 +146,12 @@ describe("ARGovernanceView entry flow", () => {
 
     render(<ARGovernanceView open onClose={vi.fn()} />);
 
-    const activate = await screen.findByRole("button", { name: "Activate Camera" });
-    expect(screen.queryByTestId("ar-camera-view")).not.toBeInTheDocument();
+    const scope = portalScope();
+    const activate = await scope.findByRole("button", { name: "Activate Camera" });
+    expect(scope.queryByTestId("ar-camera-view")).toBeNull();
 
     await userEvent.click(activate);
 
-    expect(await screen.findByTestId("ar-camera-view")).toBeInTheDocument();
+    expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
   });
 });

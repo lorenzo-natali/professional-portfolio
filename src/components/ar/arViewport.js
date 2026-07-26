@@ -57,7 +57,12 @@ export function applyInlineStyles(el, styles) {
 }
 
 /**
- * Ensure a dedicated portal host exists under document.body.
+ * Ensure a dedicated portal host exists under document.documentElement.
+ *
+ * Important (iPhone): do NOT parent under body while body is position:fixed for
+ * scroll lock — Safari can treat that body as the containing block for fixed
+ * descendants and leave a right-side gap / clipped AR plane.
+ *
  * @returns {HTMLElement | null}
  */
 export function ensureArPortalHost() {
@@ -67,7 +72,10 @@ export function ensureArPortalHost() {
     host = document.createElement("div");
     host.dataset.arPortalHost = "true";
     host.className = "ar-portal-host";
-    document.body.appendChild(host);
+  }
+  // Always re-parent onto <html> so body lock cannot become the containing block.
+  if (host.parentElement !== document.documentElement) {
+    document.documentElement.appendChild(host);
   }
   applyInlineStyles(host, {
     ...FULLSCREEN_FIXED,

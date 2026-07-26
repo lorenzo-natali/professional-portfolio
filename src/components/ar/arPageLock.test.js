@@ -22,7 +22,10 @@ describe("lockArPage", () => {
     expect(document.documentElement.style.overscrollBehavior).toBe("none");
     expect(document.body.style.position).toBe("fixed");
     expect(document.body.style.top).toBe("-240px");
-    expect(document.body.style.left).toBe("-12px");
+    // Never shift body with left:-scrollX — that broke iOS fixed containing blocks.
+    expect(document.body.style.left).toBe("0px");
+    expect(document.body.style.width).toBe("auto");
+    expect(document.body.style.maxWidth).toBe("none");
     expect(document.body.style.overflow).toBe("hidden");
     expect(document.body.style.touchAction).toBe("none");
 

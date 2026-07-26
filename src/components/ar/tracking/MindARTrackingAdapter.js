@@ -18,6 +18,11 @@ import {
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
 import { INTEREST_OBJECTS_STABILIZATION } from "../interestObjectsConfig";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
+import { getArRuntimeFlags } from "../arRuntimeFlags";
+import {
+  recordArRuntimeAuditPhase,
+  setArRuntimeAuditState,
+} from "../createArRuntimeAudit";
 import {
   bindArViewportListeners,
   normalizeMindArLayerStyles,
@@ -273,7 +278,10 @@ function resolveInterestDebugEnabled() {
 }
 
 function resolveInterestCalibrateEnabled() {
-  // Field calibration on iPhone (query flag) — allowed outside Vite DEV builds.
+  // Prefer flags latched at script load (survives modal / camera transition).
+  // Never gated on import.meta.env.DEV — must work on GitHub Pages production.
+  const latched = getArRuntimeFlags();
+  if (latched?.arInterestsCalibrate) return true;
   return isInterestObjectsCalibrateEnabled();
 }
 
@@ -507,10 +515,31 @@ export function createMindARTrackingAdapter({
 
         const debugEnabled = resolveInterestDebugEnabled();
         const calibrateEnabled = resolveInterestCalibrateEnabled();
+        const runtimeFlags = getArRuntimeFlags();
+        setArRuntimeAuditState({
+          trackingAdapter: "MindARTrackingAdapter",
+          arComponent: "ARCameraView/ARTrackingScene",
+        });
+        recordArRuntimeAuditPhase("mindar-adapter-start", {
+          calibrateEnabled,
+          flagSource: runtimeFlags.calibrateSource,
+          searchNow: typeof location !== "undefined" ? location.search : "",
+          latchedSearch: runtimeFlags.search,
+        });
         if (calibrateEnabled) {
           console.info(
             "[ar-interests-calibrate] adapter start — flag active; objects reveal after CV lock",
+            { source: runtimeFlags.calibrateSource, latchedHref: runtimeFlags.href },
           );
+        } else {
+          console.info("[ar-interests-calibrate] adapter start — flag inactive", {
+            source: runtimeFlags.calibrateSource,
+            latchedHref: runtimeFlags.href,
+            searchNow: typeof location !== "undefined" ? location.search : "",
+          });
+          setArRuntimeAuditState({
+            calibrateSkipReason: `flag inactive (source=${runtimeFlags.calibrateSource})`,
+          });
         }
         // Isolate this start() from any prior in-flight interest load callbacks.
         const sessionToken = ++sessionGeneration;
@@ -639,6 +668,28 @@ export function createMindARTrackingAdapter({
             presentation: presentationRoot,
           });
           enableCalibrateCanvasHits(container, renderer);
+          setArRuntimeAuditState({
+            calibrationControllerCreated: true,
+            calibrationListenersInstalled: Boolean(interestCalibrate?.hitLayer),
+            calibrationUiMounted: Boolean(
+              typeof document !== "undefined" &&
+                document.querySelector("[data-ar-interests-calibrate-ui='true']"),
+            ),
+            calibrateSkipReason: null,
+          });
+          recordArRuntimeAuditPhase("calibrate-controller-created", {
+            hasHitLayer: Boolean(interestCalibrate?.hitLayer),
+            uiMounted: Boolean(
+              typeof document !== "undefined" &&
+                document.querySelector("[data-ar-interests-calibrate-ui='true']"),
+            ),
+          });
+          console.info("[ar-interests-calibrate] controller created", {
+            hitLayer: Boolean(interestCalibrate?.hitLayer),
+            ui: Boolean(
+              document.querySelector("[data-ar-interests-calibrate-ui='true']"),
+            ),
+          });
         }
 
         const onViewportChange = () => {

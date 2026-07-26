@@ -18,6 +18,11 @@ import {
   createArViewportDebug,
   isArViewportDebugEnabled,
 } from "./createArViewportDebug";
+import { getArRuntimeFlags } from "./arRuntimeFlags";
+import {
+  recordArRuntimeAuditPhase,
+  setArRuntimeAuditState,
+} from "./createArRuntimeAudit";
 
 function unavailableCopy(reason) {
   switch (reason) {
@@ -34,16 +39,80 @@ function unavailableCopy(reason) {
   }
 }
 
+function CalibrateEarlyBanner() {
+  const flags = getArRuntimeFlags();
+  if (!flags.arInterestsCalibrate) return null;
+  return (
+    <div
+      data-ar-calibrate-early-banner="true"
+      className="pointer-events-none absolute inset-x-0 top-0 z-50 flex justify-center px-3 pt-[max(0.45rem,env(safe-area-inset-top))]"
+    >
+      <div className="rounded bg-amber-700/95 px-3 py-1.5 text-center text-[11px] font-extrabold tracking-[0.08em] text-amber-50 uppercase">
+        CALIBRATE MODE — Activate Camera to edit layout
+      </div>
+    </div>
+  );
+}
+
 function ARGovernanceExperience({ isMobile, onClose }) {
-  const [screen, setScreen] = useState(isMobile ? "intro" : "desktop");
+  const flags = getArRuntimeFlags();
+  // Calibrate / audit field work must reach the camera path even when Safari
+  // "Request Desktop Website" misclassifies the device.
+  const allowCameraPath = isMobile || flags.arInterestsCalibrate || flags.arRuntimeAudit;
+  const [screen, setScreen] = useState(allowCameraPath ? "intro" : "desktop");
   const [unavailableReason, setUnavailableReason] = useState(null);
+
+  useLayoutEffect(() => {
+    setArRuntimeAuditState({
+      arComponent: "ARGovernanceView",
+      screen,
+      trackingAdapter: screen === "camera" ? "MindARTrackingAdapter" : null,
+    });
+    recordArRuntimeAuditPhase("ar-screen", {
+      screen,
+      isMobile,
+      allowCameraPath,
+      calibrate: flags.arInterestsCalibrate,
+      calibrateSource: flags.calibrateSource,
+    });
+    if (screen === "desktop" && flags.arInterestsCalibrate) {
+      console.warn(
+        "[ar-interests-calibrate] desktop gate active — camera/calibrate UI will not mount on this device classification",
+        { isMobile, ua: typeof navigator !== "undefined" ? navigator.userAgent : "" },
+      );
+      setArRuntimeAuditState({
+        calibrateSkipReason: "desktop-gate (isMobile=false)",
+      });
+    }
+    if (screen === "intro" && flags.arInterestsCalibrate) {
+      console.info(
+        "[ar-interests-calibrate] flag latched — early banner visible; controller mounts after Activate Camera",
+        { source: flags.calibrateSource },
+      );
+      setArRuntimeAuditState({ calibrateSkipReason: null });
+    }
+  }, [
+    screen,
+    isMobile,
+    allowCameraPath,
+    flags.arInterestsCalibrate,
+    flags.calibrateSource,
+  ]);
 
   return (
     <>
+      <CalibrateEarlyBanner />
+
       {screen === "desktop" && <ARDesktopGate onClose={onClose} />}
 
       {screen === "intro" && (
-        <ARGovernanceIntro onActivateCamera={() => setScreen("camera")} onBack={onClose} />
+        <ARGovernanceIntro
+          onActivateCamera={() => {
+            recordArRuntimeAuditPhase("activate-camera");
+            setScreen("camera");
+          }}
+          onBack={onClose}
+        />
       )}
 
       {screen === "camera" && (
@@ -73,7 +142,7 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 
 /**
  * Full-screen AR Governance experience — portaled through ar-portal-host
- * under document.body, outside the portfolio stacking context.
+ * under document.documentElement (not body), outside the portfolio stacking context.
  */
 export default function ARGovernanceView({ open, onClose }) {
   const isMobile = useIsMobileDevice();
@@ -91,19 +160,29 @@ export default function ARGovernanceView({ open, onClose }) {
     const root = document.getElementById("root");
     const unlockPage = lockArPage();
     setPortfolioInert(root, true);
+    recordArRuntimeAuditPhase("beyond-the-cv-open", {
+      isMobile,
+      flags: getArRuntimeFlags(),
+      portalParent: portalHost.parentElement?.tagName?.toLowerCase?.() ?? null,
+    });
 
     const sync = () => syncArViewportShell(shell, portalHost);
     sync();
     recordArViewportLifecycle(shell, "portal-mount");
+    recordArRuntimeAuditPhase("portal-mount", {
+      portalParent: portalHost.parentElement?.tagName?.toLowerCase?.() ?? null,
+    });
     const unbindViewport = bindArViewportListeners(sync);
 
-    // Field telemetry on iPhone: enable with ?arViewportDebug=1 (incl. production builds).
-    const viewportDebug = isArViewportDebugEnabled()
-      ? createArViewportDebug(shell, { enabled: true })
-      : { dispose() {}, recordPhase() {} };
+    const flags = getArRuntimeFlags();
+    const viewportDebug =
+      isArViewportDebugEnabled() || flags.arViewportDebug || flags.arRuntimeAudit
+        ? createArViewportDebug(shell, { enabled: true })
+        : { dispose() {}, recordPhase() {} };
     viewportDebug.recordPhase?.("portal-mount-debug");
 
     return () => {
+      recordArRuntimeAuditPhase("beyond-the-cv-close");
       viewportDebug.dispose();
       unbindViewport();
       setPortfolioInert(root, false);
@@ -112,7 +191,7 @@ export default function ARGovernanceView({ open, onClose }) {
         teardownArPortalHost(portalHost);
       });
     };
-  }, [open, portalHost]);
+  }, [open, portalHost, isMobile]);
 
   if (!open || !portalHost) return null;
 

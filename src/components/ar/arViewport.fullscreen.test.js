@@ -10,9 +10,10 @@ import {
 describe("AR fullscreen layer constraints", () => {
   afterEach(() => {
     document.body.innerHTML = "";
+    document.querySelectorAll("[data-ar-portal-host='true']").forEach((el) => el.remove());
   });
 
-  it("mounts portal host as a direct body child outside portfolio wrappers", () => {
+  it("mounts portal host under documentElement (not body / not portfolio wrappers)", () => {
     const main = document.createElement("main");
     main.style.maxWidth = "480px";
     main.style.transform = "translateZ(0)";
@@ -26,8 +27,9 @@ describe("AR fullscreen layer constraints", () => {
 
     syncArViewportShell(shell, host);
 
-    expect(host.parentElement).toBe(document.body);
+    expect(host.parentElement).toBe(document.documentElement);
     expect(main.contains(host)).toBe(false);
+    expect(document.body.contains(host)).toBe(false);
     expect(shell.parentElement).toBe(host);
     expect(host.style.maxWidth).toBe("none");
     expect(shell.style.maxWidth).toBe("none");

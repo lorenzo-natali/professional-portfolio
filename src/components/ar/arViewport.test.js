@@ -21,6 +21,7 @@ describe("arViewport shell", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
+    document.querySelectorAll("[data-ar-portal-host='true']").forEach((el) => el.remove());
   });
 
   it("never sizes the shell from visualViewport.width", () => {
@@ -82,9 +83,9 @@ describe("arViewport shell", () => {
     expect(report.canvasInline.width).toBe("390px");
   });
 
-  it("creates a portal host under document.body", () => {
+  it("creates a portal host under document.documentElement", () => {
     const host = ensureArPortalHost();
-    expect(host.parentElement).toBe(document.body);
+    expect(host.parentElement).toBe(document.documentElement);
     expect(host.dataset.arPortalHost).toBe("true");
     expect(host.style.maxWidth).toBe("none");
     expect(host.style.width).toBe("auto");
