@@ -3,33 +3,27 @@ import {
   captureArRuntimeFlags,
   getArRuntimeFlags,
   resetArRuntimeFlagsForTests,
-  resolveCalibrateFlagFromLocation,
 } from "./arRuntimeFlags";
-import { AR_INTERESTS_CALIBRATE_SESSION_KEY } from "./interestObjectsCalibrateStorage";
 
 describe("arRuntimeFlags", () => {
   beforeEach(() => {
     resetArRuntimeFlagsForTests();
-    sessionStorage.clear();
   });
 
   afterEach(() => {
     resetArRuntimeFlagsForTests();
-    sessionStorage.clear();
   });
 
-  it("latches calibrate from the initial search and survives later search clears", () => {
+  it("latches audit from the initial search and survives later search clears", () => {
     const first = captureArRuntimeFlags({
-      href: "https://example.com/professional-portfolio/?arInterestsCalibrate=1",
+      href: "https://example.com/professional-portfolio/?arRuntimeAudit=1",
       pathname: "/professional-portfolio/",
-      search: "?arInterestsCalibrate=1",
+      search: "?arRuntimeAudit=1",
       hash: "",
     });
-    expect(first.arInterestsCalibrate).toBe(true);
-    expect(first.calibrateSource).toBe("search");
-    expect(sessionStorage.getItem(AR_INTERESTS_CALIBRATE_SESSION_KEY)).toBe("1");
+    expect(first.arRuntimeAudit).toBe(true);
+    expect(first.source).toBe("initial-url");
 
-    // Later calls must not drop the latch even if URL no longer has the flag.
     const again = captureArRuntimeFlags({
       href: "https://example.com/professional-portfolio/",
       pathname: "/professional-portfolio/",
@@ -37,34 +31,28 @@ describe("arRuntimeFlags", () => {
       hash: "",
     });
     expect(again).toBe(first);
-    expect(getArRuntimeFlags().arInterestsCalibrate).toBe(true);
+    expect(getArRuntimeFlags().arRuntimeAudit).toBe(true);
   });
 
-  it("reads arRuntimeAudit without requiring DEV", () => {
+  it("reads arRuntimeAudit without enabling viewport debug", () => {
     const flags = captureArRuntimeFlags({
-      href: "https://host/?arRuntimeAudit=1&arInterestsCalibrate=true",
+      href: "https://host/?arRuntimeAudit=1",
       pathname: "/",
-      search: "?arRuntimeAudit=1&arInterestsCalibrate=true",
+      search: "?arRuntimeAudit=1",
       hash: "",
     });
     expect(flags.arRuntimeAudit).toBe(true);
-    expect(flags.arInterestsCalibrate).toBe(true);
-    // Audit must not auto-enable the heavy viewport-outline HUD.
     expect(flags.arViewportDebug).toBe(false);
   });
 
-  it("resolveCalibrateFlagFromLocation supports hash and session", () => {
-    expect(
-      resolveCalibrateFlagFromLocation({
-        search: "",
-        hash: "#/?arInterestsCalibrate=1",
-        href: "https://h/#/?arInterestsCalibrate=1",
-      }).enabled,
-    ).toBe(true);
-
-    sessionStorage.setItem(AR_INTERESTS_CALIBRATE_SESSION_KEY, "1");
-    expect(
-      resolveCalibrateFlagFromLocation({ search: "", hash: "", href: "https://h/" }).enabled,
-    ).toBe(true);
+  it("does not recognize removed calibrate flags", () => {
+    const flags = captureArRuntimeFlags({
+      href: "https://host/?arInterestsCalibrate=1",
+      pathname: "/",
+      search: "?arInterestsCalibrate=1",
+      hash: "",
+    });
+    expect(flags.arRuntimeAudit).toBe(false);
+    expect(flags).not.toHaveProperty("arInterestsCalibrate");
   });
 });

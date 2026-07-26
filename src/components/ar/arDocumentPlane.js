@@ -69,7 +69,7 @@ export function createDocumentPlane({
     },
 
     /**
-     * Inverse of toWorldFromTopLeft for calibration / overlap tests.
+     * Inverse of toWorldFromTopLeft for overlap / layout tests.
      * @param {number} x
      * @param {number} y
      * @param {{ clamp?: boolean }} [options]
@@ -87,7 +87,7 @@ export function createDocumentPlane({
     },
 
     /**
-     * Unclamped UV from local document XY (calibration drag).
+     * Unclamped UV from local document XY.
      * @param {number} x
      * @param {number} y
      */

@@ -65,6 +65,6 @@ describe("Interest objects physical pose", () => {
         );
       }
     });
-    expect(INTEREST_TARGET_SIZES["evil-eye"]).toBeCloseTo(0.14, 5);
+    expect(INTEREST_TARGET_SIZES["evil-eye"]).toBeCloseTo(0.275096, 5);
   });
 });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Post-build proof that the publishable dist contains AR runtime audit / calibrate markers.
+ * Post-build proof that the publishable dist contains AR runtime markers.
  * Exit 1 if any required string is missing from the JS referenced by dist/index.html.
  */
 import { readFileSync, existsSync } from "node:fs";
@@ -30,22 +30,26 @@ const js = readFileSync(mainJsPath, "utf8");
 const css = mainCssPath && existsSync(mainCssPath) ? readFileSync(mainCssPath, "utf8") : "";
 
 const requiredJs = [
-  "arInterestsCalibrate",
-  "Save final layout",
-  "ar-interest-final-layout-dev-v1",
-  "CALIBRATE MODE",
-  "data-ar-calibrate-hit",
-  "ar-interests-calibrate-session",
   "__PORTFOLIO_BUILD_ID",
   "arRuntimeAudit",
   "Copy runtime audit",
   "MindARTrackingAdapter",
   "data-ar-portal-host",
-  "CALIBRATE MODE — Activate Camera",
-  "CALIBRATE MODE ON",
+  "AI & Intelligent Systems",
+  "data-ar-interest-hit",
+  "data-ar-interest-info-card",
+  "ar-interest-info-card",
 ];
 
-const requiredCss = ["data-ar-calibrating", "ar-portal-host"];
+const forbiddenJs = [
+  "arInterestsCalibrate",
+  "Save final layout",
+  "CALIBRATE MODE",
+  "createInterestObjectsCalibrate",
+  "ar-interest-final-layout-dev-v1",
+];
+
+const requiredCss = ["ar-interest-info-card", "ar-portal-host", "data-ar-interest-interactive"];
 
 let failed = false;
 for (const needle of requiredJs) {
@@ -53,13 +57,17 @@ for (const needle of requiredJs) {
   console.log(`${ok ? "OK" : "MISSING"} js: ${needle}`);
   if (!ok) failed = true;
 }
+for (const needle of forbiddenJs) {
+  const present = js.includes(needle);
+  console.log(`${present ? "FORBIDDEN" : "OK"} js absent: ${needle}`);
+  if (present) failed = true;
+}
 for (const needle of requiredCss) {
   const ok = css.includes(needle);
   console.log(`${ok ? "OK" : "MISSING"} css: ${needle}`);
   if (!ok) failed = true;
 }
 
-// Build id must be a concrete string baked by Vite define (not the identifier alone).
 const buildIdLiteral = js.match(/__PORTFOLIO_BUILD_ID["']?\s*[:=]\s*["']([^"']+)["']/);
 const bakedId =
   js.match(/[a-f0-9]{7}\+\d{4}-\d{2}-\d{2}T/) ||

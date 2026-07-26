@@ -19,7 +19,6 @@ import {
   isArViewportDebugEnabled,
 } from "./createArViewportDebug";
 import { getArRuntimeFlags } from "./arRuntimeFlags";
-import { hideCalibrateBootBanner } from "./mountCalibrateBootBanner";
 import {
   recordArRuntimeAuditPhase,
   setArRuntimeAuditState,
@@ -41,18 +40,15 @@ function unavailableCopy(reason) {
 }
 
 function initialArScreen(isMobile, flags) {
-  // Calibrate / audit field work must reach the camera path even when Safari
-  // "Request Desktop Website" misclassifies the device.
-  const allowCameraPath = isMobile || flags.arInterestsCalibrate || flags.arRuntimeAudit;
+  // Audit field work can bypass the desktop gate when Safari misclassifies the device.
+  const allowCameraPath = isMobile || flags.arRuntimeAudit;
   if (!allowCameraPath) return "desktop";
-  // Skip intro in calibrate mode — mount MindAR + Save final layout immediately.
-  if (flags.arInterestsCalibrate) return "camera";
   return "intro";
 }
 
 function ARGovernanceExperience({ isMobile, onClose }) {
   const flags = getArRuntimeFlags();
-  const allowCameraPath = isMobile || flags.arInterestsCalibrate || flags.arRuntimeAudit;
+  const allowCameraPath = isMobile || flags.arRuntimeAudit;
   const [screen, setScreen] = useState(() => initialArScreen(isMobile, flags));
   const [unavailableReason, setUnavailableReason] = useState(null);
 
@@ -66,32 +62,8 @@ function ARGovernanceExperience({ isMobile, onClose }) {
       screen,
       isMobile,
       allowCameraPath,
-      calibrate: flags.arInterestsCalibrate,
-      calibrateSource: flags.calibrateSource,
     });
-    if (screen === "desktop" && flags.arInterestsCalibrate) {
-      console.warn(
-        "[ar-interests-calibrate] desktop gate active — camera/calibrate UI will not mount on this device classification",
-        { isMobile, ua: typeof navigator !== "undefined" ? navigator.userAgent : "" },
-      );
-      setArRuntimeAuditState({
-        calibrateSkipReason: "desktop-gate (isMobile=false)",
-      });
-    }
-    if (flags.arInterestsCalibrate && screen === "camera") {
-      console.info(
-        "[ar-interests-calibrate] auto-started camera — controller mounts with MindAR",
-        { source: flags.calibrateSource },
-      );
-      setArRuntimeAuditState({ calibrateSkipReason: null });
-    }
-  }, [
-    screen,
-    isMobile,
-    allowCameraPath,
-    flags.arInterestsCalibrate,
-    flags.calibrateSource,
-  ]);
+  }, [screen, isMobile, allowCameraPath]);
 
   return (
     <>
@@ -152,8 +124,6 @@ export default function ARGovernanceView({ open, onClose }) {
     const root = document.getElementById("root");
     const unlockPage = lockArPage();
     setPortfolioInert(root, true);
-    // Free the camera plane — boot chip must not stack on top of calibrate HUD.
-    hideCalibrateBootBanner();
     recordArRuntimeAuditPhase("beyond-the-cv-open", {
       isMobile,
       flags: getArRuntimeFlags(),
@@ -169,7 +139,6 @@ export default function ARGovernanceView({ open, onClose }) {
     const unbindViewport = bindArViewportListeners(sync);
 
     const flags = getArRuntimeFlags();
-    // Explicit ?arViewportDebug=1 only — never auto-enable during calibrate/audit.
     const viewportDebug =
       isArViewportDebugEnabled() || flags.arViewportDebug
         ? createArViewportDebug(shell, { enabled: true })

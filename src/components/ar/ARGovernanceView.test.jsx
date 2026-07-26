@@ -162,11 +162,11 @@ describe("ARGovernanceView entry flow", () => {
     expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
   });
 
-  it("auto-starts camera when arInterestsCalibrate is latched", async () => {
+  it("allows camera path on desktop when arRuntimeAudit is latched", async () => {
     captureArRuntimeFlags({
-      href: "https://example.com/?arInterestsCalibrate=1",
+      href: "https://example.com/?arRuntimeAudit=1",
       pathname: "/",
-      search: "?arInterestsCalibrate=1",
+      search: "?arRuntimeAudit=1",
       hash: "",
     });
     mobileMock.isMobile = false;
@@ -174,7 +174,7 @@ describe("ARGovernanceView entry flow", () => {
     render(<ARGovernanceView open onClose={vi.fn()} />);
 
     const scope = portalScope();
-    expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
-    expect(scope.queryByRole("button", { name: "Activate Camera" })).toBeNull();
+    expect(await scope.findByRole("button", { name: "Activate Camera" })).toBeTruthy();
+    expect(scope.queryByTestId("ar-camera-view")).toBeNull();
   });
 });

@@ -4,7 +4,6 @@ import './index.css'
 import App from './App.jsx'
 import { publishPortfolioBuildId } from './components/ar/arBuildId'
 import { captureArRuntimeFlags } from './components/ar/arRuntimeFlags'
-import { mountCalibrateBootBanner } from './components/ar/mountCalibrateBootBanner'
 import {
   createArRuntimeAudit,
   isArRuntimeAuditEnabled,
@@ -13,7 +12,6 @@ import {
 // Latch URL flags + build id before React mounts (before Beyond the CV / camera).
 publishPortfolioBuildId()
 captureArRuntimeFlags()
-mountCalibrateBootBanner()
 
 const runtimeAudit = isArRuntimeAuditEnabled()
   ? createArRuntimeAudit({ enabled: true })

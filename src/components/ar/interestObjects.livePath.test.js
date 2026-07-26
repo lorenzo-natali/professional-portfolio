@@ -55,6 +55,8 @@ describe("Interest objects live path", () => {
     );
     expect(adapter).toMatch(/createInterestObjectsLayer/);
     expect(adapter).toMatch(/createInterestObjectsAnimation/);
+    expect(adapter).toMatch(/createInterestObjectsTapController/);
+    expect(adapter).not.toMatch(/createInterestObjectsCalibrate/);
     expect(adapter).not.toMatch(/createAlignmentCore/);
     expect(adapter).not.toMatch(/createAlignmentAnimator/);
     expect(adapter).not.toMatch(/createAlignmentInteraction/);

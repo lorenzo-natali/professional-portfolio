@@ -1,5 +1,3 @@
-import { AR_INTERESTS_CALIBRATE_SESSION_KEY } from "./interestObjectsCalibrateStorage";
-
 /**
  * Centralized AR runtime flags, captured once from the real initial URL and
  * kept for the whole tab session. Production GitHub Pages builds must honor
@@ -8,10 +6,8 @@ import { AR_INTERESTS_CALIBRATE_SESSION_KEY } from "./interestObjectsCalibrateSt
 
 /** @typedef {{
  *   arRuntimeAudit: boolean,
- *   arInterestsCalibrate: boolean,
  *   arViewportDebug: boolean,
  *   source: "initial-url" | "current-url" | "session" | "forced" | "none",
- *   calibrateSource: "search" | "hash" | "href" | "session" | "forced" | "none",
  *   href: string,
  *   pathname: string,
  *   search: string,
@@ -26,105 +22,12 @@ function truthy(value) {
   return value === "1" || value === "true" || value === "yes";
 }
 
-function falsy(value) {
-  return value === "0" || value === "false" || value === "no";
-}
-
 function readParam(params, key) {
   try {
     return params.get(key);
   } catch {
     return null;
   }
-}
-
-function persistCalibrateSession(enabled) {
-  try {
-    if (typeof sessionStorage === "undefined") return;
-    if (enabled) sessionStorage.setItem(AR_INTERESTS_CALIBRATE_SESSION_KEY, "1");
-    else sessionStorage.removeItem(AR_INTERESTS_CALIBRATE_SESSION_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-function readCalibrateSession() {
-  try {
-    if (typeof sessionStorage === "undefined") return false;
-    return sessionStorage.getItem(AR_INTERESTS_CALIBRATE_SESSION_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Resolve calibrate flag from a location-like object without mutating latch.
- * @param {{ search?: string, hash?: string, href?: string }} loc
- */
-export function resolveCalibrateFlagFromLocation(loc = {}) {
-  const search = loc.search ?? "";
-  const hash = loc.hash ?? "";
-  const href = loc.href ?? "";
-
-  /** @type {string | null} */
-  let explicit = null;
-  /** @type {ArRuntimeFlags["calibrateSource"]} */
-  let calibrateSource = "none";
-
-  try {
-    const fromSearch = readParam(new URLSearchParams(search), "arInterestsCalibrate");
-    if (fromSearch != null) {
-      explicit = fromSearch;
-      calibrateSource = "search";
-    }
-  } catch {
-    // ignore
-  }
-
-  if (explicit == null && hash) {
-    try {
-      const qIndex = hash.indexOf("?");
-      const hashQuery =
-        qIndex >= 0 ? hash.slice(qIndex + 1) : hash.startsWith("#") ? hash.slice(1) : hash;
-      const fromHash = readParam(new URLSearchParams(hashQuery), "arInterestsCalibrate");
-      if (fromHash != null) {
-        explicit = fromHash;
-        calibrateSource = "hash";
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  if (explicit == null && href && /[?&#]arInterestsCalibrate=/i.test(href)) {
-    try {
-      const match = href.match(/[?&#]arInterestsCalibrate=([^&#]+)/i);
-      if (match?.[1] != null) {
-        explicit = decodeURIComponent(match[1]);
-        calibrateSource = "href";
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  if (explicit != null) {
-    if (falsy(explicit)) {
-      persistCalibrateSession(false);
-      return { enabled: false, calibrateSource };
-    }
-    if (truthy(explicit)) {
-      persistCalibrateSession(true);
-      return { enabled: true, calibrateSource };
-    }
-    return { enabled: false, calibrateSource };
-  }
-
-  if (readCalibrateSession()) {
-    return { enabled: true, calibrateSource: "session" };
-  }
-
-  return { enabled: false, calibrateSource: "none" };
 }
 
 function readBoolFlag(search, hash, href, key) {
@@ -175,25 +78,17 @@ export function captureArRuntimeFlags(loc, options = {}) {
   const search = String(locationRef.search || "");
   const hash = String(locationRef.hash || "");
 
-  const calibrate = resolveCalibrateFlagFromLocation({ search, hash, href });
   const audit = readBoolFlag(search, hash, href, "arRuntimeAudit");
   const viewportDebug = readBoolFlag(search, hash, href, "arViewportDebug");
 
   /** @type {ArRuntimeFlags["source"]} */
   let source = "none";
-  if (calibrate.calibrateSource === "search" || audit || viewportDebug) source = "initial-url";
-  else if (calibrate.calibrateSource === "hash" || calibrate.calibrateSource === "href")
-    source = "initial-url";
-  else if (calibrate.calibrateSource === "session") source = "session";
+  if (audit || viewportDebug) source = "initial-url";
 
   latchedFlags = {
     arRuntimeAudit: audit,
-    arInterestsCalibrate: calibrate.enabled,
-    // Keep viewport outline HUD opt-in only — never piggy-back on audit/calibrate
-    // or the AR scene becomes unusable under stacked debug chrome.
     arViewportDebug: viewportDebug,
     source,
-    calibrateSource: calibrate.calibrateSource,
     href,
     pathname,
     search,
@@ -205,13 +100,7 @@ export function captureArRuntimeFlags(loc, options = {}) {
     window.__AR_RUNTIME_FLAGS = latchedFlags;
   }
 
-  console.info("[ar-runtime-flags] captured", {
-    ...latchedFlags,
-    note:
-      calibrate.enabled
-        ? "calibrate ON — UI mounts after Activate Camera (MindAR start)"
-        : "calibrate OFF",
-  });
+  console.info("[ar-runtime-flags] captured", latchedFlags);
 
   return latchedFlags;
 }

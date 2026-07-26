@@ -43,11 +43,9 @@ describe("Interest objects orientation config", () => {
     });
   });
 
-  it("enlarges evil-eye into the readable 0.13–0.16 band", () => {
+  it("uses the production evil-eye targetSize", () => {
     const eye = INTEREST_OBJECTS.find((item) => item.id === "evil-eye");
-    expect(eye.targetSize).toBeGreaterThanOrEqual(0.13);
-    expect(eye.targetSize).toBeLessThanOrEqual(0.16);
-    expect(eye.targetSize).toBeCloseTo(0.14, 5);
+    expect(eye.targetSize).toBeCloseTo(0.275096, 5);
   });
 
   it("separates displayYaw from canonicalRotation", () => {
@@ -101,7 +99,7 @@ describe("Interest objects orientation pipeline", () => {
       items: INTEREST_OBJECTS.filter((item) => item.id === "robot"),
     });
     const entry = layer.getEntry("robot");
-    expect(entry.display.rotation.z).toBeCloseTo(0.55, 5);
+    expect(entry.display.rotation.z).toBeCloseTo(-0.590886, 5);
     expect(entry.entrance.parent).toBe(entry.display);
     expect(entry.display.parent).toBe(entry.root);
     // Content not loaded yet — entrance holds animation transform only.

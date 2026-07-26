@@ -19,9 +19,8 @@ const SELECTORS = {
   canvas: "[data-ar-tracking-container='true'] canvas",
   css3d: "[data-ar-tracking-container='true'] > div",
   overlay: "[data-ar-ui-overlay='true']",
-  calibrateUi: "[data-ar-interests-calibrate-ui='true']",
-  calibrateHit: "[data-ar-calibrate-hit='true']",
-  calibrateEarly: "[data-ar-calibrate-early-banner='true']",
+  interestHit: "[data-ar-interest-hit='true']",
+  interestCard: "[data-ar-interest-info-card='true']",
 };
 
 /** @type {Array<Record<string, unknown>>} */
@@ -34,11 +33,7 @@ const errorLog = [];
 const runtimeState = {
   arComponent: null,
   trackingAdapter: null,
-  calibrationModuleLoaded: false,
-  calibrationUiMounted: false,
-  calibrationControllerCreated: false,
-  calibrationListenersInstalled: false,
-  calibrateSkipReason: null,
+  interestTapMounted: false,
   screen: null,
 };
 
@@ -273,9 +268,9 @@ export async function buildArRuntimeAuditReport() {
   );
   const sw = await collectServiceWorkerInfo();
 
-  runtimeState.calibrationUiMounted = Boolean(document.querySelector(SELECTORS.calibrateUi));
-  runtimeState.calibrationModuleLoaded = Boolean(
-    window.__arInterestsCalibrate || runtimeState.calibrationControllerCreated,
+  runtimeState.interestTapMounted = Boolean(
+    document.querySelector(SELECTORS.interestHit) ||
+      document.querySelector(SELECTORS.interestCard),
   );
 
   return {
@@ -297,16 +292,11 @@ export async function buildArRuntimeAuditReport() {
     },
     flags: {
       arRuntimeAudit: flags.arRuntimeAudit,
-      arInterestsCalibrate: flags.arInterestsCalibrate,
       arViewportDebug: flags.arViewportDebug,
       source: flags.source,
-      calibrateSource: flags.calibrateSource,
       capturedAt: flags.capturedAt,
       initialHref: flags.href,
-      currentMatchesInitialSearch:
-        location.search === flags.search ||
-        new URLSearchParams(location.search).get("arInterestsCalibrate") ===
-          new URLSearchParams(flags.search).get("arInterestsCalibrate"),
+      currentMatchesInitialSearch: location.search === flags.search,
     },
     runtime: { ...runtimeState },
     viewport: {
@@ -389,9 +379,6 @@ export function createArRuntimeAudit(options = {}) {
   publishPortfolioBuildId();
   pushLifecycle("audit-enabled", { buildId: PORTFOLIO_BUILD_ID });
 
-  // With calibrate, keep a single small control — the multiline badge covers the scene.
-  const compactWithCalibrate = Boolean(flags.arInterestsCalibrate);
-
   const host = document.createElement("div");
   host.dataset.arRuntimeAuditUi = "true";
   host.style.cssText = [
@@ -416,7 +403,7 @@ export function createArRuntimeAudit(options = {}) {
     "color:#fef2f2",
     "font-weight:700",
     "letter-spacing:0.04em",
-    "display:" + (compactWithCalibrate ? "none" : "inline-block"),
+    "display:inline-block",
     "max-width:min(96vw,28rem)",
     "white-space:pre-wrap",
   ].join(";");
@@ -424,34 +411,20 @@ export function createArRuntimeAudit(options = {}) {
 
   const copyBtn = document.createElement("button");
   copyBtn.type = "button";
-  copyBtn.textContent = compactWithCalibrate ? "Audit" : "Copy runtime audit";
-  copyBtn.style.cssText = compactWithCalibrate
-    ? [
-        "pointer-events:auto",
-        "position:absolute",
-        "right:0.45rem",
-        "top:max(0.4rem,env(safe-area-inset-top))",
-        "padding:0.35rem 0.55rem",
-        "border-radius:0.35rem",
-        "border:1px solid rgba(252,165,165,0.45)",
-        "background:rgba(69,10,10,0.9)",
-        "color:#fff1f2",
-        "font:11px/1.2 ui-sans-serif, system-ui, sans-serif",
-        "font-weight:700",
-      ].join(";")
-    : [
-        "pointer-events:auto",
-        "position:absolute",
-        "right:0.5rem",
-        "bottom:0.5rem",
-        "padding:0.55rem 0.75rem",
-        "border-radius:0.45rem",
-        "border:1px solid rgba(252,165,165,0.55)",
-        "background:rgba(69,10,10,0.95)",
-        "color:#fff1f2",
-        "font:12px/1.2 ui-sans-serif, system-ui, sans-serif",
-        "font-weight:700",
-      ].join(";");
+  copyBtn.textContent = "Copy runtime audit";
+  copyBtn.style.cssText = [
+    "pointer-events:auto",
+    "position:absolute",
+    "right:0.5rem",
+    "bottom:0.5rem",
+    "padding:0.55rem 0.75rem",
+    "border-radius:0.45rem",
+    "border:1px solid rgba(252,165,165,0.55)",
+    "background:rgba(69,10,10,0.95)",
+    "color:#fff1f2",
+    "font:12px/1.2 ui-sans-serif, system-ui, sans-serif",
+    "font-weight:700",
+  ].join(";");
   host.appendChild(copyBtn);
 
   function refreshBadge() {
@@ -462,9 +435,9 @@ export function createArRuntimeAudit(options = {}) {
       : "?";
     badge.textContent = [
       `BUILD ${PORTFOLIO_BUILD_ID}`,
-      `calibrate=${f.arInterestsCalibrate} (${f.calibrateSource})`,
+      `audit=${f.arRuntimeAudit} viewportDebug=${f.arViewportDebug}`,
       `adapter=${runtimeState.trackingAdapter || "—"} screen=${runtimeState.screen || "—"}`,
-      `calibUI=${Boolean(document.querySelector(SELECTORS.calibrateUi))} gapR=${gapRight}px`,
+      `interestCard=${Boolean(document.querySelector(SELECTORS.interestCard))} gapR=${gapRight}px`,
       `${location.pathname}${location.search}`,
     ].join("\n");
   }

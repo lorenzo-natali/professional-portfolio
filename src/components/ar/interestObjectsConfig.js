@@ -38,15 +38,15 @@ export const INTEREST_UPRIGHT_IDENTITY = INTEREST_CANONICAL_IDENTITY;
 /**
  * Target display sizes in document units (CV width = 1).
  * Interpreted with each item's `scaleAxis` after final orientation.
+ * Phone-tuned production sizes (document width = 1).
  */
 export const INTEREST_TARGET_SIZES = {
-  book: 0.16,
-  backpack: 0.18,
-  plant: 0.24,
-  robot: 0.22,
-  fossil: 0.2,
-  /** Was 0.10 — too small on iPhone; calibrated to mid 0.13–0.16 band. */
-  "evil-eye": 0.14,
+  book: 0.199924,
+  backpack: 0.26792,
+  plant: 0.229734,
+  robot: 0.271292,
+  fossil: 0.326418,
+  "evil-eye": 0.275096,
 };
 
 /**
@@ -119,10 +119,10 @@ export const INTEREST_OBJECTS = [
     id: "book",
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/book.glb`,
-    origin: { u: 0.2, vTop: 0.22 },
+    origin: { u: 0.152529, vTop: 0.543903 },
     // Flat cover on paper after Y→Z; scale by largest paper-plane extent.
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
-    displayYaw: 0.35,
+    displayYaw: 0.341353,
     groundOffset: 0.012,
     frontAxis: "+y",
     scaleAxis: "max",
@@ -133,9 +133,9 @@ export const INTEREST_OBJECTS = [
     id: "evil-eye",
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/evil-eye.glb`,
-    origin: { u: 0.4, vTop: 0.18 },
+    origin: { u: 0.231192, vTop: 0.238103 },
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
-    displayYaw: 0.08,
+    displayYaw: -0.163465,
     displayTilt: { x: 0.12, y: -0.35 },
     groundOffset: 0.012,
     frontAxis: "+y",
@@ -147,9 +147,9 @@ export const INTEREST_OBJECTS = [
     id: "robot",
     group: "knowledge",
     src: `${INTEREST_OBJECTS_BASE_PATH}/robot.glb`,
-    origin: { u: 0.24, vTop: 0.48 },
+    origin: { u: 0.623818, vTop: 0.569126 },
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
-    displayYaw: 0.55,
+    displayYaw: -0.590886,
     groundOffset: 0.012,
     frontAxis: "+y",
     scaleAxis: "z",
@@ -160,10 +160,10 @@ export const INTEREST_OBJECTS = [
     id: "fossil",
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/fossil.glb`,
-    origin: { u: 0.74, vTop: 0.28 },
+    origin: { u: 0.507306, vTop: 0.318222 },
     // Explicit museum pose — not identity, not a shared heuristic with other assets.
     canonicalRotation: { ...INTEREST_FOSSIL_CANONICAL },
-    displayYaw: -0.85,
+    displayYaw: -0.843607,
     displayTilt: { x: 0.08, y: 0 },
     groundOffset: 0.012,
     frontAxis: "+y",
@@ -175,9 +175,9 @@ export const INTEREST_OBJECTS = [
     id: "plant",
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/plant.glb`,
-    origin: { u: 0.76, vTop: 0.58 },
+    origin: { u: 0.143736, vTop: 0.876186 },
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
-    displayYaw: 0.25,
+    displayYaw: 0.304357,
     groundOffset: 0.012,
     frontAxis: "+y",
     scaleAxis: "z",
@@ -188,9 +188,9 @@ export const INTEREST_OBJECTS = [
     id: "backpack",
     group: "exploration",
     src: `${INTEREST_OBJECTS_BASE_PATH}/backpack.glb`,
-    origin: { u: 0.68, vTop: 0.78 },
+    origin: { u: 0.621042, vTop: 0.890808 },
     canonicalRotation: { ...INTEREST_CANONICAL_Y_UP_TO_Z_UP },
-    displayYaw: -0.5,
+    displayYaw: -0.548487,
     groundOffset: 0.012,
     frontAxis: "+y",
     scaleAxis: "z",

@@ -7,11 +7,11 @@ const mocks = vi.hoisted(() => ({
   MindARThree: vi.fn(),
   createInterestObjectsLayer: vi.fn(),
   createInterestObjectsAnimation: vi.fn(),
-  calibrateEnabled: false,
-  createInterestObjectsCalibrate: vi.fn(() => ({
+  createInterestObjectsTapController: vi.fn(() => ({
     dispose: vi.fn(),
-    onItemLoaded: vi.fn(),
-    enabled: true,
+    close: vi.fn(),
+    update: vi.fn(),
+    hitLayer: document.createElement("div"),
   })),
   animInstances: /** @type {any[]} */ ([]),
 }));
@@ -32,15 +32,10 @@ vi.mock("../createInterestObjectsAnimation", () => ({
   createInterestObjectsAnimation: (...args) => mocks.createInterestObjectsAnimation(...args),
 }));
 
-vi.mock("../createInterestObjectsCalibrate", async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...actual,
-    isInterestObjectsCalibrateEnabled: () => mocks.calibrateEnabled,
-    createInterestObjectsCalibrate: (...args) =>
-      mocks.createInterestObjectsCalibrate(...args),
-  };
-});
+vi.mock("../createInterestObjectsTapController", () => ({
+  createInterestObjectsTapController: (...args) =>
+    mocks.createInterestObjectsTapController(...args),
+}));
 
 vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
   MindARThree: mocks.MindARThree,
@@ -158,13 +153,13 @@ describe("createMindARTrackingAdapter interest objects", () => {
     mocks.MindARThree.mockReset();
     mocks.createInterestObjectsLayer.mockReset();
     mocks.createInterestObjectsAnimation.mockReset();
-    mocks.createInterestObjectsCalibrate.mockReset();
-    mocks.createInterestObjectsCalibrate.mockImplementation(() => ({
+    mocks.createInterestObjectsTapController.mockReset();
+    mocks.createInterestObjectsTapController.mockImplementation(() => ({
       dispose: vi.fn(),
-      onItemLoaded: vi.fn(),
-      enabled: true,
+      close: vi.fn(),
+      update: vi.fn(),
+      hitLayer: document.createElement("div"),
     }));
-    mocks.calibrateEnabled = false;
     mocks.animInstances.length = 0;
     mocks.createInterestObjectsLayer.mockImplementation(() => makeInterestLayerStub());
     mocks.createInterestObjectsAnimation.mockImplementation((layer) => makeAnimationStub(layer));
@@ -220,7 +215,7 @@ describe("createMindARTrackingAdapter interest objects", () => {
     );
     expect(presentation).toBeTruthy();
     expect(presentation.children[0]?.name).toBe("ar-interest-objects-placement");
-    expect(renderer.domElement.style.pointerEvents).toBe("none");
+    expect(renderer.domElement.style.pointerEvents).toBe("auto");
 
     await adapter.stop();
     container.remove();
@@ -333,52 +328,50 @@ describe("createMindARTrackingAdapter interest objects", () => {
     applyCameraLayerStacking(container, renderer);
     expect(container.style.pointerEvents).toBe("none");
     expect(canvas.style.pointerEvents).toBe("none");
-    expect(container.dataset.arCalibrating).toBeUndefined();
+    expect(container.dataset.arInterestInteractive).toBeUndefined();
   });
 
-  it("applyCameraLayerStacking unlocks hits in calibrate mode", () => {
+  it("applyCameraLayerStacking unlocks hits for interest taps", () => {
     const container = document.createElement("div");
     const canvas = document.createElement("canvas");
     const hit = document.createElement("div");
-    hit.dataset.arCalibrateHit = "true";
+    hit.setAttribute("data-ar-interest-hit", "true");
     container.appendChild(canvas);
     container.appendChild(hit);
     const renderer = { setClearColor: vi.fn(), setClearAlpha: vi.fn(), domElement: canvas };
     applyCameraLayerStacking(container, renderer, { canvasPointerEvents: "auto" });
     expect(container.style.pointerEvents).toBe("auto");
-    expect(container.dataset.arCalibrating).toBe("true");
+    expect(container.dataset.arInterestInteractive).toBe("true");
     expect(canvas.style.pointerEvents).toBe("auto");
     expect(hit.style.pointerEvents).toBe("auto");
   });
 
-  it("calibrate mode mounts controller and skips session reset on target lost", async () => {
-    vi.useFakeTimers();
-    mocks.calibrateEnabled = true;
+  it("mounts interest tap controller and closes card on target lost", async () => {
     mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
     const layer = makeInterestLayerStub();
     mocks.createInterestObjectsLayer.mockReturnValue(layer);
+    const tap = {
+      dispose: vi.fn(),
+      close: vi.fn(),
+      update: vi.fn(),
+      hitLayer: document.createElement("div"),
+    };
+    mocks.createInterestObjectsTapController.mockReturnValue(tap);
     mockMindAR();
     const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
     const container = document.createElement("div");
     document.body.appendChild(container);
     await adapter.start(container, {});
 
-    expect(mocks.createInterestObjectsCalibrate).toHaveBeenCalled();
-    expect(mocks.createInterestObjectsAnimation.mock.calls[0][1]).toMatchObject({
-      showAllImmediately: true,
-    });
+    expect(mocks.createInterestObjectsTapController).toHaveBeenCalled();
 
     const mindInstance = mocks.MindARThree.mock.results[0].value;
     const anchorHandle = mindInstance.addAnchor.mock.results[0].value;
-    const anim = mocks.animInstances[0];
-
-    anchorHandle.onTargetFound();
     anchorHandle.onTargetLost();
-    await vi.advanceTimersByTimeAsync(AR_SESSION_RESET_MS + 50);
-    expect(anim.resetSession).not.toHaveBeenCalled();
-    expect(layer.resetVisualState).not.toHaveBeenCalled();
+    expect(tap.close).toHaveBeenCalled();
 
     await adapter.stop();
+    expect(tap.dispose).toHaveBeenCalled();
     container.remove();
   });
 
