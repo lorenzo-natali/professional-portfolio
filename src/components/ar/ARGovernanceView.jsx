@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ARTrackingProvider } from "./tracking/ARTrackingProvider";
 import ARDesktopGate from "./ARDesktopGate";
@@ -8,6 +8,7 @@ import ARUnavailablePanel from "./ARUnavailablePanel";
 import { useIsMobileDevice } from "./useIsMobileDevice";
 import { lockArPage, setPortfolioInert } from "./arPageLock";
 import { bindArViewportListeners, syncArViewportShell } from "./arViewport";
+import { resolveArCameraDebugSessionFlag } from "./arDebug";
 
 function unavailableCopy(reason) {
   switch (reason) {
@@ -24,7 +25,7 @@ function unavailableCopy(reason) {
   }
 }
 
-function ARGovernanceExperience({ isMobile, onClose }) {
+function ARGovernanceExperience({ isMobile, onClose, diagnosticsEnabled }) {
   const [screen, setScreen] = useState(isMobile ? "intro" : "desktop");
   const [unavailableReason, setUnavailableReason] = useState(null);
 
@@ -39,6 +40,7 @@ function ARGovernanceExperience({ isMobile, onClose }) {
       {screen === "camera" && (
         <ARTrackingProvider>
           <ARCameraView
+            diagnosticsEnabled={diagnosticsEnabled}
             onBack={onClose}
             onFallback={(reason) => {
               const allowed = new Set([
@@ -68,6 +70,11 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 export default function ARGovernanceView({ open, onClose }) {
   const isMobile = useIsMobileDevice();
   const shellRef = useRef(null);
+  // Authoritative diagnostics flag for this AR open — recomputed only when `open` changes.
+  const diagnosticsEnabled = useMemo(
+    () => (open ? resolveArCameraDebugSessionFlag() : false),
+    [open],
+  );
 
   useLayoutEffect(() => {
     if (!open) return undefined;
@@ -95,12 +102,17 @@ export default function ARGovernanceView({ open, onClose }) {
       ref={shellRef}
       data-ar-viewport-shell="true"
       data-ar-root="true"
+      data-ar-camera-debug={diagnosticsEnabled ? "1" : "0"}
       className="ar-viewport-shell"
       role="dialog"
       aria-modal="true"
       aria-label="AR Governance View"
     >
-      <ARGovernanceExperience isMobile={isMobile} onClose={onClose} />
+      <ARGovernanceExperience
+        isMobile={isMobile}
+        onClose={onClose}
+        diagnosticsEnabled={diagnosticsEnabled}
+      />
     </div>,
     document.body,
   );

@@ -347,7 +347,8 @@ export function attachArCameraDiagnostics({
   logInitial = true,
   forceEnabled = false,
 } = {}) {
-  if (!video || !(forceEnabled || isArCameraDebugEnabled())) {
+  // forceEnabled is the session-authoritative path — do not re-parse the URL when true.
+  if (!video || !(forceEnabled === true || isArCameraDebugEnabled())) {
     return () => {};
   }
 

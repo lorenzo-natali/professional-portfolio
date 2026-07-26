@@ -3,22 +3,29 @@ import { formatCameraDiagnosticsSummary } from "./arCameraDiagnostics";
 
 /**
  * Compact temporary diagnostics panel (debug flag only).
- * Placed top-left so it avoids the central CV framing area.
+ * Lives in the AR camera stage above the tracking container.
  */
-export default function ARCameraDiagnosticsPanel({ snapshot, waiting = false }) {
+export default function ARCameraDiagnosticsPanel({
+  snapshot,
+  waiting = false,
+  error = null,
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const summary = useMemo(() => {
+    if (error) return error;
     if (snapshot) return formatCameraDiagnosticsSummary(snapshot);
     if (waiting) return "Waiting for camera video metadata…";
     return "";
-  }, [snapshot, waiting]);
+  }, [snapshot, waiting, error]);
 
   const copy = async () => {
     const payload = snapshot
       ? JSON.stringify(snapshot, null, 2)
-      : "AR camera diagnostics: waiting for video metadata";
+      : error
+        ? `AR camera diagnostics error: ${error}`
+        : "AR camera diagnostics: waiting for video metadata";
     try {
       await navigator.clipboard?.writeText?.(payload);
       setCopied(true);
@@ -38,8 +45,9 @@ export default function ARCameraDiagnosticsPanel({ snapshot, waiting = false }) 
   return (
     <div
       data-ar-camera-diagnostics="true"
-      data-ar-camera-diagnostics-waiting={waiting && !snapshot ? "true" : "false"}
-      className="pointer-events-auto absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-[60] max-w-[min(18rem,calc(100vw-1rem))] rounded border border-amber-500/50 bg-slate-950/90 text-[10px] leading-snug text-slate-100 shadow-md"
+      data-ar-camera-diagnostics-waiting={waiting && !snapshot && !error ? "true" : "false"}
+      data-ar-camera-diagnostics-error={error ? "true" : "false"}
+      className="ar-camera-diagnostics pointer-events-auto max-w-[min(18rem,calc(100vw-1rem))] rounded border border-amber-500/50 bg-slate-950/90 text-[10px] leading-snug text-slate-100 shadow-md"
       style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace' }}
     >
       <div className="flex items-center justify-between gap-2 border-b border-slate-700/80 px-2 py-1">
@@ -63,7 +71,13 @@ export default function ARCameraDiagnosticsPanel({ snapshot, waiting = false }) 
         </div>
       </div>
       {!collapsed && (
-        <pre className="m-0 whitespace-pre-wrap px-2 py-1.5 text-[10px] text-slate-100">{summary}</pre>
+        <pre
+          className={`m-0 whitespace-pre-wrap px-2 py-1.5 text-[10px] ${
+            error ? "text-amber-100" : "text-slate-100"
+          }`}
+        >
+          {summary}
+        </pre>
       )}
     </div>
   );

@@ -14,7 +14,11 @@ vi.mock("./checkArTargetAvailable", () => ({
 }));
 
 vi.mock("./ARCameraView", () => ({
-  default: () => <div data-testid="ar-camera-view">camera</div>,
+  default: ({ diagnosticsEnabled = false }) => (
+    <div data-testid="ar-camera-view" data-diagnostics-enabled={diagnosticsEnabled ? "1" : "0"}>
+      camera
+    </div>
+  ),
 }));
 
 import { checkArTargetAvailable } from "./checkArTargetAvailable";

@@ -9,13 +9,11 @@ export const AR_SHOW_ANCHOR_PROOF = false;
 /**
  * Force AR camera-quality diagnostics on without a URL flag.
  * Keep false in committed production builds.
+ * May be consulted only when resolving the session flag.
  */
 export const AR_CAMERA_DEBUG = false;
 
 export const CAMERA_DEBUG_QUERY = "arCameraDebug";
-
-/** Page-session latch: once the URL flag is observed, keep diagnostics enabled until reload. */
-let urlFlagLatched = false;
 
 /**
  * Extract `arCameraDebug` from a querystring, full URL, search, or hash fragment.
@@ -108,8 +106,11 @@ function readDebugParamFromLocation() {
 }
 
 /**
- * Diagnostics are enabled only via explicit URL/hash flag or the development constant.
+ * Pure flag reader (no session latch). Prefer resolving once into React session state
+ * when an AR experience opens; do not re-parse mid-session for panel mounting.
+ *
  * @param {string | URLSearchParams | { search?: string, hash?: string, href?: string } | undefined} [source]
+ * @returns {boolean}
  */
 export function isArCameraDebugEnabled(source) {
   if (AR_CAMERA_DEBUG) return true;
@@ -130,23 +131,19 @@ export function isArCameraDebugEnabled(source) {
       value = readDebugParamFromLocation();
     }
 
-    if (value === "1") {
-      urlFlagLatched = true;
-      return true;
-    }
-
-    // Keep enabled for this page session after the flag was observed (portal remounts / soft nav).
-    if (source === undefined && urlFlagLatched) {
-      return true;
-    }
+    return value === "1";
   } catch {
-    return AR_CAMERA_DEBUG || urlFlagLatched;
+    return AR_CAMERA_DEBUG;
   }
-
-  return false;
 }
 
-/** @internal test helper */
-export function resetArCameraDebugLatch() {
-  urlFlagLatched = false;
+/**
+ * Resolve the single authoritative diagnostics flag for an AR session open.
+ * Call once when the experience opens; store the result in React state.
+ *
+ * @param {string | URLSearchParams | { search?: string, hash?: string, href?: string } | undefined} [source]
+ * @returns {boolean}
+ */
+export function resolveArCameraDebugSessionFlag(source) {
+  return isArCameraDebugEnabled(source);
 }

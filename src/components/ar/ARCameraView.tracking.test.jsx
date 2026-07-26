@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, act, screen } from "@testing-library/react";
 import ARCameraView from "./ARCameraView";
-import { resetArCameraDebugLatch } from "./arDebug";
 
 const trackingHandlers = {};
 
@@ -26,6 +25,16 @@ vi.mock("./ARTrackingScene", () => ({
 vi.mock("./tracking/ARTrackingProvider", () => ({
   ARTrackingProvider: ({ children }) => children,
 }));
+
+vi.mock("./arCameraDiagnostics", async () => {
+  const actual = await vi.importActual("./arCameraDiagnostics");
+  return {
+    ...actual,
+    attachArCameraDiagnostics: vi.fn((options) => actual.attachArCameraDiagnostics(options)),
+  };
+});
+
+import { attachArCameraDiagnostics } from "./arCameraDiagnostics";
 
 function stubReadyVideo() {
   const container = document.createElement("div");
@@ -69,8 +78,8 @@ function stubReadyVideo() {
 
 describe("ARCameraView clean baseline HUD", () => {
   afterEach(() => {
-    resetArCameraDebugLatch();
     window.history.replaceState({}, "", "/");
+    vi.clearAllMocks();
     vi.restoreAllMocks();
   });
 
@@ -125,24 +134,32 @@ describe("ARCameraView clean baseline HUD", () => {
     expect(await screen.findByText("Reframe the CV to continue")).toBeInTheDocument();
   });
 
-  it("does not render camera diagnostics without the debug flag", () => {
-    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
+  it("does not render camera diagnostics without the session flag", () => {
+    const { container } = render(
+      <ARCameraView onBack={vi.fn()} onFallback={vi.fn()} diagnosticsEnabled={false} />,
+    );
     expect(container.querySelector("[data-ar-camera-diagnostics='true']")).toBeNull();
   });
 
-  it("shows diagnostics inside the AR stage when ?arCameraDebug=1 and video is ready", async () => {
-    window.history.replaceState({}, "", "/professional-portfolio/?arCameraDebug=1");
+  it("shows Waiting immediately when the session diagnostics flag is enabled", () => {
+    const { container } = render(
+      <ARCameraView onBack={vi.fn()} onFallback={vi.fn()} diagnosticsEnabled />,
+    );
+    const stage = container.querySelector("[data-ar-camera-stage='true']");
+    const panel = stage.querySelector("[data-ar-camera-diagnostics='true']");
+    expect(panel).toBeTruthy();
+    expect(panel.getAttribute("data-ar-camera-diagnostics-waiting")).toBe("true");
+    expect(panel.textContent).toMatch(/Waiting for camera video metadata/);
+    expect(panel.className).toContain("ar-camera-diagnostics");
+  });
+
+  it("fills snapshot fields after onVideoReady and keeps the panel on target found/lost", async () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
 
-    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
+    const { container } = render(
+      <ARCameraView onBack={vi.fn()} onFallback={vi.fn()} diagnosticsEnabled />,
+    );
     const stage = container.querySelector("[data-ar-camera-stage='true']");
-
-    expect(stage.querySelector("[data-ar-camera-diagnostics='true']")).toBeTruthy();
-    expect(
-      stage.querySelector("[data-ar-camera-diagnostics='true']")?.getAttribute(
-        "data-ar-camera-diagnostics-waiting",
-      ),
-    ).toBe("true");
 
     const { video, container: videoHost } = stubReadyVideo();
     await act(async () => {
@@ -153,16 +170,47 @@ describe("ARCameraView clean baseline HUD", () => {
       await Promise.resolve();
     });
 
+    expect(attachArCameraDiagnostics).toHaveBeenCalledWith(
+      expect.objectContaining({ forceEnabled: true, video }),
+    );
+
     const panel = stage.querySelector("[data-ar-camera-diagnostics='true']");
     expect(panel).toBeTruthy();
     expect(panel?.textContent).toMatch(/Native:\s*1280\s*×\s*720/);
     expect(panel?.textContent).not.toContain("secret-device");
-    expect(panel?.closest("[data-ar-camera-stage='true']")).toBe(stage);
+
+    await act(async () => {
+      trackingHandlers.onTargetFound?.();
+      trackingHandlers.onTargetLost?.();
+    });
+
+    expect(stage.querySelector("[data-ar-camera-diagnostics='true']")).toBeTruthy();
+    expect(await screen.findByText("Reframe the CV to continue")).toBeInTheDocument();
   });
 
-  it("ignores unrelated query parameters for diagnostics", () => {
-    window.history.replaceState({}, "", "/?foo=1&bar=2");
-    const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
-    expect(container.querySelector("[data-ar-camera-diagnostics='true']")).toBeNull();
+  it("does not turn diagnostics off when the URL flag disappears mid-session", async () => {
+    window.history.replaceState({}, "", "/?arCameraDebug=1");
+    const { container, rerender } = render(
+      <ARCameraView onBack={vi.fn()} onFallback={vi.fn()} diagnosticsEnabled />,
+    );
+    expect(container.querySelector("[data-ar-camera-diagnostics='true']")).toBeTruthy();
+
+    window.history.replaceState({}, "", "/");
+    rerender(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} diagnosticsEnabled />);
+    expect(container.querySelector("[data-ar-camera-diagnostics='true']")).toBeTruthy();
+  });
+
+  it("shows an error state when video is missing onVideoReady", async () => {
+    const { container } = render(
+      <ARCameraView onBack={vi.fn()} onFallback={vi.fn()} diagnosticsEnabled />,
+    );
+
+    await act(async () => {
+      trackingHandlers.onVideoReady?.({ video: null, container: null });
+    });
+
+    const panel = container.querySelector("[data-ar-camera-diagnostics='true']");
+    expect(panel?.getAttribute("data-ar-camera-diagnostics-error")).toBe("true");
+    expect(panel?.textContent).toMatch(/video element missing/i);
   });
 });
