@@ -1,0 +1,54 @@
+diff --git a/node_modules/mind-ar/dist/mindar-image-three.prod.js b/node_modules/mind-ar/dist/mindar-image-three.prod.js
+index c19cd8e..eeaa37c 100644
+--- a/node_modules/mind-ar/dist/mindar-image-three.prod.js
++++ b/node_modules/mind-ar/dist/mindar-image-three.prod.js
+@@ -13580,12 +13580,16 @@ class Zb {
+     userDeviceId: c = null,
+     environmentDeviceId: d = null
+   }) {
+-    this.container = e, this.imageTargetSrc = t, this.maxTrack = a, this.filterMinCF = o, this.filterBeta = l, this.warmupTolerance = p, this.missTolerance = m, this.ui = new Rd({ uiLoading: r, uiScanning: n, uiError: u }), this.userDeviceId = c, this.environmentDeviceId = d, this.shouldFaceUser = !1, this.scene = new Ct(), this.cssScene = new Ct(), this.renderer = new Ti({ antialias: !0, alpha: !0 }), this.cssRenderer = new Vd({ antialias: !0 }), this.renderer.outputEncoding = Si, this.renderer.setPixelRatio(window.devicePixelRatio), this.camera = new vi(), this.anchors = [], this.renderer.domElement.style.position = "absolute", this.cssRenderer.domElement.style.position = "absolute", this.container.appendChild(this.renderer.domElement), this.container.appendChild(this.cssRenderer.domElement), window.addEventListener("resize", this.resize.bind(this));
++    this.container = e, this.imageTargetSrc = t, this.maxTrack = a, this.filterMinCF = o, this.filterBeta = l, this.warmupTolerance = p, this.missTolerance = m, this.ui = new Rd({ uiLoading: r, uiScanning: n, uiError: u }), this.userDeviceId = c, this.environmentDeviceId = d, this.shouldFaceUser = !1, this.scene = new Ct(), this.cssScene = new Ct(), this.renderer = new Ti({ antialias: !0, alpha: !0 }), this.cssRenderer = new Vd({ antialias: !0 }), this.renderer.outputEncoding = Si, this.renderer.setPixelRatio(window.devicePixelRatio), this.camera = new vi(), this.anchors = [], this.renderer.domElement.style.position = "absolute", this.cssRenderer.domElement.style.position = "absolute", this.container.appendChild(this.renderer.domElement), this.container.appendChild(this.cssRenderer.domElement), this._resizeHandler=this.resize.bind(this),window.addEventListener("resize",this._resizeHandler);
+   }
+   async start() {
+     this.ui.showLoading(), await this._startVideo(), await this._startAR();
+   }
+   stop() {
++    try {
++      this._resizeHandler && (window.removeEventListener("resize", this._resizeHandler), this._resizeHandler = null);
++    } catch (e) {
++    }
+     this.controller.stopProcessVideo(), this.video.srcObject.getTracks().forEach(function(t) {
+       t.stop();
+     }), this.video.remove();
+diff --git a/node_modules/mind-ar/src/image-target/three.js b/node_modules/mind-ar/src/image-target/three.js
+index aed5e35..14f8d2c 100644
+--- a/node_modules/mind-ar/src/image-target/three.js
++++ b/node_modules/mind-ar/src/image-target/three.js
+@@ -43,7 +43,8 @@ export class MindARThree {
+     this.container.appendChild(this.renderer.domElement);
+     this.container.appendChild(this.cssRenderer.domElement);
+ 
+-    window.addEventListener('resize', this.resize.bind(this));
++    this._resizeHandler = this.resize.bind(this);
++    window.addEventListener('resize', this._resizeHandler);
+   }
+ 
+   async start() {
+@@ -53,6 +54,17 @@ export class MindARThree {
+   }
+ 
+   stop() {
++    // Remove window.resize before tearing down camera/controller so callbacks
++    // cannot re-enter a half-stopped instance. Idempotent for repeated stop().
++    try {
++      if (this._resizeHandler) {
++        window.removeEventListener('resize', this._resizeHandler);
++        this._resizeHandler = null;
++      }
++    } catch (err) {
++      // Best-effort: do not block camera/tracking cleanup.
++    }
++
+     this.controller.stopProcessVideo();
+     const tracks = this.video.srcObject.getTracks();
+     tracks.forEach(function (track) {

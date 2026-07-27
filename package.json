@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "postinstall": "patch-package",
     "verify:ar-bundle": "node scripts/verify-ar-runtime-bundle.mjs",
+    "verify:mindar-patch": "node scripts/verify-mindar-resize-patch.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "compile:ar-target": "node scripts/compile-ar-target.mjs",
@@ -44,6 +46,7 @@
     "globals": "^17.5.0",
     "jsdom": "^29.1.1",
     "meshoptimizer": "^1.2.0",
+    "patch-package": "^8.0.1",
     "sharp": "^0.35.3",
     "vite": "^8.0.10",
     "vitest": "^4.1.10"
