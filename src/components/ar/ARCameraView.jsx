@@ -12,7 +12,7 @@ import {
 export default function ARCameraView({ onBack, onFallback }) {
   const onboardingRef = useRef(null);
   /** @type {[import("./arStatusOnboarding").ArStatusPhase, Function]} */
-  const [phase, setPhase] = useState("idle");
+  const [phase, setPhase] = useState("searching");
 
   useEffect(() => {
     const onboarding = createArStatusOnboarding();
@@ -24,8 +24,6 @@ export default function ARCameraView({ onBack, onFallback }) {
       onboardingRef.current = null;
     };
   }, []);
-
-  const showStatus = phase === "detected" || phase === "prompt";
 
   return (
     <div data-ar-camera-stage="true" className="ar-camera-stage text-slate-100">
@@ -41,32 +39,30 @@ export default function ARCameraView({ onBack, onFallback }) {
       />
 
       <div data-ar-ui-overlay="true" className="pointer-events-none absolute inset-0 z-20">
-        {showStatus && (
-          <div
-            data-ar-status-overlay="true"
-            data-ar-status-phase={phase}
-            className="pointer-events-none absolute inset-x-0 top-0 flex justify-center px-4 pt-[max(0.65rem,env(safe-area-inset-top))]"
-          >
-            {phase === "detected" ? (
-              <p
-                role="status"
-                aria-live="polite"
-                className="ar-status-chip ar-status-fade text-center text-[11px] font-medium tracking-[0.14em] text-slate-50"
-              >
-                {AR_STATUS_COPY.detected}
-              </p>
-            ) : (
-              <div
-                role="status"
-                aria-live="polite"
-                className="ar-status-prompt ar-status-fade"
-              >
-                <p className="ar-status-prompt__title">{AR_STATUS_COPY.promptTitle}</p>
-                <p className="ar-status-prompt__hint">{AR_STATUS_COPY.promptHint}</p>
-              </div>
-            )}
-          </div>
-        )}
+        <div
+          data-ar-status-overlay="true"
+          data-ar-status-phase={phase}
+          className="pointer-events-none absolute inset-x-0 top-0 flex justify-center px-4 pt-[max(0.65rem,env(safe-area-inset-top))]"
+        >
+          {phase === "prompt" ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="ar-status-prompt ar-status-fade"
+            >
+              <p className="ar-status-prompt__title">{AR_STATUS_COPY.promptTitle}</p>
+              <p className="ar-status-prompt__hint">{AR_STATUS_COPY.promptHint}</p>
+            </div>
+          ) : (
+            <p
+              role="status"
+              aria-live="polite"
+              className="ar-status-chip ar-status-fade text-center text-[11px] font-medium tracking-[0.14em] text-slate-50"
+            >
+              {phase === "detected" ? AR_STATUS_COPY.detected : AR_STATUS_COPY.searching}
+            </p>
+          )}
+        </div>
 
         <div
           data-ar-close-overlay="true"

@@ -1,36 +1,44 @@
 /**
- * Session-scoped AR status onboarding:
- * idle → detected ("CV detected") → prompt (discovery, remains until unmount)
+ * Tracking-responsive AR status:
+ * searching → detected → prompt
  *
- * Temporary target loss must not restart the sequence.
+ * Brief MindAR target gaps (< loss grace) must not flicker the UI.
+ * Confirmed loss returns to searching and cancels a pending prompt timer.
  * A new ARCameraView mount creates a fresh controller (new session).
  */
 
 export const AR_DISCOVERY_PROMPT_DELAY_MS = 1250;
+export const AR_TARGET_LOSS_GRACE_MS = 500;
 
 export const AR_STATUS_COPY = {
+  searching: "Point your camera at the CV",
   detected: "CV detected",
   promptTitle: "A few things I love beyond work",
   promptHint: "Tap an object to discover more",
 };
 
 /**
- * @typedef {"idle" | "detected" | "prompt"} ArStatusPhase
+ * @typedef {"searching" | "detected" | "prompt"} ArStatusPhase
  *
  * @param {{
  *   delayMs?: number,
+ *   lossGraceMs?: number,
  *   setTimeoutFn?: typeof setTimeout,
  *   clearTimeoutFn?: typeof clearTimeout,
  * }} [options]
  */
 export function createArStatusOnboarding(options = {}) {
   const delayMs = options.delayMs ?? AR_DISCOVERY_PROMPT_DELAY_MS;
+  const lossGraceMs = options.lossGraceMs ?? AR_TARGET_LOSS_GRACE_MS;
   const setTimeoutFn = options.setTimeoutFn ?? setTimeout;
   const clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
 
   /** @type {ArStatusPhase} */
-  let phase = "idle";
-  let timer = 0;
+  let phase = "searching";
+  let promptTimer = 0;
+  let lossTimer = 0;
+  /** Target considered present for UI purposes (found, or within loss grace). */
+  let targetPresent = false;
   /** @type {Set<(phase: ArStatusPhase) => void>} */
   const listeners = new Set();
 
@@ -45,11 +53,34 @@ export function createArStatusOnboarding(options = {}) {
     emit();
   }
 
-  function clearTimer() {
-    if (timer) {
-      clearTimeoutFn(timer);
-      timer = 0;
+  function clearPromptTimer() {
+    if (promptTimer) {
+      clearTimeoutFn(promptTimer);
+      promptTimer = 0;
     }
+  }
+
+  function clearLossTimer() {
+    if (lossTimer) {
+      clearTimeoutFn(lossTimer);
+      lossTimer = 0;
+    }
+  }
+
+  function clearAllTimers() {
+    clearPromptTimer();
+    clearLossTimer();
+  }
+
+  function startPromptTimer() {
+    clearPromptTimer();
+    promptTimer = setTimeoutFn(() => {
+      promptTimer = 0;
+      // Advance while target is still considered present (including loss-grace window).
+      if (phase === "detected" && targetPresent) {
+        setPhase("prompt");
+      }
+    }, delayMs);
   }
 
   return {
@@ -67,22 +98,35 @@ export function createArStatusOnboarding(options = {}) {
     },
 
     onTargetFound() {
-      // Already running or prompted — never restart on reacquire.
-      if (phase !== "idle") return;
+      clearLossTimer();
+      const wasPresent = targetPresent;
+      targetPresent = true;
+
+      // Brief gap reacquire: keep the current visible phase (detected or prompt).
+      if (wasPresent && (phase === "detected" || phase === "prompt")) {
+        return;
+      }
+
+      // Fresh acquire from searching (or initial) — restart detected → prompt.
       setPhase("detected");
-      clearTimer();
-      timer = setTimeoutFn(() => {
-        timer = 0;
-        if (phase === "detected") setPhase("prompt");
-      }, delayMs);
+      startPromptTimer();
     },
 
     onTargetLost() {
-      // Intentionally no-op: keep current phase across temporary tracking gaps.
+      if (!targetPresent && !lossTimer) return;
+      if (lossTimer) return;
+
+      lossTimer = setTimeoutFn(() => {
+        lossTimer = 0;
+        targetPresent = false;
+        clearPromptTimer();
+        setPhase("searching");
+      }, lossGraceMs);
     },
 
     dispose() {
-      clearTimer();
+      clearAllTimers();
+      targetPresent = false;
       listeners.clear();
     },
   };
