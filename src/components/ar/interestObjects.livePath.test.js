@@ -152,7 +152,7 @@ describe("Interest objects live path", () => {
   });
 
   it("strips source interest GLBs from production dist via Vite plugin", () => {
-    const viteConfig = readFileSync(path.join(root, "vite.config.js"), "utf8");
+    const viteConfig = readFileSync(path.join(root, "vite.shared.js"), "utf8");
     expect(viteConfig).toMatch(/strip-interest-source-glbs-from-dist/);
     expect(viteConfig).toMatch(/dist\/ar\/interests/);
     expect(viteConfig).toMatch(/unlinkSync/);

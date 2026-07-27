@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'dist-authoring']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
@@ -19,6 +19,7 @@ export default defineConfig([
         __PORTFOLIO_COMMIT__: 'readonly',
         __PORTFOLIO_BUILD_TIME__: 'readonly',
         __PORTFOLIO_BUILD_ID__: 'readonly',
+        __AR_AUTHORING_BUILD__: 'readonly',
       },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },

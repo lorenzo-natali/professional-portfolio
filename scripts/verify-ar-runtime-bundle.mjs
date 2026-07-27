@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * Post-build proof that the publishable dist contains AR runtime markers.
- * Exit 1 if any required string is missing from the JS referenced by dist/index.html.
+ * Post-build proof that the publishable dist contains AR runtime markers
+ * and no authoring / calibrate surfaces. Delegates HTML allowlist + authoring
+ * marker scanning to verify-public-dist.mjs.
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const dist = join(root, "dist");
@@ -14,6 +16,14 @@ const indexPath = join(dist, "index.html");
 if (!existsSync(indexPath)) {
   console.error("[verify-ar-runtime-bundle] missing dist/index.html — run npm run build first");
   process.exit(1);
+}
+
+const publicCheck = spawnSync(process.execPath, [join(root, "scripts/verify-public-dist.mjs")], {
+  cwd: root,
+  stdio: "inherit",
+});
+if (publicCheck.status !== 0) {
+  process.exit(publicCheck.status ?? 1);
 }
 
 const html = readFileSync(indexPath, "utf8");
@@ -41,14 +51,6 @@ const requiredJs = [
   "ar-interest-info-card",
 ];
 
-const forbiddenJs = [
-  "arInterestsCalibrate",
-  "Save final layout",
-  "CALIBRATE MODE",
-  "createInterestObjectsCalibrate",
-  "ar-interest-final-layout-dev-v1",
-];
-
 const requiredCss = ["ar-interest-info-card", "ar-portal-host", "data-ar-interest-interactive"];
 
 let failed = false;
@@ -56,11 +58,6 @@ for (const needle of requiredJs) {
   const ok = js.includes(needle);
   console.log(`${ok ? "OK" : "MISSING"} js: ${needle}`);
   if (!ok) failed = true;
-}
-for (const needle of forbiddenJs) {
-  const present = js.includes(needle);
-  console.log(`${present ? "FORBIDDEN" : "OK"} js absent: ${needle}`);
-  if (present) failed = true;
 }
 for (const needle of requiredCss) {
   const ok = css.includes(needle);

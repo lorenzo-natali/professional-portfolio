@@ -44,7 +44,7 @@ describe("production AR bundle markers (dist)", () => {
     expect(latchAt).toBeLessThan(renderAt);
   });
 
-  it("adapter mounts interest tap controller", () => {
+  it("adapter mounts interest tap controller without static debug import", () => {
     const adapter = readFileSync(
       path.join(rootDir, "src/components/ar/tracking/MindARTrackingAdapter.js"),
       "utf8",
@@ -52,6 +52,7 @@ describe("production AR bundle markers (dist)", () => {
     expect(adapter).toMatch(/createInterestObjectsTapController/);
     expect(adapter).not.toMatch(/createInterestObjectsCalibrate/);
     expect(adapter).not.toMatch(/arInterestsCalibrate/);
+    expect(adapter).not.toMatch(/^import\s+[^;]*createInterestObjectsDebug/m);
   });
 });
 
@@ -65,7 +66,7 @@ describe("portal host ownership", () => {
 
 describe("build id wiring", () => {
   it("vite.config defines static portfolio build id", () => {
-    const vite = readFileSync(path.join(rootDir, "vite.config.js"), "utf8");
+    const vite = readFileSync(path.join(rootDir, "vite.shared.js"), "utf8");
     expect(vite).toMatch(/__PORTFOLIO_BUILD_ID__/);
     expect(vite).toMatch(/git rev-parse --short HEAD/);
     const sha = execSync("git rev-parse --short HEAD", {

@@ -7,11 +7,9 @@ import {
 import { createAnchorProofObject } from "../createAnchorProofObject";
 import { createInterestObjectsLayer } from "../createInterestObjectsLayer";
 import { createInterestObjectsAnimation } from "../createInterestObjectsAnimation";
-import {
-  createInterestObjectsDebug,
-  isInterestObjectsDebugEnabled,
-} from "../createInterestObjectsDebug";
 import { createInterestObjectsTapController } from "../createInterestObjectsTapController";
+// Intentionally no static import of createInterestObjectsDebug — production builds
+// must keep that module outside the public dependency graph (DEV dynamic import only).
 import { createAnchorPoseStabilizer } from "../createAnchorPoseStabilizer";
 import { INTEREST_OBJECTS_STABILIZATION } from "../interestObjectsConfig";
 import { AR_SESSION_RESET_MS } from "../arSessionTiming";
@@ -279,9 +277,39 @@ function createInterestLighting(THREE, scene) {
   };
 }
 
-function resolveInterestDebugEnabled() {
-  if (!import.meta.env.DEV) return false;
-  return isInterestObjectsDebugEnabled({ forceFlag: AR_INTERESTS_DEBUG });
+/**
+ * Load the keyboard layout debugger only in Vite DEV or an explicit authoring build,
+ * and only when the editor is actually requested. Public production builds resolve
+ * the authoring loader to a stub via Vite alias (not tree-shaking alone).
+ * @returns {Promise<{
+ *   enabled: boolean,
+ *   create: null | ((layer: any, options: object) => any),
+ * }>}
+ */
+async function loadInterestObjectsDebugApi() {
+  const allowAuthoring =
+    Boolean(import.meta.env.DEV) ||
+    (typeof __AR_AUTHORING_BUILD__ !== "undefined" && __AR_AUTHORING_BUILD__);
+  if (!allowAuthoring) {
+    return { enabled: false, create: null };
+  }
+
+  let queryEnabled = false;
+  try {
+    if (typeof window !== "undefined") {
+      queryEnabled =
+        new URLSearchParams(window.location.search).get("arInterestsDebug") === "1";
+    }
+  } catch {
+    queryEnabled = false;
+  }
+
+  if (!AR_INTERESTS_DEBUG && !queryEnabled) {
+    return { enabled: false, create: null };
+  }
+
+  const debugMod = await import("../authoring/interestLayoutKeyboard.js");
+  return debugMod.loadInterestLayoutKeyboard();
 }
 
 /**
@@ -536,7 +564,8 @@ export function createMindARTrackingAdapter({
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        const debugEnabled = resolveInterestDebugEnabled();
+        const interestDebugApi = await loadInterestObjectsDebugApi();
+        const debugEnabled = interestDebugApi.enabled;
         setArRuntimeAuditState({
           trackingAdapter: "MindARTrackingAdapter",
           arComponent: "ARCameraView/ARTrackingScene",
@@ -580,8 +609,8 @@ export function createMindARTrackingAdapter({
           },
         });
 
-        if (debugEnabled) {
-          interestDebug = createInterestObjectsDebug(sessionLayer, {
+        if (debugEnabled && interestDebugApi.create) {
+          interestDebug = interestDebugApi.create(sessionLayer, {
             enabled: true,
             THREE,
             rawAnchor: anchor.group,
