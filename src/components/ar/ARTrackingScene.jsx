@@ -4,6 +4,9 @@ import { useARTracking } from "./tracking/useARTracking";
 /**
  * Owns the tracking lifecycle through the abstraction only.
  * Fills the camera shell; stays transparent so MindAR video remains visible.
+ *
+ * Teardown: always await adapter.stop(). Session DOM clearing is owned by the
+ * adapter cleanup (after MindAR stop) so React never wipes nodes mid-teardown.
  */
 export default function ARTrackingScene({
   active,
@@ -38,7 +41,9 @@ export default function ARTrackingScene({
     if (!active || !container) return undefined;
     let cancelled = false;
 
-    adapter.start(container, {
+    // start() itself awaits any in-flight stop/cleanup before constructing a session
+    // (Safe under React StrictMode remount and rapid Close/reopen).
+    void adapter.start(container, {
       onReady: () => {
         if (!cancelled) callbacksRef.current.onReady?.();
       },
@@ -58,8 +63,10 @@ export default function ARTrackingScene({
 
     return () => {
       cancelled = true;
-      adapter.stop();
-      container.innerHTML = "";
+      // Kick teardown immediately so an in-flight start observes cleanupPromise /
+      // sessionGeneration bump and aborts before onReady. Concurrent stop callers
+      // share the same cleanup Promise; DOM clearing stays adapter-owned.
+      void adapter.stop();
     };
   }, [active, adapter]);
 

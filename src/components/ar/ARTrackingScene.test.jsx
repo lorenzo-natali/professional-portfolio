@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, expect, it, vi, afterEach } from "vitest";
+import { render, waitFor, act } from "@testing-library/react";
 import ARTrackingScene from "./ARTrackingScene";
 
 const start = vi.fn();
@@ -16,6 +16,11 @@ vi.mock("./tracking/useARTracking", () => ({
 }));
 
 describe("ARTrackingScene container", () => {
+  afterEach(() => {
+    start.mockReset();
+    stop.mockReset();
+  });
+
   it("is transparent so it cannot hide the MindAR video", () => {
     const { container } = render(
       <ARTrackingScene
@@ -35,9 +40,13 @@ describe("ARTrackingScene container", () => {
     expect(tracking.className).not.toMatch(/\bbg-slate-/);
   });
 
-  it("starts the adapter once when active and clears DOM on unmount", () => {
-    start.mockClear();
-    stop.mockClear();
+  it("starts the adapter once when active and awaits stop on unmount without clearing DOM early", async () => {
+    let resolveStop;
+    const stopDone = new Promise((resolve) => {
+      resolveStop = resolve;
+    });
+    start.mockResolvedValue(undefined);
+    stop.mockImplementation(() => stopDone);
 
     const { unmount, container } = render(
       <ARTrackingScene
@@ -55,6 +64,54 @@ describe("ARTrackingScene container", () => {
     tracking.innerHTML = "<video></video><canvas></canvas>";
 
     unmount();
-    expect(stop).toHaveBeenCalledTimes(1);
+    expect(stop).toHaveBeenCalled();
+    // DOM must not be wiped by React before adapter stop settles.
+    expect(tracking.innerHTML).toContain("video");
+
+    await act(async () => {
+      resolveStop();
+      await stopDone;
+    });
+    await waitFor(() => {
+      expect(stop).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("Close/unmount during async start suppresses late onReady via cancelled guard", async () => {
+    let resolveStart;
+    const startGate = new Promise((resolve) => {
+      resolveStart = resolve;
+    });
+    const onReady = vi.fn();
+    start.mockImplementation((_container, callbacks) =>
+      startGate.then(() => {
+        callbacks.onReady?.();
+      }),
+    );
+    stop.mockResolvedValue(undefined);
+
+    const { unmount } = render(
+      <ARTrackingScene
+        active
+        onReady={onReady}
+        onTargetFound={vi.fn()}
+        onTargetLost={vi.fn()}
+        onError={vi.fn()}
+        onUnsupported={vi.fn()}
+      />,
+    );
+
+    expect(start).toHaveBeenCalledTimes(1);
+    unmount();
+
+    await act(async () => {
+      resolveStart();
+      await startGate;
+    });
+
+    await waitFor(() => {
+      expect(stop).toHaveBeenCalled();
+    });
+    expect(onReady).not.toHaveBeenCalled();
   });
 });

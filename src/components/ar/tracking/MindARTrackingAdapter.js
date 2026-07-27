@@ -307,7 +307,11 @@ export function createMindARTrackingAdapter({
   let lastFrameTimeMs = 0;
   let sessionResetTimer = 0;
   let sessionBlobUrl = null;
-  let cleaning = false;
+  /** @type {HTMLElement | null} */
+  let sessionContainer = null;
+  /** Shared in-flight cleanup — concurrent stop/cleanup callers await the same Promise. */
+  /** @type {Promise<void> | null} */
+  let cleanupPromise = null;
   /** Invalidates async load callbacks from prior AR sessions. */
   let sessionGeneration = 0;
   /** @type {number[]} */
@@ -325,126 +329,156 @@ export function createMindARTrackingAdapter({
   }
 
   /**
-   * Idempotent teardown for start-failure, stop, and dispose.
+   * Single cleanup authority for start-failure, stop, and reopen.
+   * Concurrent callers share one in-flight Promise; later stops are safe no-ops.
+   * @returns {Promise<void>}
    */
-  async function cleanupSession() {
-    if (cleaning) return;
-    cleaning = true;
-    running = false;
-    // Bump first so in-flight promise callbacks from this session become no-ops.
-    sessionGeneration += 1;
-    clearSessionReset();
+  function cleanupSession() {
+    if (cleanupPromise) return cleanupPromise;
 
-    try {
-      viewportCleanup?.();
-    } catch {
-      // ignore
-    }
-    viewportCleanup = null;
+    cleanupPromise = (async () => {
+      running = false;
+      // Bump first so in-flight promise callbacks from this session become no-ops.
+      sessionGeneration += 1;
+      clearSessionReset();
 
-    try {
-      videoResizeCleanup?.();
-    } catch {
-      // ignore
-    }
-    videoResizeCleanup = null;
-
-    lifecycleTimers.forEach((id) => clearTimeout(id));
-    lifecycleTimers = [];
-
-    try {
-      interestTap?.dispose();
-    } catch {
-      // ignore
-    }
-    interestTap = null;
-
-    try {
-      interestDebug?.dispose();
-    } catch {
-      // ignore
-    }
-    interestDebug = null;
-
-    try {
-      interestAnimation?.dispose();
-    } catch {
-      // ignore
-    }
-    interestAnimation = null;
-
-    try {
-      poseStabilizer?.dispose();
-    } catch {
-      // ignore
-    }
-    poseStabilizer = null;
-
-    try {
-      interestLayer?.dispose();
-    } catch {
-      // ignore
-    }
-    interestLayer = null;
-
-    try {
-      presentationLighting?.dispose();
-    } catch {
-      // ignore
-    }
-    presentationLighting = null;
-
-    try {
-      presentationRoot?.removeFromParent?.();
-    } catch {
-      // ignore
-    }
-    presentationRoot = null;
-    lastFrameTimeMs = 0;
-
-    const instance = mindarThree;
-    mindarThree = null;
-
-    try {
-      if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
-    } catch {
-      // ignore
-    }
-    rafLoop = null;
-
-    try {
-      await instance?.stop?.();
-    } catch {
-      // Best-effort cleanup.
-    }
-
-    try {
-      instance?.renderer?.dispose?.();
-    } catch {
-      // ignore
-    }
-
-    if (sessionBlobUrl) {
       try {
-        URL.revokeObjectURL(sessionBlobUrl);
+        viewportCleanup?.();
       } catch {
         // ignore
       }
-      sessionBlobUrl = null;
-    }
+      viewportCleanup = null;
 
-    cleaning = false;
+      try {
+        videoResizeCleanup?.();
+      } catch {
+        // ignore
+      }
+      videoResizeCleanup = null;
+
+      lifecycleTimers.forEach((id) => clearTimeout(id));
+      lifecycleTimers = [];
+
+      try {
+        interestTap?.dispose();
+      } catch {
+        // ignore
+      }
+      interestTap = null;
+
+      try {
+        interestDebug?.dispose();
+      } catch {
+        // ignore
+      }
+      interestDebug = null;
+
+      try {
+        interestAnimation?.dispose();
+      } catch {
+        // ignore
+      }
+      interestAnimation = null;
+
+      try {
+        poseStabilizer?.dispose();
+      } catch {
+        // ignore
+      }
+      poseStabilizer = null;
+
+      try {
+        interestLayer?.dispose();
+      } catch {
+        // ignore
+      }
+      interestLayer = null;
+
+      try {
+        presentationLighting?.dispose();
+      } catch {
+        // ignore
+      }
+      presentationLighting = null;
+
+      try {
+        presentationRoot?.removeFromParent?.();
+      } catch {
+        // ignore
+      }
+      presentationRoot = null;
+      lastFrameTimeMs = 0;
+
+      const instance = mindarThree;
+      mindarThree = null;
+
+      // Stop the render loop before MindAR/camera teardown (also covers partial init
+      // where rafLoop was never assigned but the renderer already exists).
+      try {
+        if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
+      } catch {
+        // ignore
+      }
+      try {
+        instance?.renderer?.setAnimationLoop?.(null);
+      } catch {
+        // ignore
+      }
+      rafLoop = null;
+
+      try {
+        await instance?.stop?.();
+      } catch {
+        // Best-effort cleanup.
+      }
+
+      try {
+        instance?.renderer?.dispose?.();
+      } catch {
+        // ignore
+      }
+
+      if (sessionBlobUrl) {
+        try {
+          URL.revokeObjectURL(sessionBlobUrl);
+        } catch {
+          // ignore
+        }
+        sessionBlobUrl = null;
+      }
+
+      // Adapter owns session DOM clearing after MindAR stop (video/canvas/css host).
+      const container = sessionContainer || instance?.container || null;
+      sessionContainer = null;
+      if (container) {
+        try {
+          container.innerHTML = "";
+        } catch {
+          // ignore
+        }
+      }
+    })().finally(() => {
+      cleanupPromise = null;
+    });
+
+    return cleanupPromise;
   }
 
   return {
     isRunning: () => running,
 
     async start(container, callbacks = {}) {
-      if (running) await this.stop();
-      // Ensure a previous failed start left no residue.
-      await cleanupSession();
+      // Serialize against any prior start/stop: wait for in-flight cleanup, then begin.
+      await this.stop();
+
+      sessionContainer = container;
 
       const targetBuffer = await loadArTargetBuffer(targetSrc);
+      if (cleanupPromise || !sessionContainer) {
+        // Stop/unmount won the race during target fetch.
+        await cleanupSession();
+        return;
+      }
       if (!targetBuffer) {
         callbacks.onUnsupported?.("target-unavailable");
         return;
@@ -459,6 +493,11 @@ export function createMindARTrackingAdapter({
           import("mind-ar/dist/mindar-image-three.prod.js"),
           import("three"),
         ]);
+
+        if (cleanupPromise || sessionContainer !== container) {
+          await cleanupSession();
+          return;
+        }
 
         const shell = findViewportShell(container);
         syncArViewportShell(shell);
@@ -585,6 +624,13 @@ export function createMindARTrackingAdapter({
 
         recordArViewportLifecycle(shell, "before-mindar-start");
         await mindarThree.start();
+
+        // Close/unmount during getUserMedia or init: do not revive the session.
+        if (sessionGeneration !== sessionToken || cleanupPromise || sessionContainer !== container) {
+          await cleanupSession();
+          return;
+        }
+
         recordArViewportLifecycle(shell, "after-mindar-start", {
           mindArInline: {
             video: mindarThree.video
@@ -720,7 +766,11 @@ export function createMindARTrackingAdapter({
           }, 500),
         );
       } catch (error) {
+        // Capture ownership before cleanup clears sessionContainer / sets cleanupPromise.
+        const stillOwner = sessionContainer === container && !cleanupPromise;
         await cleanupSession();
+        // Stop/unmount already invalidated this start — stay silent (not a user-facing error).
+        if (!stillOwner) return;
         const err = error instanceof Error ? error : new Error(String(error));
         if (isTargetLoadError(err)) {
           callbacks.onUnsupported?.("target-unavailable");
@@ -730,8 +780,13 @@ export function createMindARTrackingAdapter({
       }
     },
 
-    async stop() {
-      await cleanupSession();
+    /**
+     * Awaitable session teardown. Concurrent callers receive the same in-flight
+     * cleanup Promise (not a wrapper), so identity and settlement stay shared.
+     * @returns {Promise<void>}
+     */
+    stop() {
+      return cleanupSession();
     },
   };
 }

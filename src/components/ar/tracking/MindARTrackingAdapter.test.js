@@ -496,4 +496,273 @@ describe("createMindARTrackingAdapter interest objects", () => {
     await adapter.stop();
     container.remove();
   });
+
+  describe("serialized awaitable teardown", () => {
+    it("stop() returns a Promise and repeated stop after cleanup is a safe no-op", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      const { renderer } = mockMindAR();
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      await adapter.start(container, {});
+      const stopResult = adapter.stop();
+      expect(stopResult).toBeInstanceOf(Promise);
+      await stopResult;
+      expect(adapter.isRunning()).toBe(false);
+      expect(renderer.setAnimationLoop).toHaveBeenCalledWith(null);
+
+      await adapter.stop();
+      await adapter.stop();
+      expect(adapter.isRunning()).toBe(false);
+      container.remove();
+    });
+
+    it("concurrent stop() calls share one cleanup and dispose tap once", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      let releaseStop;
+      const mindStopGate = new Promise((resolve) => {
+        releaseStop = resolve;
+      });
+      const tap = {
+        dispose: vi.fn(),
+        close: vi.fn(),
+        update: vi.fn(),
+        hitLayer: document.createElement("div"),
+      };
+      mocks.createInterestObjectsTapController.mockReturnValue(tap);
+
+      mockMindAR();
+      mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
+        this.container = options.container;
+        this.renderer = {
+          setAnimationLoop: vi.fn(),
+          setClearColor: vi.fn(),
+          setClearAlpha: vi.fn(),
+          domElement: document.createElement("canvas"),
+          dispose: vi.fn(),
+          render: vi.fn(),
+        };
+        this.scene = { add: vi.fn(), environment: null };
+        this.camera = new THREE.PerspectiveCamera();
+        this.addAnchor = vi.fn(() => ({
+          group: new THREE.Group(),
+          onTargetFound: null,
+          onTargetLost: null,
+        }));
+        this.start = vi.fn(async () => {
+          options.container.appendChild(document.createElement("video"));
+          options.container.appendChild(this.renderer.domElement);
+        });
+        this.stop = vi.fn(async () => {
+          await mindStopGate;
+        });
+        this.resize = vi.fn();
+      });
+
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      await adapter.start(container, {});
+
+      const first = adapter.stop();
+      const second = adapter.stop();
+      expect(first).toBe(second);
+
+      releaseStop();
+      await Promise.all([first, second]);
+      expect(tap.dispose).toHaveBeenCalledTimes(1);
+      expect(adapter.isRunning()).toBe(false);
+      expect(container.innerHTML).toBe("");
+      container.remove();
+    });
+
+    it("cleans partial initialization when stop runs during MindAR start", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      let releaseMindStart;
+      const mindStartGate = new Promise((resolve) => {
+        releaseMindStart = resolve;
+      });
+      let enteredMindStart = false;
+      const layer = makeInterestLayerStub();
+      mocks.createInterestObjectsLayer.mockReturnValue(layer);
+
+      mockMindAR();
+      const renderer = {
+        setAnimationLoop: vi.fn(),
+        setClearColor: vi.fn(),
+        setClearAlpha: vi.fn(),
+        domElement: document.createElement("canvas"),
+        dispose: vi.fn(),
+        render: vi.fn(),
+      };
+      mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
+        this.container = options.container;
+        this.renderer = renderer;
+        this.scene = { add: vi.fn(), environment: null };
+        this.camera = new THREE.PerspectiveCamera();
+        this.addAnchor = vi.fn(() => ({
+          group: new THREE.Group(),
+          onTargetFound: null,
+          onTargetLost: null,
+        }));
+        this.start = vi.fn(async () => {
+          enteredMindStart = true;
+          options.container.appendChild(document.createElement("video"));
+          await mindStartGate;
+        });
+        this.stop = vi.fn(async () => {});
+        this.resize = vi.fn();
+      });
+
+      const onReady = vi.fn();
+      const onError = vi.fn();
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      const startPromise = adapter.start(container, { onReady, onError });
+      await vi.waitFor(() => {
+        expect(enteredMindStart).toBe(true);
+      });
+
+      const stopPromise = adapter.stop();
+      releaseMindStart();
+      await Promise.all([startPromise, stopPromise]);
+
+      expect(adapter.isRunning()).toBe(false);
+      expect(onReady).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      expect(layer.dispose).toHaveBeenCalled();
+      expect(renderer.setAnimationLoop).toHaveBeenCalledWith(null);
+      container.remove();
+    });
+
+    it("reports start failures while still suppressing cancelled starts", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      mockMindAR({
+        startImpl: vi.fn(async () => {
+          throw new Error("NotAllowedError: camera rejected");
+        }),
+      });
+      const onError = vi.fn();
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      await adapter.start(container, { onError });
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(adapter.isRunning()).toBe(false);
+      container.remove();
+    });
+
+    it("continues cleanup when one disposal step throws", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      const tap = {
+        dispose: vi.fn(() => {
+          throw new Error("tap dispose failed");
+        }),
+        close: vi.fn(),
+        update: vi.fn(),
+        hitLayer: document.createElement("div"),
+      };
+      mocks.createInterestObjectsTapController.mockReturnValue(tap);
+      const { renderer } = mockMindAR();
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      await adapter.start(container, {});
+
+      await expect(adapter.stop()).resolves.toBeUndefined();
+      expect(adapter.isRunning()).toBe(false);
+      expect(renderer.dispose).toHaveBeenCalled();
+      expect(URL.revokeObjectURL).toHaveBeenCalled();
+      container.remove();
+    });
+
+    it("does not start a second session until the first cleanup completes", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      let releaseStop;
+      const mindStopGate = new Promise((resolve) => {
+        releaseStop = resolve;
+      });
+      const startOrder = [];
+
+      mockMindAR();
+      mocks.MindARThree.mockImplementation(function MockMindARThree(options) {
+        this.container = options.container;
+        this.renderer = {
+          setAnimationLoop: vi.fn(),
+          setClearColor: vi.fn(),
+          setClearAlpha: vi.fn(),
+          domElement: document.createElement("canvas"),
+          dispose: vi.fn(),
+          render: vi.fn(),
+        };
+        this.scene = { add: vi.fn(), environment: null };
+        this.camera = new THREE.PerspectiveCamera();
+        this.addAnchor = vi.fn(() => ({
+          group: new THREE.Group(),
+          onTargetFound: null,
+          onTargetLost: null,
+        }));
+        this.start = vi.fn(async () => {
+          startOrder.push("mind-start");
+          options.container.appendChild(document.createElement("video"));
+          options.container.appendChild(this.renderer.domElement);
+        });
+        this.stop = vi.fn(async () => {
+          startOrder.push("mind-stop-begin");
+          await mindStopGate;
+          startOrder.push("mind-stop-end");
+        });
+        this.resize = vi.fn();
+      });
+
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      await adapter.start(container, {});
+      expect(startOrder).toEqual(["mind-start"]);
+
+      const stopPromise = adapter.stop();
+      const secondStart = adapter.start(container, {});
+
+      await Promise.resolve();
+      expect(startOrder).toContain("mind-stop-begin");
+      expect(startOrder.filter((step) => step === "mind-start")).toHaveLength(1);
+
+      releaseStop();
+      await Promise.all([stopPromise, secondStart]);
+      expect(startOrder.filter((step) => step === "mind-start")).toHaveLength(2);
+      expect(startOrder.indexOf("mind-stop-end")).toBeLessThan(
+        startOrder.lastIndexOf("mind-start"),
+      );
+      expect(adapter.isRunning()).toBe(true);
+
+      await adapter.stop();
+      container.remove();
+    });
+
+    it("rapid open/close/reopen stays serialized and ends stopped", async () => {
+      mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+      mockMindAR();
+      const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      const cycle = async () => {
+        await adapter.start(container, {});
+        await adapter.stop();
+      };
+      await cycle();
+      await cycle();
+      await Promise.all([cycle(), adapter.stop(), adapter.stop()]);
+
+      expect(adapter.isRunning()).toBe(false);
+      expect(container.innerHTML).toBe("");
+      container.remove();
+    });
+  });
 });
