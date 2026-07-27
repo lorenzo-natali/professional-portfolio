@@ -353,6 +353,7 @@ export function createMindARTrackingAdapter({
   }
 
   function resetSessionAtomic() {
+    interestTap?.cancelActiveGesture?.();
     interestAnimation?.resetSession();
   }
 
@@ -629,6 +630,7 @@ export function createMindARTrackingAdapter({
           if (sessionGeneration !== sessionToken) return;
           poseStabilizer?.onTargetLost();
           clearSessionReset();
+          interestTap?.cancelActiveGesture?.();
           interestTap?.close?.({ animate: true });
           // Brief loss: keep last stable pose + objects. Full reset after shared threshold.
           sessionResetTimer = window.setTimeout(() => {

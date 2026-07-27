@@ -52,6 +52,9 @@ export default function ARCameraView({ onBack, onFallback }) {
             >
               <p className="ar-status-prompt__title">{AR_STATUS_COPY.promptTitle}</p>
               <p className="ar-status-prompt__hint">{AR_STATUS_COPY.promptHint}</p>
+              <p className="ar-status-prompt__hint ar-status-prompt__hint--secondary">
+                {AR_STATUS_COPY.promptHintSecondary}
+              </p>
             </div>
           ) : (
             <p

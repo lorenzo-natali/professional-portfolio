@@ -17,8 +17,9 @@ import {
  * Hierarchy per object:
  *   root (UV + groundOffset on document plane)
  *     └─ display (displayYaw / displayTilt — after grounding)
- *          └─ entrance (fade / grow / rise along Z — animation only)
- *               └─ content (canonicalRotation, scaled, seated min Z = 0)
+ *          └─ userRotation (visitor yaw/pitch — identity until dragged)
+ *               └─ entrance (fade / grow / rise along Z — animation only)
+ *                    └─ content (canonicalRotation, scaled, seated min Z = 0)
  *
  * @param {typeof import("three")} THREE
  * @param {{
@@ -46,6 +47,7 @@ export function createInterestObjectsLayer(THREE, options = {}) {
    *   config: (typeof INTEREST_OBJECTS)[number],
    *   root: import("three").Group,
    *   display: import("three").Group,
+   *   userRotation: import("three").Group,
    *   entrance: import("three").Group,
    *   content: import("three").Object3D | null,
    *   bounds: object | null,
@@ -79,17 +81,23 @@ export function createInterestObjectsLayer(THREE, options = {}) {
     display.rotation.set(displayRot.x, displayRot.y, displayRot.z);
     root.add(display);
 
+    const userRotation = new THREE.Group();
+    userRotation.name = `ar-interest-user-rotation:${config.id}`;
+    userRotation.rotation.set(0, 0, 0);
+    display.add(userRotation);
+
     const entrance = new THREE.Group();
     entrance.name = `ar-interest-entrance:${config.id}`;
     entrance.position.z = INTEREST_ENTRANCE.riseFromZ;
     entrance.scale.setScalar(INTEREST_ENTRANCE.startScale);
-    display.add(entrance);
+    userRotation.add(entrance);
 
     entries.push({
       id: config.id,
       config,
       root,
       display,
+      userRotation,
       entrance,
       content: null,
       bounds: null,

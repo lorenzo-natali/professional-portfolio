@@ -100,7 +100,8 @@ describe("Interest objects orientation pipeline", () => {
     });
     const entry = layer.getEntry("robot");
     expect(entry.display.rotation.z).toBeCloseTo(-0.590886, 5);
-    expect(entry.entrance.parent).toBe(entry.display);
+    expect(entry.entrance.parent).toBe(entry.userRotation);
+    expect(entry.userRotation.parent).toBe(entry.display);
     expect(entry.display.parent).toBe(entry.root);
     // Content not loaded yet — entrance holds animation transform only.
     expect(entry.entrance.position.z).toBeCloseTo(INTEREST_ENTRANCE.riseFromZ, 5);

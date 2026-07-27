@@ -35,6 +35,7 @@ describe("createArStatusOnboarding", () => {
     expect(onboarding.getPhase()).toBe("prompt");
     expect(AR_STATUS_COPY.promptTitle).toBe("A few things I love beyond work");
     expect(AR_STATUS_COPY.promptHint).toBe("Tap an object to discover more");
+    expect(AR_STATUS_COPY.promptHintSecondary).toBe("Drag to rotate");
     expect(onboarding).not.toHaveProperty("onInterestInteract");
     expect(phases).not.toContain("dismissed");
     expect(phases).not.toContain("idle");

@@ -15,6 +15,7 @@ export const AR_STATUS_COPY = {
   detected: "CV detected",
   promptTitle: "A few things I love beyond work",
   promptHint: "Tap an object to discover more",
+  promptHintSecondary: "Drag to rotate",
 };
 
 /**

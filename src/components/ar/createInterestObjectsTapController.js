@@ -1,6 +1,12 @@
 import { getInterestObjectCard } from "./interestObjectsContent";
+import {
+  INTEREST_TAP_MOVE_THRESHOLD_PX,
+  INTEREST_VISITOR_ROTATION_SENSITIVITY,
+  applyVisitorRotationToGroup,
+  computeVisitorRotationFromDrag,
+  normalizeYaw,
+} from "./interestObjectsVisitorRotation";
 
-const TAP_MOVE_THRESHOLD_PX = 10;
 const CLOSE_MS = 140;
 
 /**
@@ -21,7 +27,11 @@ export function findInterestRootFromObject(object) {
 }
 
 /**
- * Single reusable glass info card + tap picking for interest miniatures.
+ * Unified interest interaction: short-tap info card + visitor drag-to-rotate.
+ * Single Pointer Events owner on the AR hit layer (no second listener controller).
+ *
+ * Card invariant during rotation: an already-open card is left unchanged;
+ * rotation never opens, closes, or toggles a card.
  *
  * @param {{
  *   THREE: typeof import("three"),
@@ -30,6 +40,8 @@ export function findInterestRootFromObject(object) {
  *   domElement: HTMLElement,
  *   container?: HTMLElement | null,
  *   shell?: HTMLElement | null,
+ *   moveThresholdPx?: number,
+ *   rotationSensitivity?: number,
  * }} options
  */
 export function createInterestObjectsTapController(options) {
@@ -37,6 +49,9 @@ export function createInterestObjectsTapController(options) {
   const layer = options.layer;
   const camera = options.camera;
   const domElement = options.domElement;
+  const moveThresholdPx = options.moveThresholdPx ?? INTEREST_TAP_MOVE_THRESHOLD_PX;
+  const rotationSensitivity =
+    options.rotationSensitivity ?? INTEREST_VISITOR_ROTATION_SENSITIVITY;
   const container =
     options.container ??
     (domElement?.closest?.(".ar-tracking-container") || domElement?.parentElement || null);
@@ -53,8 +68,23 @@ export function createInterestObjectsTapController(options) {
   /** @type {string | null} */
   let openId = null;
   let closeTimer = 0;
-  /** @type {{ id: number, x: number, y: number } | null} */
-  let pendingPointer = null;
+
+  /** @type {"idle" | "pending" | "rotating"} */
+  let gestureMode = "idle";
+  /**
+   * @type {{
+   *   pointerId: number,
+   *   interestId: string | null,
+   *   startX: number,
+   *   startY: number,
+   *   startYaw: number,
+   *   startPitch: number,
+   * } | null}
+   */
+  let activeGesture = null;
+
+  /** @type {Map<string, { yaw: number, pitch: number }>} */
+  const visitorAngles = new Map();
 
   // Transparent hit surface — iOS Safari is unreliable on WebGL canvas alone.
   const hitLayer = document.createElement("div");
@@ -134,7 +164,12 @@ export function createInterestObjectsTapController(options) {
 
   const insets = measureSafeInsets();
 
+  function getVisitorAngles(id) {
+    return visitorAngles.get(id) ?? { yaw: 0, pitch: 0 };
+  }
+
   function pickInterest(clientX, clientY) {
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
     const rect = interactionRect();
     if (rect.width < 1 || rect.height < 1) return null;
     ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -226,11 +261,9 @@ export function createInterestObjectsTapController(options) {
     openId = id;
     card.classList.remove("is-closing");
     card.setAttribute("aria-hidden", "false");
-    // Force layout so open transition runs from closed styles.
     void card.offsetWidth;
     card.classList.add("is-open");
     syncOpenCardPosition();
-    // Second pass after content width settles.
     requestAnimationFrame(() => {
       if (!disposed && openId === id) syncOpenCardPosition();
     });
@@ -269,11 +302,106 @@ export function createInterestObjectsTapController(options) {
     openCard(hit.id);
   }
 
+  function releaseCapture(pointerId) {
+    if (pointerId == null) return;
+    try {
+      hitLayer.releasePointerCapture?.(pointerId);
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Cancel pending/rotating gesture without tap. Keeps last valid visitor angles.
+   */
+  function cancelActiveGesture() {
+    const pointerId = activeGesture?.pointerId;
+    activeGesture = null;
+    gestureMode = "idle";
+    releaseCapture(pointerId);
+  }
+
+  function applyRotationForGesture(clientX, clientY) {
+    if (!activeGesture?.interestId) return false;
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) {
+      cancelActiveGesture();
+      return false;
+    }
+
+    const entry = layer.getEntry(activeGesture.interestId);
+    if (!entry?.userRotation || !entry.revealed) {
+      cancelActiveGesture();
+      return false;
+    }
+
+    const deltaX = clientX - activeGesture.startX;
+    const deltaY = clientY - activeGesture.startY;
+    const next = computeVisitorRotationFromDrag({
+      startYaw: activeGesture.startYaw,
+      startPitch: activeGesture.startPitch,
+      deltaX,
+      deltaY,
+      sensitivity: rotationSensitivity,
+    });
+    if (!next) {
+      cancelActiveGesture();
+      return false;
+    }
+
+    const applied = applyVisitorRotationToGroup(
+      THREE,
+      entry.userRotation,
+      next.yaw,
+      next.pitch,
+    );
+    if (!applied) {
+      cancelActiveGesture();
+      return false;
+    }
+
+    visitorAngles.set(activeGesture.interestId, {
+      yaw: next.yaw,
+      pitch: next.pitch,
+    });
+    return true;
+  }
+
+  function finishGestureNormalize() {
+    if (!activeGesture?.interestId) return;
+    const id = activeGesture.interestId;
+    const angles = visitorAngles.get(id);
+    if (!angles) return;
+    const yaw = normalizeYaw(angles.yaw);
+    const pitch = angles.pitch;
+    visitorAngles.set(id, { yaw, pitch });
+    const entry = layer.getEntry(id);
+    if (entry?.userRotation) {
+      applyVisitorRotationToGroup(THREE, entry.userRotation, yaw, pitch);
+    }
+  }
+
   function onPointerDown(event) {
     if (disposed) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
     if (event.isPrimary === false) return;
-    pendingPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    // One active pointer only — ignore additional pointers while a gesture is live.
+    if (gestureMode !== "idle") return;
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) return;
+
+    const hit = pickInterest(event.clientX, event.clientY);
+    const interestId = hit?.id ?? null;
+    const angles = interestId ? getVisitorAngles(interestId) : { yaw: 0, pitch: 0 };
+
+    activeGesture = {
+      pointerId: event.pointerId,
+      interestId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startYaw: angles.yaw,
+      startPitch: angles.pitch,
+    };
+    gestureMode = "pending";
+
     try {
       hitLayer.setPointerCapture?.(event.pointerId);
     } catch {
@@ -282,36 +410,72 @@ export function createInterestObjectsTapController(options) {
   }
 
   function onPointerMove(event) {
-    if (!pendingPointer || pendingPointer.id !== event.pointerId) return;
-    const dx = event.clientX - pendingPointer.x;
-    const dy = event.clientY - pendingPointer.y;
-    if (Math.hypot(dx, dy) > TAP_MOVE_THRESHOLD_PX) {
-      pendingPointer = null;
+    if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
+    if (gestureMode === "idle") return;
+    if (!Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+      cancelActiveGesture();
+      return;
+    }
+
+    const dx = event.clientX - activeGesture.startX;
+    const dy = event.clientY - activeGesture.startY;
+    const distance = Math.hypot(dx, dy);
+
+    if (gestureMode === "pending") {
+      if (distance < moveThresholdPx) return;
+      // Lock as rotating only when a revealed interest was hit on pointerdown.
+      if (!activeGesture.interestId) {
+        // Drag on empty space: suppress tap, do not close/open cards.
+        cancelActiveGesture();
+        return;
+      }
+      gestureMode = "rotating";
+      applyRotationForGesture(event.clientX, event.clientY);
+      return;
+    }
+
+    if (gestureMode === "rotating") {
+      applyRotationForGesture(event.clientX, event.clientY);
     }
   }
 
   function onPointerUp(event) {
-    if (!pendingPointer || pendingPointer.id !== event.pointerId) {
-      pendingPointer = null;
+    if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
+
+    const mode = gestureMode;
+    const startX = activeGesture.startX;
+    const startY = activeGesture.startY;
+    const pointerId = activeGesture.pointerId;
+
+    if (mode === "rotating") {
+      finishGestureNormalize();
+      activeGesture = null;
+      gestureMode = "idle";
+      releaseCapture(pointerId);
       return;
     }
-    const { x, y } = pendingPointer;
-    pendingPointer = null;
-    try {
-      hitLayer.releasePointerCapture?.(event.pointerId);
-    } catch {
-      // ignore
+
+    // pending → tap (existing card semantics). Never tap after rotating.
+    activeGesture = null;
+    gestureMode = "idle";
+    releaseCapture(pointerId);
+    if (mode === "pending") {
+      handleTap(startX, startY);
     }
-    handleTap(x, y);
   }
 
   function onPointerCancel(event) {
-    if (pendingPointer?.id === event.pointerId) pendingPointer = null;
-    try {
-      hitLayer.releasePointerCapture?.(event.pointerId);
-    } catch {
-      // ignore
+    if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
+    cancelActiveGesture();
+  }
+
+  function onLostPointerCapture(event) {
+    if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
+    if (gestureMode === "rotating") {
+      finishGestureNormalize();
     }
+    activeGesture = null;
+    gestureMode = "idle";
   }
 
   const listenerOpts = { passive: true };
@@ -319,6 +483,7 @@ export function createInterestObjectsTapController(options) {
   hitLayer.addEventListener("pointermove", onPointerMove, listenerOpts);
   hitLayer.addEventListener("pointerup", onPointerUp, listenerOpts);
   hitLayer.addEventListener("pointercancel", onPointerCancel, listenerOpts);
+  hitLayer.addEventListener("lostpointercapture", onLostPointerCapture, listenerOpts);
 
   if (domElement) {
     domElement.style.touchAction = "none";
@@ -327,19 +492,27 @@ export function createInterestObjectsTapController(options) {
   return {
     hitLayer,
     getOpenId: () => openId,
+    getGestureMode: () => gestureMode,
+    getVisitorAngles: (id) => {
+      const angles = getVisitorAngles(id);
+      return { yaw: angles.yaw, pitch: angles.pitch };
+    },
     open: openCard,
     close: closeCard,
     update: syncOpenCardPosition,
     handleTap,
+    cancelActiveGesture,
     dispose() {
       if (disposed) return;
       disposed = true;
+      cancelActiveGesture();
       clearCloseTimer();
-      pendingPointer = null;
+      visitorAngles.clear();
       hitLayer.removeEventListener("pointerdown", onPointerDown, listenerOpts);
       hitLayer.removeEventListener("pointermove", onPointerMove, listenerOpts);
       hitLayer.removeEventListener("pointerup", onPointerUp, listenerOpts);
       hitLayer.removeEventListener("pointercancel", onPointerCancel, listenerOpts);
+      hitLayer.removeEventListener("lostpointercapture", onLostPointerCapture, listenerOpts);
       hitLayer.remove();
       card.remove();
       if (container?.dataset?.arInterestInteractive) {
@@ -350,4 +523,4 @@ export function createInterestObjectsTapController(options) {
   };
 }
 
-export { CLOSE_MS };
+export { CLOSE_MS, INTEREST_TAP_MOVE_THRESHOLD_PX as TAP_MOVE_THRESHOLD_PX };

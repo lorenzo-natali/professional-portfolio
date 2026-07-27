@@ -633,6 +633,11 @@ body {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.7);
 }
 
+.ar-status-prompt__hint--secondary {
+  margin-top: 0.08rem;
+  color: rgb(226 232 240 / 0.72);
+}
+
 .ar-status-fade {
   animation: ar-status-fade 180ms ease;
 }

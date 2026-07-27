@@ -77,6 +77,7 @@ describe("ARCameraView full-screen overlays", () => {
     expect(screen.queryByText(AR_STATUS_COPY.detected)).not.toBeInTheDocument();
     expect(screen.getByText(AR_STATUS_COPY.promptTitle)).toBeInTheDocument();
     expect(screen.getByText(AR_STATUS_COPY.promptHint)).toBeInTheDocument();
+    expect(screen.getByText(AR_STATUS_COPY.promptHintSecondary)).toBeInTheDocument();
     expect(container.querySelector("[data-ar-status-phase='prompt']")).toBeTruthy();
     expect(container.querySelectorAll("[data-ar-status-overlay='true']")).toHaveLength(1);
   });

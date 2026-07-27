@@ -76,7 +76,12 @@ describe("createInterestObjectsLayer", () => {
 
     const robot = layer.getEntry("robot");
     expect(robot.display.rotation.z).toBeCloseTo(-0.590886, 5);
-    expect(robot.entrance.parent).toBe(robot.display);
+    expect(robot.userRotation).toBeTruthy();
+    expect(robot.userRotation.parent).toBe(robot.display);
+    expect(robot.entrance.parent).toBe(robot.userRotation);
+    expect(robot.userRotation.rotation.x).toBeCloseTo(0, 10);
+    expect(robot.userRotation.rotation.y).toBeCloseTo(0, 10);
+    expect(robot.userRotation.rotation.z).toBeCloseTo(0, 10);
 
     layer.applyEntranceProgress("book", 1);
     const book = layer.getEntry("book");
