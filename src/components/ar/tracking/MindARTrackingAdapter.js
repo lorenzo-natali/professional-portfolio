@@ -33,6 +33,9 @@ import {
   resolveInterestItemsForVariant,
   shouldDisableCardLayoutProjection,
 } from "../arRuntimeVariant";
+import { getArCrashDiagCapabilities } from "../arCrashDiag";
+import { createArCrashDiagMonitor } from "../createArCrashDiagMonitor";
+import { startArCrashDiagLightweightSession } from "../startArCrashDiagLightweightSession";
 
 /**
  * Keep the MindAR container as a true fullscreen absolute layer.
@@ -320,6 +323,12 @@ export function createMindARTrackingAdapter({
   let sessionBlobUrl = null;
   /** @type {HTMLElement | null} */
   let sessionContainer = null;
+  /** @type {ReturnType<typeof createArCrashDiagMonitor> | null} */
+  let crashDiagMonitor = null;
+  /** @type {null | (() => Promise<void>)} */
+  let lightweightDiagCleanup = null;
+  /** @type {(() => void) | null} */
+  let videoFrameCounterCleanup = null;
 
   /** Opt-in rotate audit only — never throws into the adapter path. */
   function auditNote(kind, extra) {
@@ -495,6 +504,27 @@ export function createMindARTrackingAdapter({
       clearAuditHealthProvider();
 
       try {
+        videoFrameCounterCleanup?.();
+      } catch {
+        // ignore
+      }
+      videoFrameCounterCleanup = null;
+
+      try {
+        await lightweightDiagCleanup?.();
+      } catch {
+        // ignore
+      }
+      lightweightDiagCleanup = null;
+
+      try {
+        crashDiagMonitor?.dispose?.();
+      } catch {
+        // ignore
+      }
+      crashDiagMonitor = null;
+
+      try {
         viewportCleanup?.();
       } catch {
         // ignore
@@ -666,6 +696,61 @@ export function createMindARTrackingAdapter({
 
       sessionContainer = container;
 
+      const crashDiagMode = getArRuntimeFlags().arCrashDiag;
+      const crashCaps = getArCrashDiagCapabilities(crashDiagMode);
+      if (crashDiagMode) {
+        crashDiagMonitor = createArCrashDiagMonitor(crashDiagMode);
+        auditNote("crashDiagStart", {
+          mode: crashDiagMode,
+          capabilities: crashCaps,
+        });
+      }
+
+      // CAMERA_ONLY / CAMERA_PLUS_RENDER: no MindAR, no .mind fetch.
+      if (crashDiagMode === "camera" || crashDiagMode === "render") {
+        const sessionToken = ++sessionGeneration;
+        try {
+          const lightweight = await startArCrashDiagLightweightSession({
+            mode: crashDiagMode,
+            container,
+            monitor: crashDiagMonitor,
+            callbacks,
+            getSessionGeneration: () => sessionGeneration,
+            sessionToken,
+          });
+          if (sessionGeneration !== sessionToken || cleanupPromise || sessionContainer !== container) {
+            await lightweight.cleanup();
+            await cleanupSession();
+            return;
+          }
+          lightweightDiagCleanup = lightweight.cleanup;
+          rafLoop = lightweight.rafLoop;
+          running = true;
+          auditNote("adapterStartSucceeded", {
+            runtimeVariant: arRuntimeVariantSnapshotLabel(
+              getArRuntimeFlags().arRuntimeVariant,
+            ),
+            crashDiag: crashDiagMode,
+          });
+          return;
+        } catch (error) {
+          auditNote("adapterStartFailed", {
+            message: error instanceof Error ? error.message : String(error),
+            crashDiag: crashDiagMode,
+          });
+          const stillOwner = sessionContainer === container && !cleanupPromise;
+          await cleanupSession();
+          if (!stillOwner) return;
+          const err = error instanceof Error ? error : new Error(String(error));
+          if (/NotAllowed|Permission|security/i.test(err.message)) {
+            callbacks.onUnsupported?.("camera-denied");
+          } else {
+            callbacks.onError?.(err);
+          }
+          return;
+        }
+      }
+
       const targetBuffer = await loadArTargetBuffer(targetSrc);
       if (cleanupPromise || !sessionContainer) {
         // Stop/unmount won the race during target fetch.
@@ -720,15 +805,21 @@ export function createMindARTrackingAdapter({
         applyArRuntimeVariantPixelRatio(renderer, runtimeVariant);
         auditNote("rendererCreated", {
           runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+          crashDiag: crashDiagMode,
         });
-        presentationLighting = createInterestLighting(THREE, scene);
+        if (crashDiagMonitor && mindarThree.controller) {
+          crashDiagMonitor.instrumentController(mindarThree.controller);
+        }
+        presentationLighting = crashCaps.interestContent
+          ? createInterestLighting(THREE, scene)
+          : null;
         recordArViewportLifecycle(shell, "after-mindar-construct");
 
         // MindAR anchor (raw)
         //   → presentation (rigid identity / filtered)
         //     → interest objects placement
         const anchor = mindarThree.addAnchor(0);
-        if (showAnchorProof) {
+        if (showAnchorProof && crashCaps.interestContent) {
           anchor.group.add(createAnchorProofObject(THREE));
         }
 
@@ -738,7 +829,9 @@ export function createMindARTrackingAdapter({
         presentationRoot.matrixAutoUpdate = false;
         anchor.group.add(presentationRoot);
 
-        const interestDebugApi = await loadInterestObjectsDebugApi();
+        const interestDebugApi = crashCaps.interestContent
+          ? await loadInterestObjectsDebugApi()
+          : { enabled: false, create: null };
         const debugEnabled = interestDebugApi.enabled;
         setArRuntimeAuditState({
           trackingAdapter: "MindARTrackingAdapter",
@@ -746,6 +839,7 @@ export function createMindARTrackingAdapter({
         });
         recordArRuntimeAuditPhase("mindar-adapter-start", {
           searchNow: typeof location !== "undefined" ? location.search : "",
+          crashDiag: crashDiagMode,
         });
         // Isolate this start() from any prior in-flight interest load callbacks.
         const sessionToken = ++sessionGeneration;
@@ -755,7 +849,9 @@ export function createMindARTrackingAdapter({
         let sessionAnim = null;
 
         // Mount empty placeholders immediately — do not block the camera on GLBs.
-        const interestItems = resolveInterestItemsForVariant(runtimeVariant);
+        const interestItems = crashCaps.interestContent
+          ? resolveInterestItemsForVariant(runtimeVariant)
+          : [];
         sessionLayer = createInterestObjectsLayer(THREE, {
           items: interestItems,
           onItemLoaded: (id) => {
@@ -838,11 +934,49 @@ export function createMindARTrackingAdapter({
         recordArViewportLifecycle(shell, "before-mindar-start");
         await mindarThree.start();
         auditNote("mindarStartCompleted", {});
+        if (crashDiagMonitor && mindarThree.controller) {
+          // Controller may be created inside start(); instrument again safely.
+          crashDiagMonitor.instrumentController(mindarThree.controller);
+        }
+        if (crashDiagMonitor) {
+          crashDiagMonitor.mountHud(shell);
+          videoFrameCounterCleanup = crashDiagMonitor.bindVideoFrameCounter(
+            mindarThree.video,
+          );
+        }
         if (
           typeof MediaStream !== "undefined" &&
           mindarThree.video?.srcObject instanceof MediaStream
         ) {
           auditNote("cameraStreamActive", {});
+        }
+
+        // FROZEN_TRACKING: stop MindAR processVideo after first stable pose emit.
+        if (crashCaps.freezeAfterAcquire && mindarThree.controller) {
+          const controller = mindarThree.controller;
+          const prevOnUpdate = controller.onUpdate;
+          controller.onUpdate = (evt) => {
+            try {
+              prevOnUpdate?.(evt);
+            } catch {
+              // ignore
+            }
+            if (
+              !crashDiagMonitor?.isFrozen?.() &&
+              evt?.type === "updateMatrix" &&
+              evt.worldMatrix
+            ) {
+              crashDiagMonitor?.markFrozen?.();
+              queueMicrotask(() => {
+                try {
+                  controller.stopProcessVideo?.();
+                  crashDiagMonitor?.note?.("trackingStoppedAfterAcquire");
+                } catch {
+                  // ignore
+                }
+              });
+            }
+          };
         }
 
         // Close/unmount during getUserMedia or init: do not revive the session.
@@ -914,23 +1048,27 @@ export function createMindARTrackingAdapter({
 
         const frameStats = createFrameStats();
 
-        interestTap = createInterestObjectsTapController({
-          THREE,
-          layer: sessionLayer,
-          camera,
-          domElement: renderer.domElement,
-          container,
-          shell,
-          disableCardLayoutProjection: shouldDisableCardLayoutProjection(runtimeVariant),
-          onLayoutProjectionUpdate: () => frameStats.recordLayoutProjection(),
-        });
+        interestTap = crashCaps.interestContent
+          ? createInterestObjectsTapController({
+              THREE,
+              layer: sessionLayer,
+              camera,
+              domElement: renderer.domElement,
+              container,
+              shell,
+              disableCardLayoutProjection: shouldDisableCardLayoutProjection(runtimeVariant),
+              onLayoutProjectionUpdate: () => frameStats.recordLayoutProjection(),
+            })
+          : null;
         auditNote("interactionControllerInstalled", {
           runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+          crashDiag: crashDiagMode,
         });
         bindAuditHealthProvider(renderer, sessionLayer, frameStats);
         recordArRuntimeAuditPhase("interest-tap-controller-created", {
           hasHitLayer: Boolean(interestTap?.hitLayer),
           runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+          crashDiag: crashDiagMode,
         });
 
         const onViewportChange = () => {
@@ -947,6 +1085,7 @@ export function createMindARTrackingAdapter({
         running = true;
         auditNote("adapterStartSucceeded", {
           runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+          crashDiag: crashDiagMode,
         });
         // Coordinator owns rAF coalesce — bind listeners without a second coalesce layer.
         viewportCleanup = bindArViewportListeners(onViewportChange, { coalesce: false });
@@ -973,42 +1112,51 @@ export function createMindARTrackingAdapter({
 
         let firstFrameRecorded = false;
         lastFrameTimeMs = performance.now();
-        // Exactly one application-owned Three loop per session.
-        renderer.setAnimationLoop((frameTime) => {
-          if (sessionGeneration !== sessionToken) return;
-          const tNow = typeof frameTime === "number" ? frameTime : performance.now();
-          const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
-          lastFrameTimeMs = tNow;
 
-          const anchorVisible = Boolean(anchor.visible);
-          const animPlaying = interestAnimation?.isPlaying?.() === true;
-          const gestureMode = interestTap?.getGestureMode?.() ?? "idle";
-          const interacting = gestureMode !== "idle";
-          const cardOpen = Boolean(interestTap?.getOpenId?.());
-          const drawable = hasDrawableContent();
-          const continuous =
-            (anchorVisible && drawable) || animPlaying || interacting;
+        if (!crashCaps.threeRender) {
+          // MINDAR_NO_RENDER: keep MindAR TF/worker loop; do not own a Three render loop.
+          rafLoop = null;
+          crashDiagMonitor?.note?.("threeRenderDisabled");
+        } else {
+          // Exactly one application-owned Three loop per session.
+          renderer.setAnimationLoop((frameTime) => {
+            if (sessionGeneration !== sessionToken) return;
+            const tNow = typeof frameTime === "number" ? frameTime : performance.now();
+            const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
+            lastFrameTimeMs = tNow;
 
-          // Pose filter must advance while tracking even if we skip a draw.
-          poseStabilizer?.update(dtSec);
-          // Card projection / gesture follow-up only when relevant (avoid per-frame DOM).
-          if (cardOpen || interacting) {
-            interestTap?.update?.();
-          }
+            const anchorVisible = Boolean(anchor.visible);
+            const animPlaying = interestAnimation?.isPlaying?.() === true;
+            const gestureMode = interestTap?.getGestureMode?.() ?? "idle";
+            const interacting = gestureMode !== "idle";
+            const cardOpen = Boolean(interestTap?.getOpenId?.());
+            const drawable = hasDrawableContent();
+            const continuous =
+              (anchorVisible && drawable) || animPlaying || interacting;
 
-          if (!continuous && !renderDirty) {
-            return;
-          }
+            // Pose filter must advance while tracking even if we skip a draw.
+            poseStabilizer?.update(dtSec);
+            // Card projection / gesture follow-up only when relevant (avoid per-frame DOM).
+            if (cardOpen || interacting) {
+              interestTap?.update?.();
+            }
 
-          frameStats.record(dtSec * 1000);
-          renderer.render(scene, camera);
-          renderDirty = continuous;
-          if (!firstFrameRecorded) {
-            firstFrameRecorded = true;
-            recordArViewportLifecycle(shell, "first-frame");
-          }
-        });
-        rafLoop = renderer;
+            if (!continuous && !renderDirty) {
+              return;
+            }
+
+            frameStats.record(dtSec * 1000);
+            renderer.render(scene, camera);
+            crashDiagMonitor?.bump?.("renderFrames");
+            crashDiagMonitor?.sampleRenderer?.(renderer);
+            renderDirty = continuous;
+            if (!firstFrameRecorded) {
+              firstFrameRecorded = true;
+              recordArViewportLifecycle(shell, "first-frame");
+            }
+          });
+          rafLoop = renderer;
+        }
 
         lifecycleTimers.push(
           window.setTimeout(() => {

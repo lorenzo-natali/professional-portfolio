@@ -89,4 +89,24 @@ describe("arRuntimeFlags", () => {
     expect(flags.arRuntimeVariant).toBe("half-resolution");
     expect(flags.arRotateAudit).toBe(true);
   });
+
+  it("latches arCrashDiag independently and leaves default null", () => {
+    expect(
+      captureArRuntimeFlags({
+        href: "https://host/",
+        pathname: "/",
+        search: "",
+        hash: "",
+      }).arCrashDiag,
+    ).toBeNull();
+
+    resetArRuntimeFlagsForTests();
+    const flags = captureArRuntimeFlags({
+      href: "https://host/?beyond=1&arDiag=frozen",
+      pathname: "/",
+      search: "?beyond=1&arDiag=frozen",
+      hash: "",
+    });
+    expect(flags.arCrashDiag).toBe("frozen");
+  });
 });

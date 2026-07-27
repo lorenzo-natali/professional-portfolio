@@ -49,15 +49,23 @@ function unavailableCopy(reason) {
 }
 
 function initialArScreen(isMobile, flags) {
-  // Audit field work can bypass the desktop gate when Safari misclassifies the device.
-  const allowCameraPath = isMobile || flags.arRuntimeAudit || flags.arRotateAudit;
+  // Audit / crash-diag field work can bypass the desktop gate when Safari misclassifies the device.
+  const allowCameraPath =
+    isMobile ||
+    flags.arRuntimeAudit ||
+    flags.arRotateAudit ||
+    Boolean(flags.arCrashDiag);
   if (!allowCameraPath) return "desktop";
   return "intro";
 }
 
 function ARGovernanceExperience({ isMobile, onClose }) {
   const flags = getArRuntimeFlags();
-  const allowCameraPath = isMobile || flags.arRuntimeAudit || flags.arRotateAudit;
+  const allowCameraPath =
+    isMobile ||
+    flags.arRuntimeAudit ||
+    flags.arRotateAudit ||
+    Boolean(flags.arCrashDiag);
   const [screen, setScreen] = useState(() => initialArScreen(isMobile, flags));
   const [unavailableReason, setUnavailableReason] = useState(null);
 

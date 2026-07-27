@@ -8,14 +8,17 @@ import {
   AR_RUNTIME_VARIANT_PARAM,
   parseArRuntimeVariant,
 } from "./arRuntimeVariant";
+import { AR_CRASH_DIAG_PARAM, parseArCrashDiag } from "./arCrashDiag";
 
 /** @typedef {import("./arRuntimeVariant").ArRuntimeVariantName} ArRuntimeVariantName */
+/** @typedef {import("./arCrashDiag").ArCrashDiagMode} ArCrashDiagMode */
 
 /** @typedef {{
  *   arRuntimeAudit: boolean,
  *   arViewportDebug: boolean,
  *   arRotateAudit: boolean,
  *   arRuntimeVariant: ArRuntimeVariantName | null,
+ *   arCrashDiag: ArCrashDiagMode | null,
  *   source: "initial-url" | "current-url" | "session" | "forced" | "none",
  *   href: string,
  *   pathname: string,
@@ -128,16 +131,22 @@ export function captureArRuntimeFlags(loc, options = {}) {
   const runtimeVariant = parseArRuntimeVariant(
     readStringFlag(search, hash, href, AR_RUNTIME_VARIANT_PARAM),
   );
+  const crashDiag = parseArCrashDiag(
+    readStringFlag(search, hash, href, AR_CRASH_DIAG_PARAM),
+  );
 
   /** @type {ArRuntimeFlags["source"]} */
   let source = "none";
-  if (audit || viewportDebug || rotateAudit || runtimeVariant) source = "initial-url";
+  if (audit || viewportDebug || rotateAudit || runtimeVariant || crashDiag) {
+    source = "initial-url";
+  }
 
   latchedFlags = {
     arRuntimeAudit: audit,
     arViewportDebug: viewportDebug,
     arRotateAudit: rotateAudit,
     arRuntimeVariant: runtimeVariant,
+    arCrashDiag: crashDiag,
     source,
     href,
     pathname,
