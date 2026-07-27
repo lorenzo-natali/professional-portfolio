@@ -6,6 +6,7 @@
  * @property {() => void} [onReady]
  * @property {() => void} [onTargetFound]
  * @property {() => void} [onTargetLost]
+ * @property {(interestId: string) => void} [onInterestOpen]
  * @property {(error: Error) => void} [onError]
  * @property {(reason: string) => void} [onUnsupported]
  *

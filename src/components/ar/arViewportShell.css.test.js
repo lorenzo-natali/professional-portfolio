@@ -49,6 +49,14 @@ describe("ar fullscreen CSS", () => {
     expect(css).not.toMatch(/(?:^|\n)\s*video\s*\{[^}]*max-width:\s*none/);
   });
 
+  it("defines a compact AR status prompt with reduced-motion support", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toMatch(/\.ar-status-prompt\s*\{/);
+    expect(css).toMatch(/\.ar-status-prompt__title\s*\{/);
+    expect(css).toMatch(/\.ar-status-prompt__hint\s*\{/);
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.ar-status-fade/);
+  });
+
   it("keeps Preflight max-width on non-AR videos while AR container video is exempt", () => {
     const style = document.createElement("style");
     style.textContent = `
