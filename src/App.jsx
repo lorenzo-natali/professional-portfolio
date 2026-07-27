@@ -16,6 +16,7 @@ import {
 import CodeiakMascotVideo from "./components/CodeiakMascotVideo";
 import ARGovernanceCard from "./components/ar/ARGovernanceCard";
 import ARGovernanceView from "./components/ar/ARGovernanceView";
+import { shouldLaunchBeyondCvFromLocation } from "./components/ar/beyondCvDeepLink";
 import "./index.css";
 
 const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -2339,9 +2340,12 @@ function PortfolioIntro({ onComplete }) {
 function App() {
   const [selectedLens, setSelectedLens] = useState("Overview");
   const [expandedExperiences, setExpandedExperiences] = useState({});
-  const [arOpen, setArOpen] = useState(false);
+  // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
+  const [arOpen, setArOpen] = useState(() => shouldLaunchBeyondCvFromLocation());
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === "undefined") return false;
+    // Deep-link launches skip the portfolio splash so AR is not covered.
+    if (shouldLaunchBeyondCvFromLocation()) return false;
     try {
       if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
       if (window.sessionStorage.getItem("portfolioIntroSeen") === "1") return false;
@@ -2350,6 +2354,15 @@ function App() {
     }
     return true;
   });
+
+  useLayoutEffect(() => {
+    // Ensure deep-link opens the same AR portal as the Beyond the CV button,
+    // even if something reset arOpen before first paint.
+    if (shouldLaunchBeyondCvFromLocation()) {
+      setArOpen(true);
+      setShowIntro(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!showIntro) return;
