@@ -10,7 +10,6 @@ export default function ARTrackingScene({
   onReady,
   onTargetFound,
   onTargetLost,
-  onInterestOpen,
   onError,
   onUnsupported,
 }) {
@@ -20,7 +19,6 @@ export default function ARTrackingScene({
     onReady,
     onTargetFound,
     onTargetLost,
-    onInterestOpen,
     onError,
     onUnsupported,
   });
@@ -30,11 +28,10 @@ export default function ARTrackingScene({
       onReady,
       onTargetFound,
       onTargetLost,
-      onInterestOpen,
       onError,
       onUnsupported,
     };
-  }, [onReady, onTargetFound, onTargetLost, onInterestOpen, onError, onUnsupported]);
+  }, [onReady, onTargetFound, onTargetLost, onError, onUnsupported]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -50,9 +47,6 @@ export default function ARTrackingScene({
       },
       onTargetLost: () => {
         if (!cancelled) callbacksRef.current.onTargetLost?.();
-      },
-      onInterestOpen: (id) => {
-        if (!cancelled) callbacksRef.current.onInterestOpen?.(id);
       },
       onError: (error) => {
         if (!cancelled) callbacksRef.current.onError?.(error);

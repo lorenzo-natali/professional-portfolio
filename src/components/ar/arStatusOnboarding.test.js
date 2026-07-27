@@ -28,24 +28,24 @@ describe("createArStatusOnboarding", () => {
     expect(onboarding.getPhase()).toBe("prompt");
     expect(AR_STATUS_COPY.promptTitle).toBe("A few things I love beyond work");
     expect(AR_STATUS_COPY.promptHint).toBe("Tap an object to discover more");
+    expect(onboarding).not.toHaveProperty("onInterestInteract");
+    expect(phases).not.toContain("dismissed");
 
     onboarding.dispose();
     expect(phases.at(-1)).toBe("prompt");
   });
 
-  it("dismisses the prompt on first interest interaction", () => {
+  it("keeps the prompt for the rest of the session with no dismissed state", () => {
     vi.useFakeTimers();
     const onboarding = createArStatusOnboarding();
     onboarding.onTargetFound();
     vi.advanceTimersByTime(AR_DISCOVERY_PROMPT_DELAY_MS);
     expect(onboarding.getPhase()).toBe("prompt");
 
-    onboarding.onInterestInteract();
-    expect(onboarding.getPhase()).toBe("dismissed");
+    // Object taps are unrelated to onboarding — API has no dismiss path.
+    expect(typeof onboarding.onInterestInteract).toBe("undefined");
+    expect(onboarding.getPhase()).toBe("prompt");
 
-    // Further acquires must not revive the prompt.
-    onboarding.onTargetFound();
-    expect(onboarding.getPhase()).toBe("dismissed");
     onboarding.dispose();
   });
 
@@ -67,18 +67,6 @@ describe("createArStatusOnboarding", () => {
     onboarding.onTargetFound();
     expect(onboarding.getPhase()).toBe("prompt");
 
-    onboarding.dispose();
-  });
-
-  it("cancels the pending prompt when the user interacts during CV detected", () => {
-    vi.useFakeTimers();
-    const onboarding = createArStatusOnboarding();
-    onboarding.onTargetFound();
-    onboarding.onInterestInteract();
-    expect(onboarding.getPhase()).toBe("dismissed");
-
-    vi.advanceTimersByTime(AR_DISCOVERY_PROMPT_DELAY_MS + 50);
-    expect(onboarding.getPhase()).toBe("dismissed");
     onboarding.dispose();
   });
 });

@@ -30,7 +30,6 @@ export function findInterestRootFromObject(object) {
  *   domElement: HTMLElement,
  *   container?: HTMLElement | null,
  *   shell?: HTMLElement | null,
- *   onInterestOpen?: (interestId: string) => void,
  * }} options
  */
 export function createInterestObjectsTapController(options) {
@@ -38,7 +37,6 @@ export function createInterestObjectsTapController(options) {
   const layer = options.layer;
   const camera = options.camera;
   const domElement = options.domElement;
-  const onInterestOpen = options.onInterestOpen;
   const container =
     options.container ??
     (domElement?.closest?.(".ar-tracking-container") || domElement?.parentElement || null);
@@ -232,11 +230,6 @@ export function createInterestObjectsTapController(options) {
     void card.offsetWidth;
     card.classList.add("is-open");
     syncOpenCardPosition();
-    try {
-      onInterestOpen?.(id);
-    } catch {
-      // UI callbacks must not break picking.
-    }
     // Second pass after content width settles.
     requestAnimationFrame(() => {
       if (!disposed && openId === id) syncOpenCardPosition();

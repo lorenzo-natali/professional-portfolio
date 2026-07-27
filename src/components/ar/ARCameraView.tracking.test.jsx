@@ -51,6 +51,7 @@ describe("ARCameraView full-screen overlays", () => {
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     expect(screen.queryByText(AR_STATUS_COPY.detected)).not.toBeInTheDocument();
     expect(container.querySelector("[data-ar-close-overlay='true']")).toBeTruthy();
+    expect(trackingHandlers.onInterestOpen).toBeUndefined();
 
     await act(async () => {
       trackingHandlers.onTargetFound?.();
@@ -68,7 +69,6 @@ describe("ARCameraView full-screen overlays", () => {
     expect(screen.getByText(AR_STATUS_COPY.promptTitle)).toBeInTheDocument();
     expect(screen.getByText(AR_STATUS_COPY.promptHint)).toBeInTheDocument();
     expect(container.querySelector("[data-ar-status-phase='prompt']")).toBeTruthy();
-    // Single status overlay — no stacked second badge.
     expect(container.querySelectorAll("[data-ar-status-overlay='true']")).toHaveLength(1);
   });
 
@@ -94,7 +94,7 @@ describe("ARCameraView full-screen overlays", () => {
     expect(container.querySelector("[data-ar-status-phase='prompt']")).toBeTruthy();
   });
 
-  it("dismisses the discovery prompt after the first object interaction", async () => {
+  it("leaves the discovery prompt visible after interest cards are opened", async () => {
     vi.useFakeTimers();
     const { container } = render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
 
@@ -104,19 +104,12 @@ describe("ARCameraView full-screen overlays", () => {
     });
     expect(screen.getByText(AR_STATUS_COPY.promptTitle)).toBeInTheDocument();
 
-    await act(async () => {
-      trackingHandlers.onInterestOpen?.("robot");
-    });
-
-    expect(screen.queryByText(AR_STATUS_COPY.promptTitle)).not.toBeInTheDocument();
-    expect(container.querySelector("[data-ar-status-overlay='true']")).toBeNull();
-
-    await act(async () => {
-      trackingHandlers.onTargetLost?.();
-      trackingHandlers.onTargetFound?.();
-    });
-    expect(screen.queryByText(AR_STATUS_COPY.detected)).not.toBeInTheDocument();
-    expect(screen.queryByText(AR_STATUS_COPY.promptTitle)).not.toBeInTheDocument();
+    // Interest taps no longer flow into onboarding; prompt must stay.
+    expect(trackingHandlers.onInterestOpen).toBeUndefined();
+    expect(screen.getByText(AR_STATUS_COPY.promptTitle)).toBeInTheDocument();
+    expect(screen.getByText(AR_STATUS_COPY.promptHint)).toBeInTheDocument();
+    expect(container.querySelector("[data-ar-status-phase='prompt']")).toBeTruthy();
+    expect(container.querySelector("[data-ar-status-phase='dismissed']")).toBeNull();
   });
 
   it("resets onboarding when a new AR session mounts", async () => {
@@ -126,9 +119,8 @@ describe("ARCameraView full-screen overlays", () => {
     await act(async () => {
       trackingHandlers.onTargetFound?.();
       vi.advanceTimersByTime(AR_DISCOVERY_PROMPT_DELAY_MS);
-      trackingHandlers.onInterestOpen?.("book");
     });
-    expect(screen.queryByText(AR_STATUS_COPY.promptTitle)).not.toBeInTheDocument();
+    expect(screen.getByText(AR_STATUS_COPY.promptTitle)).toBeInTheDocument();
     first.unmount();
 
     render(<ARCameraView onBack={vi.fn()} onFallback={vi.fn()} />);
@@ -136,6 +128,7 @@ describe("ARCameraView full-screen overlays", () => {
       trackingHandlers.onTargetFound?.();
     });
     expect(screen.getByText(AR_STATUS_COPY.detected)).toBeInTheDocument();
+    expect(screen.queryByText(AR_STATUS_COPY.promptTitle)).not.toBeInTheDocument();
   });
 
   it("keeps compact safe-area status positioning classes", () => {

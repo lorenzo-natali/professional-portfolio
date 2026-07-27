@@ -26,10 +26,12 @@ describe("ARGovernanceIntro entry CTA", () => {
     expect(screen.getByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Beyond the CV" })).toBeInTheDocument();
     expect(
-      screen.getByText("Discover a few of the interests behind the CV."),
-    ).toBeInTheDocument();
+      screen.queryByText("Discover a few of the interests behind the CV."),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByText("Point your camera at the first page of the printed or displayed CV."),
+      screen.getByText(
+        "Point your camera at the first page of my CV to unlock an interactive experience.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByText("Camera processing happens entirely on your device."),

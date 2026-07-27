@@ -682,7 +682,6 @@ export function createMindARTrackingAdapter({
           domElement: renderer.domElement,
           container,
           shell,
-          onInterestOpen: (id) => callbacks.onInterestOpen?.(id),
         });
         recordArRuntimeAuditPhase("interest-tap-controller-created", {
           hasHitLayer: Boolean(interestTap?.hitLayer),

@@ -34,7 +34,6 @@ export default function ARCameraView({ onBack, onFallback }) {
         onReady={() => {}}
         onTargetFound={() => onboardingRef.current?.onTargetFound()}
         onTargetLost={() => onboardingRef.current?.onTargetLost()}
-        onInterestOpen={() => onboardingRef.current?.onInterestInteract()}
         onError={() => onFallback("tracking-error")}
         onUnsupported={(reason) =>
           onFallback(reason === "target-unavailable" ? "target-unavailable" : "unsupported")

@@ -1,6 +1,6 @@
 /**
  * Session-scoped AR status onboarding:
- * idle → detected ("CV detected") → prompt (discovery) → dismissed
+ * idle → detected ("CV detected") → prompt (discovery, remains until unmount)
  *
  * Temporary target loss must not restart the sequence.
  * A new ARCameraView mount creates a fresh controller (new session).
@@ -15,7 +15,7 @@ export const AR_STATUS_COPY = {
 };
 
 /**
- * @typedef {"idle" | "detected" | "prompt" | "dismissed"} ArStatusPhase
+ * @typedef {"idle" | "detected" | "prompt"} ArStatusPhase
  *
  * @param {{
  *   delayMs?: number,
@@ -67,7 +67,7 @@ export function createArStatusOnboarding(options = {}) {
     },
 
     onTargetFound() {
-      // Already running, prompted, or dismissed — never restart on reacquire.
+      // Already running or prompted — never restart on reacquire.
       if (phase !== "idle") return;
       setPhase("detected");
       clearTimer();
@@ -79,11 +79,6 @@ export function createArStatusOnboarding(options = {}) {
 
     onTargetLost() {
       // Intentionally no-op: keep current phase across temporary tracking gaps.
-    },
-
-    onInterestInteract() {
-      clearTimer();
-      setPhase("dismissed");
     },
 
     dispose() {

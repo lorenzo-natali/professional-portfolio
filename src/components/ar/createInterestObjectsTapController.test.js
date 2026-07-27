@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as THREE from "three";
 import {
   createInterestObjectsTapController,
@@ -157,26 +157,4 @@ describe("createInterestObjectsTapController", () => {
     expect(INTEREST_OBJECT_CARDS.backpack.title).toBe("Travel");
   });
 
-  it("notifies onInterestOpen when a card opens", () => {
-    const onInterestOpen = vi.fn();
-    const layer = makeLayerWithMesh("robot");
-    const camera = new THREE.PerspectiveCamera();
-    const canvas = document.createElement("canvas");
-    container.appendChild(canvas);
-
-    controller = createInterestObjectsTapController({
-      THREE,
-      layer,
-      camera,
-      domElement: canvas,
-      container,
-      shell,
-      onInterestOpen,
-    });
-
-    controller.open("robot");
-    expect(onInterestOpen).toHaveBeenCalledWith("robot");
-    controller.open("robot");
-    expect(onInterestOpen).toHaveBeenCalledTimes(2);
-  });
 });

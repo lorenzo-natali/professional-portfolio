@@ -27,12 +27,8 @@ export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
           Beyond the CV
         </h2>
 
-        <p className="mx-auto mt-6 max-w-sm text-center text-sm leading-6 text-slate-200">
-          Discover a few of the interests behind the CV.
-        </p>
-
-        <p className="mx-auto mt-3 max-w-sm text-center text-sm leading-6 text-slate-400">
-          Point your camera at the first page of the printed or displayed CV.
+        <p className="mx-auto mt-6 max-w-sm text-center text-sm leading-6 text-slate-300">
+          Point your camera at the first page of my CV to unlock an interactive experience.
         </p>
 
         <p className="mx-auto mt-4 max-w-xs text-center text-[11px] leading-5 text-slate-500">
