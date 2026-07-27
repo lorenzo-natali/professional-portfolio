@@ -245,6 +245,9 @@ describe("mind-ar resize-listener patch", () => {
     expect(controller).toContain("disposeData(this.tempPixelHandle");
     expect(controllerSource).toContain("this.workerMatchDone = null");
     expect(controllerSource).toContain("inputT && inputT.dispose");
+    expect(controllerSource).toContain("const TRACK_EVERY_N_FRAMES = 2");
+    expect(controllerSource).toContain("runHeavyPipeline");
+    expect(controller).toContain("TRACK_EVERY_N_FRAMES = 2");
   });
 
   describe("patched MindARThree contract", () => {

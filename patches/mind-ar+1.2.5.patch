@@ -1,8 +1,8 @@
 diff --git a/node_modules/mind-ar/dist/controller-mGt1s8dJ.js b/node_modules/mind-ar/dist/controller-mGt1s8dJ.js
-index 2c757fa..ecfd8ee 100644
+index 2c757fa..0bcdeda 100644
 --- a/node_modules/mind-ar/dist/controller-mGt1s8dJ.js
 +++ b/node_modules/mind-ar/dist/controller-mGt1s8dJ.js
-@@ -55171,6 +55171,20 @@ class FY {
+@@ -55171,8 +55171,22 @@ class FY {
      const o = ps().runWebGLProgram(t, e, s);
      return Ot().makeTensorFromDataId(o.dataId, o.shape, o.dtype);
    }
@@ -21,8 +21,11 @@ index 2c757fa..ecfd8ee 100644
 +    this.program = null, this.context = null;
 +  }
  }
- const rd = { memory: wl, nextFrame: su }, VY = 1e-3, zY = 1e3, PY = 5, AY = 5;
+-const rd = { memory: wl, nextFrame: su }, VY = 1e-3, zY = 1e3, PY = 5, AY = 5;
++const rd = { memory: wl, nextFrame: su }, VY = 1e-3, zY = 1e3, PY = 5, AY = 5, TRACK_EVERY_N_FRAMES = 2;
  class QQ {
+   constructor({
+     inputWidth: t,
 @@ -55224,9 +55238,22 @@ class QQ {
      }), this.markerDimensions = i, { dimensions: i, matchingDataList: r, trackingDataList: o };
    }
@@ -49,9 +52,11 @@ index 2c757fa..ecfd8ee 100644
    }
    // warm up gpu - build kernels is slow
    dummyRun(t) {
-@@ -55281,36 +55308,71 @@ class QQ {
+@@ -55280,37 +55307,96 @@ class QQ {
+         trackMiss: 0,
          filter: new WC({ minCutOff: this.filterMinCF, beta: this.filterBeta })
        });
++    let e = 0;
      (async () => {
 -      for (; this.processingVideo; ) {
 -        const s = this.inputLoader.loadInput(t);
@@ -61,27 +66,68 @@ index 2c757fa..ecfd8ee 100644
 -            this.trackingStates[l].isTracking !== !0 && (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== l || r.push(l));
 -          const { targetIndex: i, modelViewTransform: a } = await this._detectAndMatch(s, r);
 -          i !== -1 && (this.trackingStates[i].isTracking = !0, this.trackingStates[i].currentModelViewTransform = a);
--        }
++      for (; ; ) {
++        if (!this.processingVideo)
++          break;
++        const s = this.trackingStates.reduce((l, u) => l + (u.isTracking ? 1 : 0), 0) < this.maxTrack, o = !s && this.trackingStates.some((l) => l.showing && l.isTracking) && this.trackingStates.every((l) => !l.isTracking || l.showing && l.isTracking);
++        let r = !0;
++        if (o && TRACK_EVERY_N_FRAMES > 1)
++          r = e % TRACK_EVERY_N_FRAMES == 0, e += 1;
++        else
++          e = 0;
++        if (!r) {
++          for (let l = 0; l < this.trackingStates.length; l++) {
++            const u = this.trackingStates[l];
++            if (!u.showing || !u.trackingMatrix)
++              continue;
++            let d = [];
++            for (let h = 0; h < u.trackingMatrix.length; h++)
++              d[h] = u.trackingMatrix[h];
++            t.width === this.inputHeight && t.height === this.inputWidth && (d = this.getRotatedZ90Matrix(d)), this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: l, worldMatrix: d });
++          }
++          if (!this.processingVideo)
++            break;
++          if (this.onUpdate && this.onUpdate({ type: "processDone" }), !this.processingVideo)
++            break;
++          await rd.nextFrame();
++          continue;
+         }
 -        for (let r = 0; r < this.trackingStates.length; r++) {
 -          const i = this.trackingStates[r];
 -          if (i.isTracking) {
 -            let a = await this._trackAndUpdate(s, i.currentModelViewTransform, r);
 -            a === null ? i.isTracking = !1 : i.currentModelViewTransform = a;
-+      for (; ; ) {
-+        if (!this.processingVideo)
-+          break;
-+        let s = null;
++        let i = null;
 +        try {
-+          if (s = this.inputLoader.loadInput(t), !this.processingVideo)
++          if (i = this.inputLoader.loadInput(t), !this.processingVideo)
 +            break;
-+          if (this.trackingStates.reduce((r, i) => r + (i.isTracking ? 1 : 0), 0) < this.maxTrack) {
-+            const r = [];
-+            for (let l = 0; l < this.trackingStates.length; l++)
-+              this.trackingStates[l].isTracking !== !0 && (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== l || r.push(l));
-+            const { targetIndex: i, modelViewTransform: a } = await this._detectAndMatch(s, r);
++          if (this.trackingStates.reduce((l, u) => l + (u.isTracking ? 1 : 0), 0) < this.maxTrack) {
++            const l = [];
++            for (let d = 0; d < this.trackingStates.length; d++)
++              this.trackingStates[d].isTracking !== !0 && (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== d || l.push(d));
++            const { targetIndex: u, modelViewTransform: d } = await this._detectAndMatch(i, l);
 +            if (!this.processingVideo)
 +              break;
-+            i !== -1 && (this.trackingStates[i].isTracking = !0, this.trackingStates[i].currentModelViewTransform = a);
++            u !== -1 && (this.trackingStates[u].isTracking = !0, this.trackingStates[u].currentModelViewTransform = d);
++          }
++          for (let l = 0; l < this.trackingStates.length; l++) {
++            if (!this.processingVideo)
++              break;
++            const u = this.trackingStates[l];
++            if (u.isTracking) {
++              let d = await this._trackAndUpdate(i, u.currentModelViewTransform, l);
++              if (!this.processingVideo)
++                break;
++              d === null ? u.isTracking = !1 : u.currentModelViewTransform = d;
++            }
++            if (u.showing || u.isTracking && (u.trackMiss = 0, u.trackCount += 1, u.trackCount > this.warmupTolerance && (u.showing = !0, u.trackingMatrix = null, u.filter.reset())), u.showing && (u.isTracking ? u.trackMiss = 0 : (u.trackCount = 0, u.trackMiss += 1, u.trackMiss > this.missTolerance && (u.showing = !1, u.trackingMatrix = null, this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: l, worldMatrix: null })))), u.showing) {
++              const d = this._glModelViewMatrix(u.currentModelViewTransform, l);
++              u.trackingMatrix = u.filter.filter(Date.now(), d);
++              let h = [];
++              for (let p = 0; p < u.trackingMatrix.length; p++)
++                h[p] = u.trackingMatrix[p];
++              t.width === this.inputHeight && t.height === this.inputWidth && (h = this.getRotatedZ90Matrix(h)), this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: l, worldMatrix: h });
++            }
            }
 -          if (i.showing || i.isTracking && (i.trackMiss = 0, i.trackCount += 1, i.trackCount > this.warmupTolerance && (i.showing = !0, i.trackingMatrix = null, i.filter.reset())), i.showing && (i.isTracking ? i.trackMiss = 0 : (i.trackCount = 0, i.trackMiss += 1, i.trackMiss > this.missTolerance && (i.showing = !1, i.trackingMatrix = null, this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: null })))), i.showing) {
 -            const a = this._glModelViewMatrix(i.currentModelViewTransform, r);
@@ -90,34 +136,15 @@ index 2c757fa..ecfd8ee 100644
 -            for (let u = 0; u < i.trackingMatrix.length; u++)
 -              l[u] = i.trackingMatrix[u];
 -            t.width === this.inputHeight && t.height === this.inputWidth && (l = this.getRotatedZ90Matrix(l)), this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: l });
-+          for (let r = 0; r < this.trackingStates.length; r++) {
-+            if (!this.processingVideo)
-+              break;
-+            const i = this.trackingStates[r];
-+            if (i.isTracking) {
-+              let a = await this._trackAndUpdate(s, i.currentModelViewTransform, r);
-+              if (!this.processingVideo)
-+                break;
-+              a === null ? i.isTracking = !1 : i.currentModelViewTransform = a;
-+            }
-+            if (i.showing || i.isTracking && (i.trackMiss = 0, i.trackCount += 1, i.trackCount > this.warmupTolerance && (i.showing = !0, i.trackingMatrix = null, i.filter.reset())), i.showing && (i.isTracking ? i.trackMiss = 0 : (i.trackCount = 0, i.trackMiss += 1, i.trackMiss > this.missTolerance && (i.showing = !1, i.trackingMatrix = null, this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: null })))), i.showing) {
-+              const a = this._glModelViewMatrix(i.currentModelViewTransform, r);
-+              i.trackingMatrix = i.filter.filter(Date.now(), a);
-+              let l = [];
-+              for (let u = 0; u < i.trackingMatrix.length; u++)
-+                l[u] = i.trackingMatrix[u];
-+              t.width === this.inputHeight && t.height === this.inputWidth && (l = this.getRotatedZ90Matrix(l)), this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: l });
-+            }
-           }
 +          if (!this.processingVideo)
 +            break;
 +          this.onUpdate && this.onUpdate({ type: "processDone" });
 +        } finally {
 +          try {
-+            s && s.dispose && s.dispose();
-+          } catch (r) {
-+          }
-+          s = null;
++            i && i.dispose && i.dispose();
++          } catch (l) {
+           }
++          i = null;
          }
 -        s.dispose(), this.onUpdate && this.onUpdate({ type: "processDone" }), await rd.nextFrame();
 +        if (!this.processingVideo)
@@ -143,7 +170,7 @@ index 2c757fa..ecfd8ee 100644
    }
    async detect(t) {
      const e = this.inputLoader.loadInput(t), { featurePoints: s, debugExtra: o } = await this.cropDetector.detect(e);
-@@ -55328,19 +55390,28 @@ class QQ {
+@@ -55328,19 +55414,28 @@ class QQ {
      return e.worldCoords.length < 4 ? null : await this._workerTrackUpdate(t, e);
    }
    _workerMatch(t, e) {
@@ -228,10 +255,22 @@ index c19cd8e..45e6224 100644
    switchCamera() {
      this.shouldFaceUser = !this.shouldFaceUser, this.stop(), this.start();
 diff --git a/node_modules/mind-ar/src/image-target/controller.js b/node_modules/mind-ar/src/image-target/controller.js
-index 2dd3d9f..0525a86 100644
+index 2dd3d9f..7385adb 100644
 --- a/node_modules/mind-ar/src/image-target/controller.js
 +++ b/node_modules/mind-ar/src/image-target/controller.js
-@@ -112,10 +112,26 @@ class Controller {
+@@ -13,6 +13,11 @@ const DEFAULT_FILTER_BETA = 1000;
+ const DEFAULT_WARMUP_TOLERANCE = 5;
+ const DEFAULT_MISS_TOLERANCE = 5;
+ 
++// Patch D-lite: while a target is stably showing+tracking, run the expensive
++// loadInput/detect/track/worker path only once every N loop iterations.
++// Skipped iterations hold the last valid pose (re-emit) and still await nextFrame.
++const TRACK_EVERY_N_FRAMES = 2;
++
+ class Controller {
+   constructor({inputWidth, inputHeight, onUpdate=null, debugMode=false, maxTrack=1, 
+     warmupTolerance=null, missTolerance=null, filterMinCF=null, filterBeta=null}) {
+@@ -112,10 +117,26 @@ class Controller {
    }
  
    dispose() {
@@ -261,57 +300,93 @@ index 2dd3d9f..0525a86 100644
    }
  
    // warm up gpu - build kernels is slow
-@@ -183,95 +199,110 @@ class Controller {
+@@ -179,99 +200,156 @@ class Controller {
+       //console.log("filterMinCF", this.filterMinCF, this.filterBeta);
+     }
+ 
++    // Counts only stable (showing+tracking) iterations for D-lite cadence.
++    let stableFrameIndex = 0;
++
+     const startProcessing = async() => {
        while (true) {
  	if (!this.processingVideo) break;
  
 -	const inputT = this.inputLoader.loadInput(input);
-+	let inputT = null;
-+	try {
-+	  inputT = this.inputLoader.loadInput(input);
-+	  if (!this.processingVideo) break;
- 
+-
 -	const nTracking = this.trackingStates.reduce((acc, s) => {
--	  return acc + (!!s.isTracking? 1: 0);
--	}, 0);
-+	  const nTracking = this.trackingStates.reduce((acc, s) => {
-+	    return acc + (!!s.isTracking? 1: 0);
-+	  }, 0);
++	const nTrackingPreview = this.trackingStates.reduce((acc, s) => {
+ 	  return acc + (!!s.isTracking? 1: 0);
+ 	}, 0);
++	const needsDetect = nTrackingPreview < this.maxTrack;
++	const stableShowing =
++	  !needsDetect &&
++	  this.trackingStates.some((s) => s.showing && s.isTracking) &&
++	  this.trackingStates.every((s) => !s.isTracking || (s.showing && s.isTracking));
++
++	let runHeavyPipeline = true;
++	if (stableShowing && TRACK_EVERY_N_FRAMES > 1) {
++	  runHeavyPipeline = (stableFrameIndex % TRACK_EVERY_N_FRAMES) === 0;
++	  stableFrameIndex += 1;
++	} else {
++	  stableFrameIndex = 0;
++	}
  
 -	// detect and match only if less then maxTrack
 -	if (nTracking < this.maxTrack) {
 -
 -	  const matchingIndexes = [];
--	  for (let i = 0; i < this.trackingStates.length; i++) {
--	    const trackingState = this.trackingStates[i];
++	// D-lite skip: no drawImage / GPU upload / track / worker — hold last pose.
++	if (!runHeavyPipeline) {
+ 	  for (let i = 0; i < this.trackingStates.length; i++) {
+ 	    const trackingState = this.trackingStates[i];
 -	    if (trackingState.isTracking === true) continue;
 -	    if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
 -
 -	    matchingIndexes.push(i);
--	  }
-+	  // detect and match only if less then maxTrack
-+	  if (nTracking < this.maxTrack) {
++	    if (!trackingState.showing || !trackingState.trackingMatrix) continue;
++	    let clone = [];
++	    for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
++	      clone[j] = trackingState.trackingMatrix[j];
++	    }
++	    const isInputRotated = input.width === this.inputHeight && input.height === this.inputWidth;
++	    if (isInputRotated) {
++	      clone = this.getRotatedZ90Matrix(clone);
++	    }
++	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
+ 	  }
++	  if (!this.processingVideo) break;
++	  this.onUpdate && this.onUpdate({type: 'processDone'});
++	  if (!this.processingVideo) break;
++	  await tf.nextFrame();
++	  continue;
++	}
  
 -	  const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
-+	    const matchingIndexes = [];
-+	    for (let i = 0; i < this.trackingStates.length; i++) {
-+	      const trackingState = this.trackingStates[i];
-+	      if (trackingState.isTracking === true) continue;
-+	      if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
++	let inputT = null;
++	try {
++	  inputT = this.inputLoader.loadInput(input);
++	  if (!this.processingVideo) break;
  
 -	  if (matchedTargetIndex !== -1) {
 -	    this.trackingStates[matchedTargetIndex].isTracking = true;
 -	    this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
 -	  }
 -	}
-+	      matchingIndexes.push(i);
-+	    }
++	  const nTracking = this.trackingStates.reduce((acc, s) => {
++	    return acc + (!!s.isTracking? 1: 0);
++	  }, 0);
++
++	  // detect and match only if less then maxTrack
++	  if (nTracking < this.maxTrack) {
  
 -	// tracking update
 -	for (let i = 0; i < this.trackingStates.length; i++) {
 -	  const trackingState = this.trackingStates[i];
-+	    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
-+	    if (!this.processingVideo) break;
++	    const matchingIndexes = [];
++	    for (let i = 0; i < this.trackingStates.length; i++) {
++	      const trackingState = this.trackingStates[i];
++	      if (trackingState.isTracking === true) continue;
++	      if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
  
 -	  if (trackingState.isTracking) {
 -	    let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
@@ -319,6 +394,12 @@ index 2dd3d9f..0525a86 100644
 -	      trackingState.isTracking = false;
 -	    } else {
 -	      trackingState.currentModelViewTransform = modelViewTransform;
++	      matchingIndexes.push(i);
++	    }
++
++	    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
++	    if (!this.processingVideo) break;
++
 +	    if (matchedTargetIndex !== -1) {
 +	      this.trackingStates[matchedTargetIndex].isTracking = true;
 +	      this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
@@ -416,12 +497,15 @@ index 2dd3d9f..0525a86 100644
 +	      if (isInputRotated) {
 +		clone = this.getRotatedZ90Matrix(clone);
 +	      }
-+
-+	      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
-+	    }
-+	  }
  
 -	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
++	      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
++	    }
+ 	  }
+-	}
+ 
+-	inputT.dispose();
+-        this.onUpdate && this.onUpdate({type: 'processDone'});
 +	  if (!this.processingVideo) break;
 +	  this.onUpdate && this.onUpdate({type: 'processDone'});
 +	} finally {
@@ -429,17 +513,14 @@ index 2dd3d9f..0525a86 100644
 +	    inputT && inputT.dispose && inputT.dispose();
 +	  } catch (err) {
 +	    // ignore
- 	  }
++	  }
 +	  inputT = null;
- 	}
--
--	inputT.dispose();
--        this.onUpdate && this.onUpdate({type: 'processDone'});
++	}
 +	if (!this.processingVideo) break;
  	await tf.nextFrame();
        }
      }
-@@ -280,6 +311,25 @@ class Controller {
+@@ -280,6 +358,25 @@ class Controller {
  
    stopProcessVideo() {
      this.processingVideo = false;
@@ -465,7 +546,7 @@ index 2dd3d9f..0525a86 100644
    }
  
    async detect(input) {
-@@ -308,21 +358,33 @@ class Controller {
+@@ -308,21 +405,33 @@ class Controller {
    }
  
    _workerMatch(featurePoints, targetIndexes) {
@@ -504,6 +585,14 @@ index 2dd3d9f..0525a86 100644
      });
    }
  
+@@ -393,5 +502,6 @@ class Controller {
+ }
+ 
+ export {
+- Controller
++ Controller,
++ TRACK_EVERY_N_FRAMES
+ }
 diff --git a/node_modules/mind-ar/src/image-target/input-loader.js b/node_modules/mind-ar/src/image-target/input-loader.js
 index 6b58dcf..0d6b2da 100644
 --- a/node_modules/mind-ar/src/image-target/input-loader.js

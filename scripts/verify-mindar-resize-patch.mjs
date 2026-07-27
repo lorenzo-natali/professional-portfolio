@@ -3,6 +3,7 @@
  * Fail loudly if mind-ar@1.2.5 is installed without the project MindAR patches:
  * - resize-listener lifecycle + null-safe stop
  * - Patch AB: full teardown on stop + abort-safe processVideo
+ * - Patch D-lite: alternate-frame tracking while stably showing (TRACK_EVERY_N_FRAMES=2)
  *
  * Checks the runtime artifacts the app imports and the readable source companions.
  */
@@ -134,7 +135,9 @@ const checks = [
     "controller processVideo disposes inputT in finally",
     controller.includes("finally {") &&
       (controller.includes("s.dispose && s.dispose()") ||
-        controller.includes("s && s.dispose")),
+        controller.includes("s && s.dispose") ||
+        controller.includes("i && i.dispose") ||
+        controller.includes("i.dispose && i.dispose()")),
     "controller processVideo missing finally dispose of input tensor",
   ],
   [
@@ -165,6 +168,29 @@ const checks = [
     "controller bundle InputLoader has dispose()",
     controller.includes("disposeData(this.tempPixelHandle"),
     "controller bundle missing InputLoader tempPixelHandle dispose",
+  ],
+  // --- Patch D-lite ---
+  [
+    "controller source defines TRACK_EVERY_N_FRAMES = 2",
+    controllerSource.includes("const TRACK_EVERY_N_FRAMES = 2"),
+    "controller source missing TRACK_EVERY_N_FRAMES = 2",
+  ],
+  [
+    "controller source skips heavy pipeline on alternate stable frames",
+    controllerSource.includes("runHeavyPipeline") &&
+      controllerSource.includes("stableShowing"),
+    "controller source missing D-lite skip gate",
+  ],
+  [
+    "controller bundle defines TRACK_EVERY_N_FRAMES = 2",
+    controller.includes("TRACK_EVERY_N_FRAMES = 2"),
+    "controller bundle missing TRACK_EVERY_N_FRAMES = 2",
+  ],
+  [
+    "controller bundle applies TRACK_EVERY_N_FRAMES cadence",
+    controller.includes("TRACK_EVERY_N_FRAMES > 1") &&
+      controller.includes("% TRACK_EVERY_N_FRAMES"),
+    "controller bundle missing alternate-frame cadence",
   ],
 ];
 
