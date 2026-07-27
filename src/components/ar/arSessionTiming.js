@@ -1,7 +1,7 @@
 /**
  * Shared AR session timing constants.
  *
- * Stabilizer pose-filter reset and Alignment Core session reset must use the
- * same continuous-loss threshold so brief jitter cannot desync them.
+ * Pose-filter reset after continuous target loss uses this threshold so brief
+ * jitter cannot desync stabilizer and session lifecycle.
  */
 export const AR_SESSION_RESET_MS = 1400;

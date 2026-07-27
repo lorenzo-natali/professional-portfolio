@@ -1,4 +1,4 @@
-import { PROFESSIONAL_CARD_STABILIZATION } from "./professionalCardConfig";
+import { ANCHOR_POSE_STABILIZATION } from "./anchorPoseStabilizationConfig";
 
 /**
  * Exponential smoothing weight for a time constant tau (seconds).
@@ -43,13 +43,13 @@ export function alignQuaternionHemisphere(reference, candidate, out) {
  * @param {{
  *   rawAnchor: import("three").Object3D,
  *   presentation: import("three").Object3D,
- *   config?: typeof PROFESSIONAL_CARD_STABILIZATION,
+ *   config?: typeof ANCHOR_POSE_STABILIZATION,
  *   now?: () => number,
  *   onAcquisitionReady?: () => void,
  * }} options
  */
 export function createAnchorPoseStabilizer(THREE, options) {
-  const config = { ...PROFESSIONAL_CARD_STABILIZATION, ...options.config };
+  const config = { ...ANCHOR_POSE_STABILIZATION, ...options.config };
   const rawAnchor = options.rawAnchor;
   const presentation = options.presentation;
   const now = options.now ?? (() => performance.now());

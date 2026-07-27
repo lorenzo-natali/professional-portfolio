@@ -6,7 +6,10 @@ import {
   createLabelMesh,
   resolveLabelDevicePixelRatio,
 } from "./arLabelTexture";
-import { LABEL_HEIGHT, LABEL_MAX_WIDTH } from "./lensCatalog";
+
+/** Document-plane label sizing used by createLabelMesh max-width enforcement. */
+const LABEL_HEIGHT = 0.042;
+const LABEL_MAX_WIDTH = 0.22;
 
 describe("arLabelTexture", () => {
   afterEach(() => {

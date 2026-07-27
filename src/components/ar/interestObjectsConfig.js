@@ -29,12 +29,6 @@ export const INTEREST_CANONICAL_Y_UP_TO_Z_UP = { x: Math.PI / 2, y: 0, z: 0 };
 /** Already aligned with document Z-up (no remap) — fossil. */
 export const INTEREST_CANONICAL_IDENTITY = { x: 0, y: 0, z: 0 };
 
-/** @deprecated use INTEREST_CANONICAL_Y_UP_TO_Z_UP */
-export const INTEREST_UPRIGHT_Y_TO_Z = INTEREST_CANONICAL_Y_UP_TO_Z_UP;
-
-/** @deprecated use INTEREST_CANONICAL_IDENTITY */
-export const INTEREST_UPRIGHT_IDENTITY = INTEREST_CANONICAL_IDENTITY;
-
 /**
  * Target display sizes in document units (CV width = 1).
  * Interpreted with each item's `scaleAxis` after final orientation.
@@ -74,9 +68,6 @@ export const INTEREST_OBJECTS_STABILIZATION = {
   scaleDeadZone: 0,
   reacquisitionBlendMs: 60,
 };
-
-/** @deprecated use INTEREST_TARGET_SIZES */
-export const INTEREST_TARGET_HEIGHTS = INTEREST_TARGET_SIZES;
 
 export const INTEREST_ENTRANCE = {
   durationMs: 480,
