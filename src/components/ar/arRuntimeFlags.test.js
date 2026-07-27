@@ -66,5 +66,27 @@ describe("arRuntimeFlags", () => {
     expect(flags.arRotateAudit).toBe(true);
     expect(flags.arRuntimeAudit).toBe(false);
     expect(flags.arViewportDebug).toBe(false);
+    expect(flags.arRuntimeVariant).toBeNull();
+  });
+
+  it("latches arRuntimeVariant independently and leaves default null", () => {
+    expect(
+      captureArRuntimeFlags({
+        href: "https://host/",
+        pathname: "/",
+        search: "",
+        hash: "",
+      }).arRuntimeVariant,
+    ).toBeNull();
+
+    resetArRuntimeFlagsForTests();
+    const flags = captureArRuntimeFlags({
+      href: "https://host/?arRuntimeVariant=half-resolution&arRotateAudit=1",
+      pathname: "/",
+      search: "?arRuntimeVariant=half-resolution&arRotateAudit=1",
+      hash: "",
+    });
+    expect(flags.arRuntimeVariant).toBe("half-resolution");
+    expect(flags.arRotateAudit).toBe(true);
   });
 });

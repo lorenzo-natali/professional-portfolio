@@ -42,6 +42,8 @@ export function findInterestRootFromObject(object) {
  *   shell?: HTMLElement | null,
  *   moveThresholdPx?: number,
  *   rotationSensitivity?: number,
+ *   disableCardLayoutProjection?: boolean,
+ *   onLayoutProjectionUpdate?: () => void,
  * }} options
  */
 export function createInterestObjectsTapController(options) {
@@ -52,6 +54,11 @@ export function createInterestObjectsTapController(options) {
   const moveThresholdPx = options.moveThresholdPx ?? INTEREST_TAP_MOVE_THRESHOLD_PX;
   const rotationSensitivity =
     options.rotationSensitivity ?? INTEREST_VISITOR_ROTATION_SENSITIVITY;
+  const disableCardLayoutProjection = Boolean(options.disableCardLayoutProjection);
+  const onLayoutProjectionUpdate =
+    typeof options.onLayoutProjectionUpdate === "function"
+      ? options.onLayoutProjectionUpdate
+      : null;
   const container =
     options.container ??
     (domElement?.closest?.(".ar-tracking-container") || domElement?.parentElement || null);
@@ -233,10 +240,14 @@ export function createInterestObjectsTapController(options) {
   }
 
   function syncOpenCardPosition() {
+    if (disableCardLayoutProjection) return;
     if (!openId || disposed) return;
     const entry = layer.getEntry(openId);
     const anchor = projectEntryAnchor(entry);
-    if (anchor) placeCardNear(anchor);
+    if (anchor) {
+      placeCardNear(anchor);
+      onLayoutProjectionUpdate?.();
+    }
   }
 
   function clearCloseTimer() {
@@ -479,7 +490,7 @@ export function createInterestObjectsTapController(options) {
       activeGesture = null;
       gestureMode = "idle";
       releaseCapture(pointerId);
-      auditNote("pointerup", { gestureMode: "idle", interestId: null, pointerId });
+      auditNote("pointerup", { gestureMode: "idle", interestId: null, pointerId: null });
       return;
     }
 
@@ -487,7 +498,7 @@ export function createInterestObjectsTapController(options) {
     activeGesture = null;
     gestureMode = "idle";
     releaseCapture(pointerId);
-    auditNote("pointerup", { gestureMode: "idle", interestId: null, pointerId });
+    auditNote("pointerup", { gestureMode: "idle", interestId: null, pointerId: null });
     if (mode === "pending") {
       handleTap(startX, startY);
     }
@@ -496,25 +507,25 @@ export function createInterestObjectsTapController(options) {
   function onPointerCancel(event) {
     if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
     auditNote("pointercancel", {
-      gestureMode,
-      interestId: activeGesture.interestId,
-      pointerId: event.pointerId,
+      gestureMode: "idle",
+      interestId: null,
+      pointerId: null,
     });
     cancelActiveGesture();
   }
 
   function onLostPointerCapture(event) {
     if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
-    auditNote("lostpointercapture", {
-      gestureMode,
-      interestId: activeGesture.interestId,
-      pointerId: event.pointerId,
-    });
     if (gestureMode === "rotating") {
       finishGestureNormalize();
     }
     activeGesture = null;
     gestureMode = "idle";
+    auditNote("lostpointercapture", {
+      gestureMode: "idle",
+      interestId: null,
+      pointerId: null,
+    });
   }
 
   const listenerOpts = { passive: true };
@@ -532,6 +543,8 @@ export function createInterestObjectsTapController(options) {
     hitLayer,
     getOpenId: () => openId,
     getGestureMode: () => gestureMode,
+    getActivePointerId: () =>
+      gestureMode === "idle" || !activeGesture ? null : activeGesture.pointerId,
     getVisitorAngles: (id) => {
       const angles = getVisitorAngles(id);
       return { yaw: angles.yaw, pitch: angles.pitch };
@@ -547,8 +560,12 @@ export function createInterestObjectsTapController(options) {
       cancelActiveGesture();
       clearCloseTimer();
       visitorAngles.clear();
-      auditNote("dispose", { gestureMode: "idle" });
-      auditNote("interactionControllerDisposed", { gestureMode: "idle" });
+      auditNote("dispose", { gestureMode: "idle", interestId: null, pointerId: null });
+      auditNote("interactionControllerDisposed", {
+        gestureMode: "idle",
+        interestId: null,
+        pointerId: null,
+      });
       hitLayer.removeEventListener("pointerdown", onPointerDown, listenerOpts);
       hitLayer.removeEventListener("pointermove", onPointerMove, listenerOpts);
       hitLayer.removeEventListener("pointerup", onPointerUp, listenerOpts);

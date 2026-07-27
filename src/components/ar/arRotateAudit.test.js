@@ -8,8 +8,10 @@ import {
   AR_ROTATE_AUDIT_SCHEMA_VERSION,
   AR_ROTATE_AUDIT_SESSION_A_FIXTURE,
   AR_ROTATE_AUDIT_SESSION_B_FIXTURE,
+  AR_ROTATE_AUDIT_SESSION_C_FIXTURE,
   AR_ROTATE_AUDIT_STORAGE_KEY,
   SESSION_A_ABRUPT_EXPLANATION,
+  SESSION_C_ABRUPT_EXPLANATION,
   buildArRotateAuditPersistable,
   classifyPreviousArRotateSnapshot,
   installArRotateAudit,
@@ -17,6 +19,7 @@ import {
   parseArRotateAuditSnapshot,
   readArRotateAuditStorage,
   recordArRotateAuditPageBoot,
+  resolveAuditPointerId,
   writeArRotateAuditStorage,
 } from "./arRotateAudit";
 
@@ -243,6 +246,28 @@ describe("lifecycle supersession", () => {
     expect(result.classification).not.toBe("normal_cleanup");
   });
 
+  it("6b. captured Session C fixture classifies as abrupt idle termination", () => {
+    const result = classifyPreviousArRotateSnapshot(AR_ROTATE_AUDIT_SESSION_C_FIXTURE);
+    expect(result.classification).toBe("abrupt_previous_session_end");
+    expect(result.explanation).toBe(SESSION_C_ABRUPT_EXPLANATION);
+    expect(result.classification).not.toBe("normal_cleanup");
+  });
+
+  it("forces pointerId null whenever gestureMode is idle", () => {
+    expect(resolveAuditPointerId("idle", -576659257)).toBeNull();
+    expect(resolveAuditPointerId("rotating", 42)).toBe(42);
+    audit = installArRotateAudit({ storage, now: () => 5500 });
+    audit.note("pointerdown", {
+      gestureMode: "pending",
+      interestId: "fossil",
+      pointerId: -576659257,
+    });
+    expect(audit.snapshot().last.pointerId).toBe(-576659257);
+    audit.note("pointerup", { gestureMode: "idle", interestId: null, pointerId: -576659257 });
+    expect(audit.snapshot().last.pointerId).toBeNull();
+    expect(audit.snapshot().last.interestId).toBeNull();
+  });
+
   it("7. captured Session B fixture treats early cleanup as superseded", () => {
     expect(isCleanupSupersededByLaterActivity(AR_ROTATE_AUDIT_SESSION_B_FIXTURE)).toBe(
       true,
@@ -346,11 +371,25 @@ describe("lifecycle supersession", () => {
         triangles: n * 100,
         canvasWidth: 640,
         canvasHeight: 480,
+        cssCanvasWidth: 320,
+        cssCanvasHeight: 240,
+        pixelRatio: 2,
+        estimatedPixelsPerFrame: 640 * 480,
+        sceneTriangles: 519741,
+        visibleTriangles: 519741,
+        visibleMeshes: 6,
         trackReadyState: "live",
         trackMuted: false,
         trackEnabled: true,
         interestEntries: 6,
         rendererAvailable: true,
+        rafHz: 60,
+        longestFrameMs: 18,
+        avgFrameMs: 16,
+        layoutProjectionUpdates: 0,
+        runtimeVariant: "baseline",
+        gestureMode: "idle",
+        pointerId: null,
       };
     });
     for (let i = 0; i < 12; i += 1) {
@@ -362,6 +401,10 @@ describe("lifecycle supersession", () => {
     expect(snap.health?.geometries).toBe(13);
     expect(snap.health?.renderCalls).toBe(130);
     expect(snap.healthSamples.length).toBe(AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES);
+    expect(snap.workloadSamples.length).toBe(AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES);
+    expect(snap.workload?.estimatedPixelsPerFrame).toBe(640 * 480);
+    expect(snap.workload?.runtimeVariant).toBe("baseline");
+    expect(snap.health?.pointerId).toBeNull();
   });
 
   it("12. diagnostics failure cannot affect WebAR", () => {
@@ -519,6 +562,7 @@ describe("installArRotateAudit", () => {
     expect(readArRotateAuditStorage(storage, AR_ROTATE_AUDIT_STORAGE_KEY)?.last?.gestureMode).toBe(
       "idle",
     );
+    expect(readArRotateAuditStorage(storage, AR_ROTATE_AUDIT_STORAGE_KEY)?.last?.pointerId).toBeNull();
   });
 });
 

@@ -6,6 +6,9 @@
  * That early cleanup is provisional and must never alone decide terminalKind.
  */
 
+import { getArRuntimeFlags } from "./arRuntimeFlags";
+import { arRuntimeVariantSnapshotLabel } from "./arRuntimeVariant";
+
 export const AR_ROTATE_AUDIT_STORAGE_KEY = "arRotateAudit:lastSnapshot";
 export const AR_ROTATE_AUDIT_RETAINED_KEY = "arRotateAudit:retainedPrevious";
 export const AR_ROTATE_AUDIT_BOOT_KEY = "arRotateAudit:pageBoot";
@@ -153,8 +156,92 @@ export const SESSION_A_ABRUPT_EXPLANATION =
   "An initial cleanup marker was superseded by later target detection, interactions and approximately 90 seconds of heartbeats. The final persisted state was an active rotation gesture, after which execution stopped without an intentional close or a recorded JavaScript, WebGL, camera, visibility or page-lifecycle terminal event.";
 
 /**
- * @param {string} message
+ * Captured Session C — abrupt termination while idle, camera-live, target visible (~52s).
  */
+export const AR_ROTATE_AUDIT_SESSION_C_FIXTURE = Object.freeze({
+  v: 2,
+  sessionId: "session-c-abrupt-idle-52s",
+  installedAt: 1_785_200_000_000,
+  persistedAt: 1_785_200_052_000,
+  heartbeat: 17,
+  heartbeatAt: 1_785_200_052_000,
+  terminalKind: null,
+  intentionalClose: false,
+  provisionalCleanupAt: 1_785_200_001_000,
+  provisionalCleanupCount: 1,
+  cleanupSuperseded: true,
+  arStartSucceededAt: 1_785_200_002_000,
+  lastTargetFoundAt: 1_785_200_005_000,
+  lastInteractionAt: null,
+  arActive: true,
+  runtimeVariant: "default",
+  visibilityState: "visible",
+  counters: {
+    cleanupSession: 1,
+    adapterStartSucceeded: 1,
+    targetFound: 1,
+    targetLost: 0,
+    pointerdown: 0,
+    pendingToRotating: 0,
+    heartbeat: 17,
+    windowError: 0,
+    unhandledRejection: 0,
+    webglContextLost: 0,
+    cameraTrackEnded: 0,
+    visibilityHidden: 0,
+    pagehide: 0,
+  },
+  last: {
+    gestureMode: "idle",
+    interestId: null,
+    pointerId: null,
+    arActive: true,
+    targetVisible: true,
+  },
+  health: {
+    gestureMode: "idle",
+    interestId: null,
+    pointerId: null,
+    arActive: true,
+    targetVisible: true,
+    geometries: 6,
+    textures: 14,
+    programs: 12,
+    renderCalls: 6,
+    triangles: 519_741,
+    canvasWidth: 1320,
+    canvasHeight: 2226,
+    trackReadyState: "live",
+    trackMuted: false,
+    trackEnabled: true,
+    interestEntries: 6,
+    rendererAvailable: true,
+    visibilityState: "visible",
+  },
+  lifecycleTail: [
+    { t: 1_785_200_001_000, kind: "provisional_startup_cleanup" },
+    { t: 1_785_200_002_000, kind: "adapterStartSucceeded" },
+    { t: 1_785_200_005_000, kind: "targetFound" },
+    { t: 1_785_200_052_000, kind: "heartbeat" },
+  ],
+  errors: [],
+  memory: null,
+});
+
+export const SESSION_C_ABRUPT_EXPLANATION =
+  "The AR runtime was active, visible, target-tracked and camera-live at the last sample. Execution stopped without an intentional close, page lifecycle event, JavaScript error, WebGL context loss, camera termination or final cleanup.";
+
+/**
+ * When idle / no active gesture, diagnostics must never retain a stale pointer id.
+ * @param {string | null | undefined} gestureMode
+ * @param {unknown} pointerId
+ */
+export function resolveAuditPointerId(gestureMode, pointerId) {
+  if (gestureMode == null || gestureMode === "idle") return null;
+  if (pointerId == null) return null;
+  const n = typeof pointerId === "number" ? pointerId : Number(pointerId);
+  return Number.isFinite(n) ? n : null;
+}
 export function truncateAuditMessage(message) {
   const text = String(message ?? "");
   if (text.length <= AR_ROTATE_AUDIT_MAX_MESSAGE_LEN) return text;
@@ -343,6 +430,19 @@ export function classifyPreviousArRotateSnapshot(snapshot, options = {}) {
       (superseded && snapshot.last?.gestureMode === "rotating")
     ) {
       explanation = SESSION_A_ABRUPT_EXPLANATION;
+    } else if (
+      sessionId === AR_ROTATE_AUDIT_SESSION_C_FIXTURE.sessionId ||
+      (superseded &&
+        snapshot.last?.gestureMode === "idle" &&
+        snapshot.arActive === true &&
+        (snapshot.last?.targetVisible === true ||
+          snapshot.health?.targetVisible === true ||
+          typeof snapshot.lastTargetFoundAt === "number") &&
+        (Number(snapshot.counters?.targetLost) || 0) === 0 &&
+        (Number(snapshot.counters?.pagehide) || 0) === 0 &&
+        (Number(snapshot.counters?.webglContextLost) || 0) === 0)
+    ) {
+      explanation = SESSION_C_ABRUPT_EXPLANATION;
     } else if (superseded) {
       explanation =
         "An initial cleanup marker was superseded by later AR activity; the run ended without an intentional close or a hard terminal event.";
@@ -484,12 +584,16 @@ export function buildArRotateAuditPersistable(state) {
   const lastHealth = state.healthSamples?.length
     ? state.healthSamples[state.healthSamples.length - 1]
     : null;
+  const lastWorkload = state.workloadSamples?.length
+    ? state.workloadSamples[state.workloadSamples.length - 1]
+    : null;
   return {
     v: AR_ROTATE_AUDIT_SCHEMA_VERSION,
     sessionId: state.sessionId,
     installedAt: state.installedAt,
     persistedAt: now,
     pageBootId: state.pageBootId ?? null,
+    runtimeVariant: state.runtimeVariant ?? "default",
     heartbeat: state.heartbeat,
     heartbeatAt: state.heartbeatAt,
     terminalKind: state.terminalKind,
@@ -507,7 +611,7 @@ export function buildArRotateAuditPersistable(state) {
     last: {
       gestureMode: state.last?.gestureMode ?? null,
       interestId: state.last?.interestId ?? null,
-      pointerId: state.last?.pointerId ?? null,
+      pointerId: resolveAuditPointerId(state.last?.gestureMode, state.last?.pointerId),
       cleanupReason: state.last?.cleanupReason ?? null,
       terminalKind: state.last?.terminalKind ?? null,
       terminalAt: state.last?.terminalAt ?? null,
@@ -517,7 +621,9 @@ export function buildArRotateAuditPersistable(state) {
     lifecycleTail: (state.lifecycleTail || []).slice(-AR_ROTATE_AUDIT_MAX_LIFECYCLE),
     errors: (state.errors || []).slice(-AR_ROTATE_AUDIT_MAX_ERRORS),
     healthSamples: (state.healthSamples || []).slice(-AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES),
+    workloadSamples: (state.workloadSamples || []).slice(-AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES),
     health: lastHealth,
+    workload: lastWorkload,
     memory: lastMem
       ? {
           t: lastMem.t,
@@ -647,6 +753,14 @@ export function installArRotateAudit(options = {}) {
   const lifecycleTail = [];
   /** @type {Array<Record<string, unknown>>} */
   const healthSamples = [];
+  /** @type {Array<Record<string, unknown>>} */
+  const workloadSamples = [];
+  let runtimeVariant = "default";
+  try {
+    runtimeVariant = arRuntimeVariantSnapshotLabel(getArRuntimeFlags().arRuntimeVariant);
+  } catch {
+    runtimeVariant = "default";
+  }
 
   let intentionalClose = false;
   /** @type {string | null} */
@@ -698,11 +812,25 @@ export function installArRotateAudit(options = {}) {
     try {
       const sample = healthProvider();
       if (!sample || typeof sample !== "object") return;
+      const gestureMode =
+        typeof sample.gestureMode === "string" ? sample.gestureMode : last.gestureMode;
+      const pointerId = resolveAuditPointerId(
+        gestureMode,
+        sample.pointerId !== undefined ? sample.pointerId : last.pointerId,
+      );
+      last.gestureMode = gestureMode ?? last.gestureMode;
+      last.pointerId = pointerId;
+      if (sample.interestId !== undefined && gestureMode !== "idle") {
+        last.interestId = sample.interestId;
+      } else if (gestureMode === "idle") {
+        last.interestId = null;
+      }
       const bounded = {
         t: nowFn(),
-        gestureMode: last.gestureMode,
+        runtimeVariant: sample.runtimeVariant ?? runtimeVariant,
+        gestureMode,
         interestId: last.interestId,
-        pointerId: last.pointerId,
+        pointerId,
         arActive,
         targetVisible: last.targetVisible,
         geometries: sample.geometries ?? null,
@@ -717,14 +845,43 @@ export function installArRotateAudit(options = {}) {
         trackEnabled: sample.trackEnabled ?? null,
         interestEntries: sample.interestEntries ?? null,
         rendererAvailable: sample.rendererAvailable ?? null,
+        visibilityState: document.visibilityState,
       };
       healthSamples.push(bounded);
       if (healthSamples.length > AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES) {
         healthSamples.splice(0, healthSamples.length - AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES);
       }
+
+      const workload = {
+        t: bounded.t,
+        runtimeVariant: bounded.runtimeVariant,
+        pixelRatio: sample.pixelRatio ?? null,
+        cssCanvasWidth: sample.cssCanvasWidth ?? null,
+        cssCanvasHeight: sample.cssCanvasHeight ?? null,
+        drawingBufferWidth: sample.drawingBufferWidth ?? sample.canvasWidth ?? null,
+        drawingBufferHeight: sample.drawingBufferHeight ?? sample.canvasHeight ?? null,
+        estimatedPixelsPerFrame: sample.estimatedPixelsPerFrame ?? null,
+        visibleTriangles: sample.visibleTriangles ?? null,
+        sceneTriangles: sample.sceneTriangles ?? null,
+        visibleMeshes: sample.visibleMeshes ?? null,
+        renderCalls: sample.renderCalls ?? null,
+        rendererTriangles: sample.triangles ?? null,
+        targetVisible: last.targetVisible,
+        rafHz: sample.rafHz ?? null,
+        longestFrameMs: sample.longestFrameMs ?? null,
+        avgFrameMs: sample.avgFrameMs ?? null,
+        layoutProjectionUpdates: sample.layoutProjectionUpdates ?? null,
+      };
+      workloadSamples.push(workload);
+      if (workloadSamples.length > AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES) {
+        workloadSamples.splice(0, workloadSamples.length - AR_ROTATE_AUDIT_MAX_HEALTH_SAMPLES);
+      }
+
       Object.assign(last, {
         arActive: bounded.arActive,
         targetVisible: bounded.targetVisible,
+        pointerId,
+        gestureMode,
       });
     } catch {
       // Diagnostics must never affect WebAR.
@@ -742,6 +899,8 @@ export function installArRotateAudit(options = {}) {
       lifecycleTail,
       memorySamples,
       healthSamples,
+      workloadSamples,
+      runtimeVariant,
       heartbeat,
       heartbeatAt,
       intentionalClose,
@@ -808,6 +967,10 @@ export function installArRotateAudit(options = {}) {
       }
 
       Object.assign(last, extra);
+      last.pointerId = resolveAuditPointerId(last.gestureMode, last.pointerId);
+      if (last.gestureMode === "idle") {
+        last.interestId = null;
+      }
       if (extra.intentionalClose === true || extra.cleanupReason === "beyond-the-cv-close") {
         intentionalClose = true;
       }
@@ -1046,6 +1209,7 @@ export function installArRotateAudit(options = {}) {
     const video = document.querySelector("[data-ar-tracking-container='true'] video");
     if (!(video instanceof HTMLVideoElement)) return;
     const stream = video.srcObject;
+    if (typeof MediaStream === "undefined") return;
     if (!(stream instanceof MediaStream)) return;
     for (const track of stream.getTracks()) {
       if (boundTracks.has(track)) continue;

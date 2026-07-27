@@ -4,10 +4,18 @@
  * these query params (not gated on DEV / localhost / hostname).
  */
 
+import {
+  AR_RUNTIME_VARIANT_PARAM,
+  parseArRuntimeVariant,
+} from "./arRuntimeVariant";
+
+/** @typedef {import("./arRuntimeVariant").ArRuntimeVariantName} ArRuntimeVariantName */
+
 /** @typedef {{
  *   arRuntimeAudit: boolean,
  *   arViewportDebug: boolean,
  *   arRotateAudit: boolean,
+ *   arRuntimeVariant: ArRuntimeVariantName | null,
  *   source: "initial-url" | "current-url" | "session" | "forced" | "none",
  *   href: string,
  *   pathname: string,
@@ -60,6 +68,41 @@ function readBoolFlag(search, hash, href, key) {
 }
 
 /**
+ * @param {string} search
+ * @param {string} hash
+ * @param {string} href
+ * @param {string} key
+ * @returns {string | null}
+ */
+function readStringFlag(search, hash, href, key) {
+  try {
+    const fromSearch = readParam(new URLSearchParams(search), key);
+    if (fromSearch != null && String(fromSearch).length > 0) return String(fromSearch);
+  } catch {
+    // ignore
+  }
+  if (hash && hash.includes(key)) {
+    try {
+      const qIndex = hash.indexOf("?");
+      const hashQuery = qIndex >= 0 ? hash.slice(qIndex + 1) : hash.replace(/^#/, "");
+      const fromHash = readParam(new URLSearchParams(hashQuery), key);
+      if (fromHash != null && String(fromHash).length > 0) return String(fromHash);
+    } catch {
+      // ignore
+    }
+  }
+  if (href && new RegExp(`[?&#]${key}=`, "i").test(href)) {
+    try {
+      const match = href.match(new RegExp(`[?&#]${key}=([^&#]+)`, "i"));
+      if (match?.[1] != null) return decodeURIComponent(match[1]);
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
+/**
  * Capture flags from the real URL. First call wins (session latch).
  * @param {Location | { href?: string, pathname?: string, search?: string, hash?: string }} [loc]
  * @param {{ force?: boolean }} [options]
@@ -82,15 +125,19 @@ export function captureArRuntimeFlags(loc, options = {}) {
   const audit = readBoolFlag(search, hash, href, "arRuntimeAudit");
   const viewportDebug = readBoolFlag(search, hash, href, "arViewportDebug");
   const rotateAudit = readBoolFlag(search, hash, href, "arRotateAudit");
+  const runtimeVariant = parseArRuntimeVariant(
+    readStringFlag(search, hash, href, AR_RUNTIME_VARIANT_PARAM),
+  );
 
   /** @type {ArRuntimeFlags["source"]} */
   let source = "none";
-  if (audit || viewportDebug || rotateAudit) source = "initial-url";
+  if (audit || viewportDebug || rotateAudit || runtimeVariant) source = "initial-url";
 
   latchedFlags = {
     arRuntimeAudit: audit,
     arViewportDebug: viewportDebug,
     arRotateAudit: rotateAudit,
+    arRuntimeVariant: runtimeVariant,
     source,
     href,
     pathname,

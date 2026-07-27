@@ -17,6 +17,14 @@ import {
   recordArRuntimeAuditPhase,
   setArRuntimeAuditState,
 } from "../createArRuntimeAudit";
+import { getArRuntimeFlags } from "../arRuntimeFlags";
+import {
+  applyArRuntimeVariantPixelRatio,
+  arRuntimeVariantSnapshotLabel,
+  countObject3DTriangles,
+  resolveInterestItemsForVariant,
+  shouldDisableCardLayoutProjection,
+} from "../arRuntimeVariant";
 import {
   bindArViewportListeners,
   measureArResizePipeline,
@@ -357,29 +365,72 @@ export function createMindARTrackingAdapter({
     }
   }
 
-  function bindAuditHealthProvider(renderer, layer) {
+  function bindAuditHealthProvider(renderer, layer, frameStats) {
     if (typeof window === "undefined") return;
     try {
+      const runtimeVariant = getArRuntimeFlags().arRuntimeVariant;
       window.__arRotateAudit?.setHealthProvider?.(() => {
         try {
           const video = mindarThree?.video;
           const stream =
-            video?.srcObject instanceof MediaStream ? video.srcObject : null;
+            typeof MediaStream !== "undefined" &&
+            video?.srcObject instanceof MediaStream
+              ? video.srcObject
+              : null;
           const track = stream?.getVideoTracks?.()?.[0] ?? null;
           const info = renderer?.info;
+          const canvas = renderer?.domElement;
+          const cssWidth = canvas?.clientWidth ?? null;
+          const cssHeight = canvas?.clientHeight ?? null;
+          const drawingWidth = canvas?.width ?? null;
+          const drawingHeight = canvas?.height ?? null;
+          const pixelRatio =
+            typeof renderer?.getPixelRatio === "function"
+              ? renderer.getPixelRatio()
+              : null;
+          const estimatedPixels =
+            typeof drawingWidth === "number" && typeof drawingHeight === "number"
+              ? drawingWidth * drawingHeight
+              : null;
+          const tri = countObject3DTriangles(layer?.placement ?? presentationRoot);
+          const timing = frameStats?.consume?.() ?? null;
+          const gestureMode =
+            interestTap?.getGestureMode?.() ??
+            window.__arRotateAudit?.last?.gestureMode ??
+            null;
+          const activePointerId =
+            typeof interestTap?.getActivePointerId === "function"
+              ? interestTap.getActivePointerId()
+              : null;
           return {
+            runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
             geometries: info?.memory?.geometries ?? null,
             textures: info?.memory?.textures ?? null,
             programs: Array.isArray(info?.programs) ? info.programs.length : null,
             renderCalls: info?.render?.calls ?? null,
             triangles: info?.render?.triangles ?? null,
-            canvasWidth: renderer?.domElement?.width ?? null,
-            canvasHeight: renderer?.domElement?.height ?? null,
+            canvasWidth: drawingWidth,
+            canvasHeight: drawingHeight,
+            cssCanvasWidth: cssWidth,
+            cssCanvasHeight: cssHeight,
+            drawingBufferWidth: drawingWidth,
+            drawingBufferHeight: drawingHeight,
+            pixelRatio,
+            estimatedPixelsPerFrame: estimatedPixels,
+            sceneTriangles: tri.sceneTriangles,
+            visibleTriangles: tri.visibleTriangles,
+            visibleMeshes: tri.visibleMeshes,
             trackReadyState: track?.readyState ?? null,
             trackMuted: track ? Boolean(track.muted) : null,
             trackEnabled: track ? Boolean(track.enabled) : null,
             interestEntries: Array.isArray(layer?.entries) ? layer.entries.length : null,
             rendererAvailable: Boolean(renderer),
+            gestureMode,
+            pointerId: gestureMode === "idle" ? null : activePointerId,
+            rafHz: timing?.rafHz ?? null,
+            longestFrameMs: timing?.longestFrameMs ?? null,
+            avgFrameMs: timing?.avgFrameMs ?? null,
+            layoutProjectionUpdates: timing?.layoutProjectionUpdates ?? null,
           };
         } catch {
           return null;
@@ -388,6 +439,45 @@ export function createMindARTrackingAdapter({
     } catch {
       // ignore
     }
+  }
+
+  function createFrameStats() {
+    let frames = 0;
+    let sumMs = 0;
+    let maxMs = 0;
+    let layoutProjectionUpdates = 0;
+    let intervalStart =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    return {
+      record(dtMs) {
+        const dt = Number(dtMs);
+        if (!Number.isFinite(dt) || dt < 0) return;
+        frames += 1;
+        sumMs += dt;
+        if (dt > maxMs) maxMs = dt;
+      },
+      recordLayoutProjection() {
+        layoutProjectionUpdates += 1;
+      },
+      consume() {
+        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        const elapsed = Math.max(0, now - intervalStart);
+        const out = {
+          rafHz: elapsed > 0 ? (frames * 1000) / elapsed : null,
+          longestFrameMs: frames ? maxMs : null,
+          avgFrameMs: frames ? sumMs / frames : null,
+          layoutProjectionUpdates,
+          sampleIntervalMs: elapsed,
+          frames,
+        };
+        frames = 0;
+        sumMs = 0;
+        maxMs = 0;
+        layoutProjectionUpdates = 0;
+        intervalStart = now;
+        return out;
+      },
+    };
   }
 
   /** Shared in-flight cleanup — concurrent stop/cleanup callers await the same Promise. */
@@ -610,7 +700,11 @@ export function createMindARTrackingAdapter({
 
         const { renderer, scene, camera } = mindarThree;
         configureInterestRenderer(THREE, renderer);
-        auditNote("rendererCreated", {});
+        const runtimeVariant = getArRuntimeFlags().arRuntimeVariant;
+        applyArRuntimeVariantPixelRatio(renderer, runtimeVariant);
+        auditNote("rendererCreated", {
+          runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+        });
         presentationLighting = createInterestLighting(THREE, scene);
         recordArViewportLifecycle(shell, "after-mindar-construct");
 
@@ -645,7 +739,9 @@ export function createMindARTrackingAdapter({
         let sessionAnim = null;
 
         // Mount empty placeholders immediately — do not block the camera on GLBs.
+        const interestItems = resolveInterestItemsForVariant(runtimeVariant);
         sessionLayer = createInterestObjectsLayer(THREE, {
+          items: interestItems,
           onItemLoaded: (id) => {
             if (sessionGeneration !== sessionToken) return;
             if (interestLayer !== sessionLayer) return;
@@ -659,6 +755,7 @@ export function createMindARTrackingAdapter({
 
         sessionAnim = createInterestObjectsAnimation(sessionLayer, {
           showAllImmediately: debugEnabled,
+          items: interestItems,
         });
         interestAnimation = sessionAnim;
 
@@ -725,7 +822,10 @@ export function createMindARTrackingAdapter({
         recordArViewportLifecycle(shell, "before-mindar-start");
         await mindarThree.start();
         auditNote("mindarStartCompleted", {});
-        if (mindarThree.video?.srcObject instanceof MediaStream) {
+        if (
+          typeof MediaStream !== "undefined" &&
+          mindarThree.video?.srcObject instanceof MediaStream
+        ) {
           auditNote("cameraStreamActive", {});
         }
 
@@ -798,6 +898,7 @@ export function createMindARTrackingAdapter({
             canvasPointerEvents: "auto",
             shell,
           });
+          applyArRuntimeVariantPixelRatio(renderer, runtimeVariant);
 
           const after = measureArResizePipeline(shell, container, {
             step: `${reason}:after-normalize`,
@@ -825,6 +926,8 @@ export function createMindARTrackingAdapter({
         runViewportPipeline("after-first-normalize", { forceResize: true });
         videoResizeCleanup = bindMindArVideoResize(mindarThree, { container, shell });
 
+        const frameStats = createFrameStats();
+
         interestTap = createInterestObjectsTapController({
           THREE,
           layer: sessionLayer,
@@ -832,11 +935,16 @@ export function createMindARTrackingAdapter({
           domElement: renderer.domElement,
           container,
           shell,
+          disableCardLayoutProjection: shouldDisableCardLayoutProjection(runtimeVariant),
+          onLayoutProjectionUpdate: () => frameStats.recordLayoutProjection(),
         });
-        auditNote("interactionControllerInstalled", {});
-        bindAuditHealthProvider(renderer, sessionLayer);
+        auditNote("interactionControllerInstalled", {
+          runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+        });
+        bindAuditHealthProvider(renderer, sessionLayer, frameStats);
         recordArRuntimeAuditPhase("interest-tap-controller-created", {
           hasHitLayer: Boolean(interestTap?.hitLayer),
+          runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
         });
 
         const onViewportChange = () => {
@@ -845,7 +953,9 @@ export function createMindARTrackingAdapter({
           interestTap?.update?.();
         };
         running = true;
-        auditNote("adapterStartSucceeded", {});
+        auditNote("adapterStartSucceeded", {
+          runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
+        });
         viewportCleanup = bindArViewportListeners(onViewportChange);
 
         callbacks.onReady?.();
@@ -856,6 +966,7 @@ export function createMindARTrackingAdapter({
           const tNow = typeof frameTime === "number" ? frameTime : performance.now();
           const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
           lastFrameTimeMs = tNow;
+          frameStats.record(dtSec * 1000);
           poseStabilizer?.update(dtSec);
           interestTap?.update?.();
           renderer.render(scene, camera);
