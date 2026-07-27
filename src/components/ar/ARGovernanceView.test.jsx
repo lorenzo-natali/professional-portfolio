@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, within, cleanup } from "@testing-library/react";
+import { render, within, cleanup, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ARGovernanceView from "./ARGovernanceView";
 import {
@@ -8,6 +8,10 @@ import {
 } from "./arRuntimeFlags";
 
 const mobileMock = vi.hoisted(() => ({ isMobile: true }));
+const cameraMock = vi.hoisted(() => ({ shouldThrow: false }));
+const auditMock = vi.hoisted(() => ({
+  recordArRuntimeAuditPhase: vi.fn(),
+}));
 
 vi.mock("./useIsMobileDevice", () => ({
   useIsMobileDevice: () => mobileMock.isMobile,
@@ -18,8 +22,24 @@ vi.mock("./checkArTargetAvailable", () => ({
 }));
 
 vi.mock("./ARCameraView", () => ({
-  default: () => <div data-testid="ar-camera-view">camera</div>,
+  default: () => {
+    if (cameraMock.shouldThrow) {
+      throw new Error("ar-tracking-render-error");
+    }
+    return <div data-testid="ar-camera-view">camera</div>;
+  },
 }));
+
+vi.mock("./createArRuntimeAudit", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    recordArRuntimeAuditPhase: (...args) => {
+      auditMock.recordArRuntimeAuditPhase(...args);
+      return actual.recordArRuntimeAuditPhase(...args);
+    },
+  };
+});
 
 import { checkArTargetAvailable } from "./checkArTargetAvailable";
 
@@ -38,6 +58,7 @@ describe("ARGovernanceView entry flow", () => {
     document.body.innerHTML = '<div id="root"></div>';
     document.querySelectorAll("[data-ar-portal-host='true']").forEach((el) => el.remove());
     mobileMock.isMobile = true;
+    cameraMock.shouldThrow = false;
     checkArTargetAvailable.mockResolvedValue(true);
   });
 
@@ -133,6 +154,55 @@ describe("ARGovernanceView entry flow", () => {
     expect(document.body.style.overflow).toBe("");
   });
 
+  it("does not tear down the portal when mobile detection flips while open", () => {
+    const onClose = vi.fn();
+    const { rerender } = render(<ARGovernanceView open onClose={onClose} />);
+    const host = document.querySelector("[data-ar-portal-host='true']");
+    const shell = document.querySelector("[data-ar-viewport-shell='true']");
+    expect(host).toBeTruthy();
+    expect(shell).toBeTruthy();
+
+    const closePhasesBefore = auditMock.recordArRuntimeAuditPhase.mock.calls.filter(
+      ([phase]) => phase === "beyond-the-cv-close",
+    ).length;
+
+    mobileMock.isMobile = false;
+    rerender(<ARGovernanceView open onClose={onClose} />);
+
+    expect(document.querySelector("[data-ar-portal-host='true']")).toBe(host);
+    expect(document.querySelector("[data-ar-viewport-shell='true']")).toBe(shell);
+    expect(onClose).not.toHaveBeenCalled();
+    const closePhasesAfter = auditMock.recordArRuntimeAuditPhase.mock.calls.filter(
+      ([phase]) => phase === "beyond-the-cv-close",
+    ).length;
+    expect(closePhasesAfter).toBe(closePhasesBefore);
+  });
+
+  it("records intentional close only on open true→false", () => {
+    const { rerender } = render(<ARGovernanceView open onClose={vi.fn()} />);
+    expect(
+      auditMock.recordArRuntimeAuditPhase.mock.calls.some(
+        ([phase]) => phase === "beyond-the-cv-open",
+      ),
+    ).toBe(true);
+
+    // Mobile churn while still open must not count as intentional close.
+    mobileMock.isMobile = false;
+    rerender(<ARGovernanceView open onClose={vi.fn()} />);
+    expect(
+      auditMock.recordArRuntimeAuditPhase.mock.calls.some(
+        ([phase]) => phase === "beyond-the-cv-close",
+      ),
+    ).toBe(false);
+
+    rerender(<ARGovernanceView open={false} onClose={vi.fn()} />);
+    expect(
+      auditMock.recordArRuntimeAuditPhase.mock.calls.some(
+        ([phase]) => phase === "beyond-the-cv-close",
+      ),
+    ).toBe(true);
+  });
+
   it("does not offer a 2D brief when the target is missing", async () => {
     checkArTargetAvailable.mockResolvedValue(false);
 
@@ -160,6 +230,25 @@ describe("ARGovernanceView entry flow", () => {
     await userEvent.click(activate);
 
     expect(await scope.findByTestId("ar-camera-view")).toBeTruthy();
+  });
+
+  it("AR tracking error boundary preserves portal and renders unavailable fallback", async () => {
+    const onClose = vi.fn();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    cameraMock.shouldThrow = true;
+
+    render(<ARGovernanceView open onClose={onClose} />);
+    const scope = portalScope();
+    await userEvent.click(await scope.findByRole("button", { name: "Activate Camera" }));
+
+    await waitFor(() => {
+      expect(scope.getByRole("heading", { name: "Camera experience unavailable" })).toBeTruthy();
+    });
+    expect(document.querySelector("[data-ar-portal-host='true']")).toBeTruthy();
+    expect(document.querySelector("[data-ar-viewport-shell='true']")).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(scope.queryByTestId("ar-camera-view")).toBeNull();
+    spy.mockRestore();
   });
 
   it("allows camera path on desktop when arRuntimeAudit is latched", async () => {

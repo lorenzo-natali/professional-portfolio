@@ -156,7 +156,10 @@ export function syncTrackingContainerToShell(container) {
  * (larger than container with negative offsets) — never shrink the parent to camera aspect.
  *
  * @param {HTMLElement | null} container
- * @param {{ renderer?: { domElement?: HTMLElement, setSize?: Function } | null }} [options]
+ * @param {{
+ *   renderer?: { domElement?: HTMLElement, setSize?: Function } | null,
+ *   resizeRenderer?: boolean,
+ * }} [options]
  * @returns {{ containerInline: Record<string, string>, videoInline: Record<string, string> | null, canvasInline: Record<string, string> | null }}
  */
 export function normalizeMindArLayerStyles(container, options = {}) {
@@ -237,8 +240,15 @@ export function normalizeMindArLayerStyles(container, options = {}) {
     cssHost.style.pointerEvents = "none";
   }
 
+  // Buffer sizing is owned by the session resize coordinator / MindAR.resize.
+  // Opt-in only for legacy callers; adapter path keeps resizeRenderer false.
   const renderer = options.renderer;
-  if (renderer?.setSize && width > 0 && height > 0) {
+  if (
+    options.resizeRenderer === true &&
+    renderer?.setSize &&
+    width > 0 &&
+    height > 0
+  ) {
     try {
       renderer.setSize(width, height);
     } catch {
@@ -253,14 +263,24 @@ export function normalizeMindArLayerStyles(container, options = {}) {
  * Bind resize / orientation / visualViewport listeners. Returns cleanup.
  * @param {() => void} onChange
  */
-export function bindArViewportListeners(onChange) {
+/**
+ * @param {() => void} onChange
+ * @param {{ coalesce?: boolean }} [options] coalesce defaults true; set false when
+ *   a session resize coordinator already owns rAF coalescing.
+ */
+export function bindArViewportListeners(onChange, options = {}) {
   if (typeof window === "undefined") return () => {};
 
+  const coalesce = options.coalesce !== false;
   let frame = 0;
-  const run = () => {
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => onChange());
-  };
+  const run = coalesce
+    ? () => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => onChange());
+      }
+    : () => {
+        onChange();
+      };
 
   window.addEventListener("resize", run);
   window.addEventListener("orientationchange", run);

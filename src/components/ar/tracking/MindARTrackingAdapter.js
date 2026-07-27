@@ -19,21 +19,20 @@ import {
 } from "../createArRuntimeAudit";
 import { getArRuntimeFlags } from "../arRuntimeFlags";
 import {
+  bindArViewportListeners,
+  normalizeMindArLayerStyles,
+  recordArViewportLifecycle,
+  syncArViewportShell,
+  syncTrackingContainerToShell as syncTrackingContainerFullscreen,
+} from "../arViewport";
+import { createArSessionResizeCoordinator, detachMindArWindowResizeListener, disableUnusedMindArCss3d } from "../createArSessionResizeCoordinator";
+import {
   applyArRuntimeVariantPixelRatio,
   arRuntimeVariantSnapshotLabel,
   countObject3DTriangles,
   resolveInterestItemsForVariant,
   shouldDisableCardLayoutProjection,
 } from "../arRuntimeVariant";
-import {
-  bindArViewportListeners,
-  measureArResizePipeline,
-  normalizeMindArLayerStyles,
-  recordArViewportLifecycle,
-  recordArViewportResizeProbe,
-  syncArViewportShell,
-  syncTrackingContainerToShell as syncTrackingContainerFullscreen,
-} from "../arViewport";
 
 /**
  * Keep the MindAR container as a true fullscreen absolute layer.
@@ -64,7 +63,8 @@ export function applyCameraLayerStacking(container, renderer, options = {}) {
 
   syncArViewportShell(shell);
   // Explicit adapter pass: neutralize MindAR/container sizing after create/resize.
-  normalizeMindArLayerStyles(container, { renderer });
+  // Do not call renderer.setSize — session resize coordinator owns GPU buffers.
+  normalizeMindArLayerStyles(container, { resizeRenderer: false });
 
   container.style.background = "transparent";
   container.style.isolation = "isolate";
@@ -153,52 +153,25 @@ export function layersMatchContainer(container) {
 }
 
 /**
- * Re-run MindAR resize once the camera stream has real dimensions (avoids NaN cover math).
- * @param {{ resize?: () => void, video?: HTMLVideoElement | null } | null} mindarThree
+ * Video metadata/resize may only request a coordinated resize — never call
+ * MindAR.resize / setSize directly (single resize authority).
+ * @param {{ video?: HTMLVideoElement | null } | null} mindarThree
+ * @param {{
+ *   container?: HTMLElement | null,
+ *   shell?: HTMLElement | null,
+ *   onResizeRequest?: (reason: string) => void,
+ * }} [options]
  * @returns {() => void} cleanup
  */
 export function bindMindArVideoResize(mindarThree, options = {}) {
   const video = mindarThree?.video;
-  const container = options.container || mindarThree?.container || null;
-  const shell = options.shell || null;
-  if (!video || typeof mindarThree.resize !== "function") return () => {};
+  const onResizeRequest = options.onResizeRequest;
+  if (!video || typeof onResizeRequest !== "function") return () => {};
 
   const run = (phase = "video-resize") => {
     try {
       if (video.videoWidth > 0 && video.videoHeight > 0) {
-        recordArViewportResizeProbe(
-          measureArResizePipeline(shell, container, {
-            step: `${phase}:before`,
-            reason: phase,
-          }),
-        );
-        syncArViewportShell(shell);
-        syncTrackingContainerToShell(container, shell);
-        mindarThree.resize();
-        normalizeMindArLayerStyles(container, { renderer: mindarThree.renderer });
-        const after = measureArResizePipeline(shell, container, {
-          step: `${phase}:after-normalize`,
-          reason: phase,
-          resized: true,
-        });
-        recordArViewportResizeProbe(after);
-        recordArViewportLifecycle(shell, phase, {
-          resizeCause: after.cause,
-          mindArInline: {
-            video: {
-              width: video.style.width,
-              height: video.style.height,
-              left: video.style.left,
-              top: video.style.top,
-            },
-            canvas: mindarThree.renderer?.domElement
-              ? {
-                  width: mindarThree.renderer.domElement.style.width,
-                  height: mindarThree.renderer.domElement.style.height,
-                }
-              : null,
-          },
-        });
+        onResizeRequest(phase);
       }
     } catch {
       // ignore
@@ -333,6 +306,8 @@ export function createMindARTrackingAdapter({
   let rafLoop = null;
   let viewportCleanup = null;
   let videoResizeCleanup = null;
+  /** @type {ReturnType<typeof createArSessionResizeCoordinator> | null} */
+  let resizeCoordinator = null;
   let interestLayer = null;
   let interestAnimation = null;
   let interestDebug = null;
@@ -533,6 +508,13 @@ export function createMindARTrackingAdapter({
       }
       videoResizeCleanup = null;
 
+      try {
+        resizeCoordinator?.dispose?.();
+      } catch {
+        // ignore
+      }
+      resizeCoordinator = null;
+
       lifecycleTimers.forEach((id) => clearTimeout(id));
       lifecycleTimers = [];
 
@@ -591,13 +573,12 @@ export function createMindARTrackingAdapter({
 
       // Stop the render loop before MindAR/camera teardown (also covers partial init
       // where rafLoop was never assigned but the renderer already exists).
+      // Clear exactly once — rafLoop and instance.renderer are the same object when live.
       try {
-        if (rafLoop?.setAnimationLoop) rafLoop.setAnimationLoop(null);
-      } catch {
-        // ignore
-      }
-      try {
-        instance?.renderer?.setAnimationLoop?.(null);
+        const loopTarget = rafLoop || instance?.renderer;
+        if (loopTarget?.setAnimationLoop) {
+          loopTarget.setAnimationLoop(null);
+        }
       } catch {
         // ignore
       }
@@ -606,7 +587,38 @@ export function createMindARTrackingAdapter({
       try {
         await instance?.stop?.();
       } catch {
-        // Best-effort cleanup.
+        // Best-effort cleanup — continue even if MindAR stop throws.
+      }
+
+      // Belt-and-suspenders if MindAR stop left tracks or CSS DOM behind.
+      try {
+        const stream = instance?.video?.srcObject;
+        const tracks =
+          stream && typeof stream.getTracks === "function" ? stream.getTracks() : [];
+        for (const track of tracks) {
+          try {
+            if (track && track.readyState !== "ended") track.stop();
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        instance?.video?.remove?.();
+      } catch {
+        // ignore
+      }
+      try {
+        instance?.cssRenderer?.domElement?.remove?.();
+      } catch {
+        // ignore
+      }
+      try {
+        instance?.renderer?.domElement?.remove?.();
+      } catch {
+        // ignore
       }
 
       try {
@@ -697,6 +709,10 @@ export function createMindARTrackingAdapter({
           uiScanning: "no",
           uiError: "no",
         });
+        // Adapter assumes resize ownership immediately — MindAR must not keep an
+        // independent window.resize → setSize path alongside the coordinator.
+        detachMindArWindowResizeListener(mindarThree);
+        disableUnusedMindArCss3d(mindarThree);
 
         const { renderer, scene, camera } = mindarThree;
         configureInterestRenderer(THREE, renderer);
@@ -848,83 +864,53 @@ export function createMindARTrackingAdapter({
           },
         });
 
-        /** @type {{ width: number, height: number }} */
-        let lastContainerSize = { width: 0, height: 0 };
-
-        /**
-         * Sync shell → optional MindAR.resize → normalize, with gap probes.
-         * Normalize enforces video max-width:none so Preflight cannot clamp cover width.
-         * @param {string} reason
-         * @param {{ forceResize?: boolean }} [opts]
-         */
-        const runViewportPipeline = (reason, opts = {}) => {
-          recordArViewportResizeProbe(
-            measureArResizePipeline(shell, container, {
-              step: `${reason}:before`,
-              reason,
-            }),
-          );
-
-          syncArViewportShell(shell);
-          syncTrackingContainerToShell(container, shell);
-
-          const width = container.clientWidth;
-          const height = container.clientHeight;
-          const sizeChanged =
-            width !== lastContainerSize.width || height !== lastContainerSize.height;
-          const shouldResize = Boolean(opts.forceResize) || sizeChanged;
-          let resized = false;
-          if (shouldResize && width > 0 && height > 0) {
-            try {
-              mindarThree?.resize?.();
-              resized = true;
-              lastContainerSize = { width, height };
-            } catch {
-              // ignore
-            }
-          }
-
-          recordArViewportResizeProbe(
-            measureArResizePipeline(shell, container, {
-              step: `${reason}:after-mindar-resize`,
-              reason,
-              resized,
-              skippedResize: !shouldResize,
-              containerSize: { width, height },
-            }),
-          );
-
-          applyCameraLayerStacking(container, renderer, {
-            canvasPointerEvents: "auto",
-            shell,
-          });
-          applyArRuntimeVariantPixelRatio(renderer, runtimeVariant);
-
-          const after = measureArResizePipeline(shell, container, {
-            step: `${reason}:after-normalize`,
-            reason,
-            resized,
-            skippedResize: !shouldResize,
-            containerSize: { width, height },
-          });
-          recordArViewportResizeProbe(after);
-          recordArViewportLifecycle(shell, reason, {
-            resizeCause: after.cause,
-            resized,
-            skippedResize: !shouldResize,
-          });
-          recordArRuntimeAuditPhase(`viewport-pipeline:${reason}`, {
-            cause: after.cause,
-            resized,
-            skippedResize: !shouldResize,
-            gaps: after.gaps,
-            rects: after.rects,
-          });
-          return after;
+        /** Dirty-flag for application Three renders (MindAR TF loop stays independent). */
+        let renderDirty = true;
+        const invalidateRender = () => {
+          renderDirty = true;
         };
 
-        runViewportPipeline("after-first-normalize", { forceResize: true });
-        videoResizeCleanup = bindMindArVideoResize(mindarThree, { container, shell });
+        const hasDrawableContent = () => {
+          if (showAnchorProof) return true;
+          const placement = interestLayer?.placement ?? presentationRoot;
+          if (!placement || placement.visible === false) return false;
+          let found = false;
+          placement.traverse?.((node) => {
+            if (found) return;
+            if (node.isMesh && node.visible !== false) found = true;
+          });
+          return found;
+        };
+
+        resizeCoordinator = createArSessionResizeCoordinator({
+          getSessionGeneration: () => sessionGeneration,
+          sessionToken,
+          getMindarThree: () => mindarThree,
+          getContainer: () => sessionContainer,
+          getShell: () => shell,
+          getRuntimeVariant: () => getArRuntimeFlags().arRuntimeVariant,
+          useCss3d: false,
+          applyCameraLayers: (layerContainer, layerRenderer) => {
+            applyCameraLayerStacking(layerContainer, layerRenderer, {
+              canvasPointerEvents: "auto",
+              shell,
+            });
+          },
+          onApplied: () => {
+            invalidateRender();
+          },
+        });
+        resizeCoordinator.assumeOwnership(mindarThree);
+        // Deterministic first apply (video dimensions known after start).
+        resizeCoordinator.flushNow("after-first-normalize", { force: true });
+
+        videoResizeCleanup = bindMindArVideoResize(mindarThree, {
+          container,
+          shell,
+          onResizeRequest: (reason) => {
+            resizeCoordinator?.request(reason, { force: true });
+          },
+        });
 
         const frameStats = createFrameStats();
 
@@ -948,28 +934,75 @@ export function createMindARTrackingAdapter({
         });
 
         const onViewportChange = () => {
-          if (!running || !mindarThree) return;
-          runViewportPipeline("viewport-change");
-          interestTap?.update?.();
+          if (!running || !mindarThree || !resizeCoordinator) return;
+          resizeCoordinator.request("viewport-change");
         };
+
+        // Unmount/stop may have won after MindAR start but before we go live.
+        if (sessionGeneration !== sessionToken || cleanupPromise || sessionContainer !== container) {
+          await cleanupSession();
+          return;
+        }
+
         running = true;
         auditNote("adapterStartSucceeded", {
           runtimeVariant: arRuntimeVariantSnapshotLabel(runtimeVariant),
         });
-        viewportCleanup = bindArViewportListeners(onViewportChange);
+        // Coordinator owns rAF coalesce — bind listeners without a second coalesce layer.
+        viewportCleanup = bindArViewportListeners(onViewportChange, { coalesce: false });
+
+        // Re-check after listener bind: a concurrent stop must not deliver onReady.
+        if (sessionGeneration !== sessionToken || cleanupPromise || sessionContainer !== container) {
+          await cleanupSession();
+          return;
+        }
+
+        // Invalidate on visibility / interaction transitions (closures above are live).
+        const prevFound = anchor.onTargetFound;
+        const prevLost = anchor.onTargetLost;
+        anchor.onTargetFound = () => {
+          invalidateRender();
+          prevFound?.();
+        };
+        anchor.onTargetLost = () => {
+          invalidateRender();
+          prevLost?.();
+        };
 
         callbacks.onReady?.();
 
         let firstFrameRecorded = false;
         lastFrameTimeMs = performance.now();
+        // Exactly one application-owned Three loop per session.
         renderer.setAnimationLoop((frameTime) => {
+          if (sessionGeneration !== sessionToken) return;
           const tNow = typeof frameTime === "number" ? frameTime : performance.now();
           const dtSec = Math.min(0.1, Math.max(0, (tNow - lastFrameTimeMs) / 1000));
           lastFrameTimeMs = tNow;
-          frameStats.record(dtSec * 1000);
+
+          const anchorVisible = Boolean(anchor.visible);
+          const animPlaying = interestAnimation?.isPlaying?.() === true;
+          const gestureMode = interestTap?.getGestureMode?.() ?? "idle";
+          const interacting = gestureMode !== "idle";
+          const cardOpen = Boolean(interestTap?.getOpenId?.());
+          const drawable = hasDrawableContent();
+          const continuous =
+            (anchorVisible && drawable) || animPlaying || interacting;
+
+          // Pose filter must advance while tracking even if we skip a draw.
           poseStabilizer?.update(dtSec);
-          interestTap?.update?.();
+          // Card projection / gesture follow-up only when relevant (avoid per-frame DOM).
+          if (cardOpen || interacting) {
+            interestTap?.update?.();
+          }
+
+          if (!continuous && !renderDirty) {
+            return;
+          }
+
+          frameStats.record(dtSec * 1000);
           renderer.render(scene, camera);
+          renderDirty = continuous;
           if (!firstFrameRecorded) {
             firstFrameRecorded = true;
             recordArViewportLifecycle(shell, "first-frame");
@@ -980,7 +1013,7 @@ export function createMindARTrackingAdapter({
         lifecycleTimers.push(
           window.setTimeout(() => {
             if (sessionGeneration !== sessionToken) return;
-            runViewportPipeline("after-500ms", { forceResize: true });
+            resizeCoordinator?.request("after-500ms", { force: true });
           }, 500),
         );
       } catch (error) {

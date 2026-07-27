@@ -1,3 +1,11 @@
+/**
+ * Full-screen AR Governance experience — portaled through ar-portal-host
+ * under document.documentElement (not body), outside the portfolio stacking context.
+ *
+ * Portal lifecycle depends only on the AR open/close transition — not on derived
+ * values such as isMobile. intentionalClose is recorded only when open → false.
+ */
+
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ARTrackingProvider } from "./tracking/ARTrackingProvider";
@@ -5,6 +13,7 @@ import ARDesktopGate from "./ARDesktopGate";
 import ARGovernanceIntro from "./ARGovernanceIntro";
 import ARCameraView from "./ARCameraView";
 import ARUnavailablePanel from "./ARUnavailablePanel";
+import ARTrackingErrorBoundary from "./ARTrackingErrorBoundary";
 import { useIsMobileDevice } from "./useIsMobileDevice";
 import { lockArPage, setPortfolioInert } from "./arPageLock";
 import {
@@ -52,6 +61,22 @@ function ARGovernanceExperience({ isMobile, onClose }) {
   const [screen, setScreen] = useState(() => initialArScreen(isMobile, flags));
   const [unavailableReason, setUnavailableReason] = useState(null);
 
+  const goUnavailable = (reason) => {
+    if (typeof window !== "undefined") {
+      window.__arRotateAudit?.note?.("application_fallback", {
+        cleanupReason: String(reason || "fallback"),
+      });
+    }
+    const allowed = new Set([
+      "unsupported",
+      "tracking-error",
+      "camera-denied",
+      "target-unavailable",
+    ]);
+    setUnavailableReason(allowed.has(reason) ? reason : "camera-denied");
+    setScreen("unavailable");
+  };
+
   useLayoutEffect(() => {
     setArRuntimeAuditState({
       arComponent: "ARGovernanceView",
@@ -81,24 +106,18 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 
       {screen === "camera" && (
         <ARTrackingProvider>
-          <ARCameraView
-            onBack={onClose}
-            onFallback={(reason) => {
-              if (typeof window !== "undefined") {
-                window.__arRotateAudit?.note?.("application_fallback", {
-                  cleanupReason: String(reason || "fallback"),
-                });
-              }
-              const allowed = new Set([
-                "unsupported",
-                "tracking-error",
-                "camera-denied",
-                "target-unavailable",
-              ]);
-              setUnavailableReason(allowed.has(reason) ? reason : "camera-denied");
-              setScreen("unavailable");
+          <ARTrackingErrorBoundary
+            onError={() => {
+              goUnavailable("tracking-error");
             }}
-          />
+          >
+            <ARCameraView
+              onBack={onClose}
+              onFallback={(reason) => {
+                goUnavailable(reason);
+              }}
+            />
+          </ARTrackingErrorBoundary>
         </ARTrackingProvider>
       )}
 
@@ -109,13 +128,12 @@ function ARGovernanceExperience({ isMobile, onClose }) {
   );
 }
 
-/**
- * Full-screen AR Governance experience — portaled through ar-portal-host
- * under document.documentElement (not body), outside the portfolio stacking context.
- */
 export default function ARGovernanceView({ open, onClose }) {
   const isMobile = useIsMobileDevice();
   const shellRef = useRef(null);
+  /** Tracks latest open for cleanup: intentional close only when open → false. */
+  const openRef = useRef(open);
+  openRef.current = open;
 
   const portalHost = useMemo(() => {
     if (!open || typeof document === "undefined") return null;
@@ -157,8 +175,13 @@ export default function ARGovernanceView({ open, onClose }) {
     }
 
     return () => {
-      recordArRuntimeAuditPhase("beyond-the-cv-close");
-      if (typeof window !== "undefined") {
+      // Real close: open flipped to false before this cleanup runs.
+      // StrictMode remount / dependency-free re-entry keeps openRef true.
+      const intentionalClose = openRef.current === false;
+      recordArRuntimeAuditPhase(
+        intentionalClose ? "beyond-the-cv-close" : "beyond-the-cv-portal-effect-cleanup",
+      );
+      if (typeof window !== "undefined" && intentionalClose) {
         window.__arRotateAudit?.note?.("stop", {
           cleanupReason: "beyond-the-cv-close",
           intentionalClose: true,
@@ -174,7 +197,8 @@ export default function ARGovernanceView({ open, onClose }) {
         teardownArPortalHost(portalHost);
       });
     };
-  }, [open, portalHost, isMobile]);
+    // Portal session lifecycle follows open/close only — not isMobile churn.
+  }, [open, portalHost]);
 
   if (!open || !portalHost) return null;
 

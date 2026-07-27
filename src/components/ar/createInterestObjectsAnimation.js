@@ -229,6 +229,7 @@ export function createInterestObjectsAnimation(layer, options = {}) {
     markLoadFinished,
     resetSession,
     play,
+    isPlaying: () => phase === "playing",
     getState: () => ({
       phase,
       played,

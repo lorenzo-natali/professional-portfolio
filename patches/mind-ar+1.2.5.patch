@@ -1,8 +1,189 @@
+diff --git a/node_modules/mind-ar/dist/controller-mGt1s8dJ.js b/node_modules/mind-ar/dist/controller-mGt1s8dJ.js
+index 2c757fa..ecfd8ee 100644
+--- a/node_modules/mind-ar/dist/controller-mGt1s8dJ.js
++++ b/node_modules/mind-ar/dist/controller-mGt1s8dJ.js
+@@ -55171,6 +55171,20 @@ class FY {
+     const o = ps().runWebGLProgram(t, e, s);
+     return Ot().makeTensorFromDataId(o.dataId, o.shape, o.dtype);
+   }
++  dispose() {
++    try {
++      if (this.tempPixelHandle) {
++        const e = ps();
++        e.disposeData(this.tempPixelHandle.dataId), this.tempPixelHandle = null;
++      }
++    } catch (e) {
++    }
++    try {
++      this.context && this.context.canvas && (this.context.canvas.width = 0, this.context.canvas.height = 0);
++    } catch (e) {
++    }
++    this.program = null, this.context = null;
++  }
+ }
+ const rd = { memory: wl, nextFrame: su }, VY = 1e-3, zY = 1e3, PY = 5, AY = 5;
+ class QQ {
+@@ -55224,9 +55238,22 @@ class QQ {
+     }), this.markerDimensions = i, { dimensions: i, matchingDataList: r, trackingDataList: o };
+   }
+   dispose() {
+-    this.stopProcessVideo(), this.worker.postMessage({
+-      type: "dispose"
+-    });
++    if (this._disposed)
++      return;
++    this._disposed = !0, this.stopProcessVideo();
++    try {
++      this.worker && this.worker.postMessage && this.worker.postMessage({ type: "dispose" });
++    } catch (t) {
++    }
++    try {
++      this.worker && this.worker.terminate && this.worker.terminate();
++    } catch (t) {
++    }
++    this.worker = null;
++    try {
++      this.inputLoader && this.inputLoader.dispose && this.inputLoader.dispose();
++    } catch (t) {
++    }
+   }
+   // warm up gpu - build kernels is slow
+   dummyRun(t) {
+@@ -55281,36 +55308,71 @@ class QQ {
+         filter: new WC({ minCutOff: this.filterMinCF, beta: this.filterBeta })
+       });
+     (async () => {
+-      for (; this.processingVideo; ) {
+-        const s = this.inputLoader.loadInput(t);
+-        if (this.trackingStates.reduce((r, i) => r + (i.isTracking ? 1 : 0), 0) < this.maxTrack) {
+-          const r = [];
+-          for (let l = 0; l < this.trackingStates.length; l++)
+-            this.trackingStates[l].isTracking !== !0 && (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== l || r.push(l));
+-          const { targetIndex: i, modelViewTransform: a } = await this._detectAndMatch(s, r);
+-          i !== -1 && (this.trackingStates[i].isTracking = !0, this.trackingStates[i].currentModelViewTransform = a);
+-        }
+-        for (let r = 0; r < this.trackingStates.length; r++) {
+-          const i = this.trackingStates[r];
+-          if (i.isTracking) {
+-            let a = await this._trackAndUpdate(s, i.currentModelViewTransform, r);
+-            a === null ? i.isTracking = !1 : i.currentModelViewTransform = a;
++      for (; ; ) {
++        if (!this.processingVideo)
++          break;
++        let s = null;
++        try {
++          if (s = this.inputLoader.loadInput(t), !this.processingVideo)
++            break;
++          if (this.trackingStates.reduce((r, i) => r + (i.isTracking ? 1 : 0), 0) < this.maxTrack) {
++            const r = [];
++            for (let l = 0; l < this.trackingStates.length; l++)
++              this.trackingStates[l].isTracking !== !0 && (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== l || r.push(l));
++            const { targetIndex: i, modelViewTransform: a } = await this._detectAndMatch(s, r);
++            if (!this.processingVideo)
++              break;
++            i !== -1 && (this.trackingStates[i].isTracking = !0, this.trackingStates[i].currentModelViewTransform = a);
+           }
+-          if (i.showing || i.isTracking && (i.trackMiss = 0, i.trackCount += 1, i.trackCount > this.warmupTolerance && (i.showing = !0, i.trackingMatrix = null, i.filter.reset())), i.showing && (i.isTracking ? i.trackMiss = 0 : (i.trackCount = 0, i.trackMiss += 1, i.trackMiss > this.missTolerance && (i.showing = !1, i.trackingMatrix = null, this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: null })))), i.showing) {
+-            const a = this._glModelViewMatrix(i.currentModelViewTransform, r);
+-            i.trackingMatrix = i.filter.filter(Date.now(), a);
+-            let l = [];
+-            for (let u = 0; u < i.trackingMatrix.length; u++)
+-              l[u] = i.trackingMatrix[u];
+-            t.width === this.inputHeight && t.height === this.inputWidth && (l = this.getRotatedZ90Matrix(l)), this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: l });
++          for (let r = 0; r < this.trackingStates.length; r++) {
++            if (!this.processingVideo)
++              break;
++            const i = this.trackingStates[r];
++            if (i.isTracking) {
++              let a = await this._trackAndUpdate(s, i.currentModelViewTransform, r);
++              if (!this.processingVideo)
++                break;
++              a === null ? i.isTracking = !1 : i.currentModelViewTransform = a;
++            }
++            if (i.showing || i.isTracking && (i.trackMiss = 0, i.trackCount += 1, i.trackCount > this.warmupTolerance && (i.showing = !0, i.trackingMatrix = null, i.filter.reset())), i.showing && (i.isTracking ? i.trackMiss = 0 : (i.trackCount = 0, i.trackMiss += 1, i.trackMiss > this.missTolerance && (i.showing = !1, i.trackingMatrix = null, this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: null })))), i.showing) {
++              const a = this._glModelViewMatrix(i.currentModelViewTransform, r);
++              i.trackingMatrix = i.filter.filter(Date.now(), a);
++              let l = [];
++              for (let u = 0; u < i.trackingMatrix.length; u++)
++                l[u] = i.trackingMatrix[u];
++              t.width === this.inputHeight && t.height === this.inputWidth && (l = this.getRotatedZ90Matrix(l)), this.onUpdate && this.onUpdate({ type: "updateMatrix", targetIndex: r, worldMatrix: l });
++            }
+           }
++          if (!this.processingVideo)
++            break;
++          this.onUpdate && this.onUpdate({ type: "processDone" });
++        } finally {
++          try {
++            s && s.dispose && s.dispose();
++          } catch (r) {
++          }
++          s = null;
+         }
+-        s.dispose(), this.onUpdate && this.onUpdate({ type: "processDone" }), await rd.nextFrame();
++        if (!this.processingVideo)
++          break;
++        await rd.nextFrame();
+       }
+     })();
+   }
+   stopProcessVideo() {
+     this.processingVideo = !1;
++    const t = this.workerMatchDone, e = this.workerTrackDone;
++    this.workerMatchDone = null, this.workerTrackDone = null;
++    if (t)
++      try {
++        t({ targetIndex: -1, modelViewTransform: null, debugExtra: null });
++      } catch (s) {
++      }
++    if (e)
++      try {
++        e({ modelViewTransform: null });
++      } catch (s) {
++      }
+   }
+   async detect(t) {
+     const e = this.inputLoader.loadInput(t), { featurePoints: s, debugExtra: o } = await this.cropDetector.detect(e);
+@@ -55328,19 +55390,28 @@ class QQ {
+     return e.worldCoords.length < 4 ? null : await this._workerTrackUpdate(t, e);
+   }
+   _workerMatch(t, e) {
+-    return new Promise(async (s, o) => {
++    return new Promise((s) => {
+       this.workerMatchDone = (r) => {
+-        s({ targetIndex: r.targetIndex, modelViewTransform: r.modelViewTransform, debugExtra: r.debugExtra });
+-      }, this.worker.postMessage({ type: "match", featurePoints: t, targetIndexes: e });
++        this.workerMatchDone = null, s({ targetIndex: r.targetIndex, modelViewTransform: r.modelViewTransform, debugExtra: r.debugExtra });
++      };
++      try {
++        this.worker.postMessage({ type: "match", featurePoints: t, targetIndexes: e });
++      } catch (r) {
++        this.workerMatchDone = null, s({ targetIndex: -1, modelViewTransform: null, debugExtra: null });
++      }
+     });
+   }
+   _workerTrackUpdate(t, e) {
+-    return new Promise(async (s, o) => {
++    return new Promise((s) => {
+       this.workerTrackDone = (a) => {
+-        s(a.modelViewTransform);
++        this.workerTrackDone = null, s(a.modelViewTransform);
+       };
+-      const { worldCoords: r, screenCoords: i } = e;
+-      this.worker.postMessage({ type: "trackUpdate", modelViewTransform: t, worldCoords: r, screenCoords: i });
++      try {
++        const { worldCoords: r, screenCoords: i } = e;
++        this.worker.postMessage({ type: "trackUpdate", modelViewTransform: t, worldCoords: r, screenCoords: i });
++      } catch (a) {
++        this.workerTrackDone = null, s(null);
++      }
+     });
+   }
+   _glModelViewMatrix(t, e) {
 diff --git a/node_modules/mind-ar/dist/mindar-image-three.prod.js b/node_modules/mind-ar/dist/mindar-image-three.prod.js
-index c19cd8e..eeaa37c 100644
+index c19cd8e..45e6224 100644
 --- a/node_modules/mind-ar/dist/mindar-image-three.prod.js
 +++ b/node_modules/mind-ar/dist/mindar-image-three.prod.js
-@@ -13580,12 +13580,16 @@ class Zb {
+@@ -13580,15 +13580,39 @@ class Zb {
      userDeviceId: c = null,
      environmentDeviceId: d = null
    }) {
@@ -13,15 +194,352 @@ index c19cd8e..eeaa37c 100644
      this.ui.showLoading(), await this._startVideo(), await this._startAR();
    }
    stop() {
+-    this.controller.stopProcessVideo(), this.video.srcObject.getTracks().forEach(function(t) {
+-      t.stop();
+-    }), this.video.remove();
 +    try {
 +      this._resizeHandler && (window.removeEventListener("resize", this._resizeHandler), this._resizeHandler = null);
 +    } catch (e) {
 +    }
-     this.controller.stopProcessVideo(), this.video.srcObject.getTracks().forEach(function(t) {
-       t.stop();
-     }), this.video.remove();
++    try {
++      this.controller && (typeof this.controller.dispose == "function" ? this.controller.dispose() : this.controller.stopProcessVideo && this.controller.stopProcessVideo());
++    } catch (e) {
++    }
++    try {
++      const e = this.video && this.video.srcObject;
++      const t = e && typeof e.getTracks == "function" ? e.getTracks() : [];
++      const a = new Set();
++      for (let n = 0; n < t.length; n++) {
++        const r = t[n];
++        if (!r || a.has(r)) continue;
++        a.add(r);
++        try {
++          r.readyState !== "ended" && typeof r.stop == "function" && r.stop();
++        } catch (i) {
++        }
++      }
++    } catch (e) {
++    }
++    try {
++      this.video && typeof this.video.remove == "function" && this.video.remove();
++    } catch (e) {
++    }
+   }
+   switchCamera() {
+     this.shouldFaceUser = !this.shouldFaceUser, this.stop(), this.start();
+diff --git a/node_modules/mind-ar/src/image-target/controller.js b/node_modules/mind-ar/src/image-target/controller.js
+index 2dd3d9f..0525a86 100644
+--- a/node_modules/mind-ar/src/image-target/controller.js
++++ b/node_modules/mind-ar/src/image-target/controller.js
+@@ -112,10 +112,26 @@ class Controller {
+   }
+ 
+   dispose() {
++    if (this._disposed) return;
++    this._disposed = true;
++    // Soft-stop first so in-flight awaits can resolve and dispose inputT.
+     this.stopProcessVideo();
+-    this.worker.postMessage({
+-      type: "dispose"
+-    });
++    try {
++      this.worker && this.worker.postMessage && this.worker.postMessage({ type: "dispose" });
++    } catch (err) {
++      // ignore
++    }
++    try {
++      this.worker && this.worker.terminate && this.worker.terminate();
++    } catch (err) {
++      // ignore
++    }
++    this.worker = null;
++    try {
++      this.inputLoader && this.inputLoader.dispose && this.inputLoader.dispose();
++    } catch (err) {
++      // ignore
++    }
+   }
+ 
+   // warm up gpu - build kernels is slow
+@@ -183,95 +199,110 @@ class Controller {
+       while (true) {
+ 	if (!this.processingVideo) break;
+ 
+-	const inputT = this.inputLoader.loadInput(input);
++	let inputT = null;
++	try {
++	  inputT = this.inputLoader.loadInput(input);
++	  if (!this.processingVideo) break;
+ 
+-	const nTracking = this.trackingStates.reduce((acc, s) => {
+-	  return acc + (!!s.isTracking? 1: 0);
+-	}, 0);
++	  const nTracking = this.trackingStates.reduce((acc, s) => {
++	    return acc + (!!s.isTracking? 1: 0);
++	  }, 0);
+ 
+-	// detect and match only if less then maxTrack
+-	if (nTracking < this.maxTrack) {
+-
+-	  const matchingIndexes = [];
+-	  for (let i = 0; i < this.trackingStates.length; i++) {
+-	    const trackingState = this.trackingStates[i];
+-	    if (trackingState.isTracking === true) continue;
+-	    if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
+-
+-	    matchingIndexes.push(i);
+-	  }
++	  // detect and match only if less then maxTrack
++	  if (nTracking < this.maxTrack) {
+ 
+-	  const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
++	    const matchingIndexes = [];
++	    for (let i = 0; i < this.trackingStates.length; i++) {
++	      const trackingState = this.trackingStates[i];
++	      if (trackingState.isTracking === true) continue;
++	      if (this.interestedTargetIndex !== -1 && this.interestedTargetIndex !== i) continue;
+ 
+-	  if (matchedTargetIndex !== -1) {
+-	    this.trackingStates[matchedTargetIndex].isTracking = true;
+-	    this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
+-	  }
+-	}
++	      matchingIndexes.push(i);
++	    }
+ 
+-	// tracking update
+-	for (let i = 0; i < this.trackingStates.length; i++) {
+-	  const trackingState = this.trackingStates[i];
++	    const {targetIndex: matchedTargetIndex, modelViewTransform} = await this._detectAndMatch(inputT, matchingIndexes);
++	    if (!this.processingVideo) break;
+ 
+-	  if (trackingState.isTracking) {
+-	    let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
+-	    if (modelViewTransform === null) {
+-	      trackingState.isTracking = false;
+-	    } else {
+-	      trackingState.currentModelViewTransform = modelViewTransform;
++	    if (matchedTargetIndex !== -1) {
++	      this.trackingStates[matchedTargetIndex].isTracking = true;
++	      this.trackingStates[matchedTargetIndex].currentModelViewTransform = modelViewTransform;
+ 	    }
+ 	  }
+ 
+-	  // if not showing, then show it once it reaches warmup number of frames
+-	  if (!trackingState.showing) {
++	  // tracking update
++	  for (let i = 0; i < this.trackingStates.length; i++) {
++	    if (!this.processingVideo) break;
++	    const trackingState = this.trackingStates[i];
++
+ 	    if (trackingState.isTracking) {
+-	      trackingState.trackMiss = 0;
+-	      trackingState.trackCount += 1;
+-	      if (trackingState.trackCount > this.warmupTolerance) {
+-		trackingState.showing = true;
+-		trackingState.trackingMatrix = null;
+-		trackingState.filter.reset();
++	      let modelViewTransform = await this._trackAndUpdate(inputT, trackingState.currentModelViewTransform, i);
++	      if (!this.processingVideo) break;
++	      if (modelViewTransform === null) {
++		trackingState.isTracking = false;
++	      } else {
++		trackingState.currentModelViewTransform = modelViewTransform;
+ 	      }
+ 	    }
+-	  }
+ 
+-	  // if showing, then count miss, and hide it when reaches tolerance
+-	  if (trackingState.showing) {
+-	    if (!trackingState.isTracking) {
+-	      trackingState.trackCount = 0;
+-	      trackingState.trackMiss += 1;
++	    // if not showing, then show it once it reaches warmup number of frames
++	    if (!trackingState.showing) {
++	      if (trackingState.isTracking) {
++		trackingState.trackMiss = 0;
++		trackingState.trackCount += 1;
++		if (trackingState.trackCount > this.warmupTolerance) {
++		  trackingState.showing = true;
++		  trackingState.trackingMatrix = null;
++		  trackingState.filter.reset();
++		}
++	      }
++	    }
+ 	    
+-	      if (trackingState.trackMiss > this.missTolerance) {
+-		trackingState.showing = false;
+-		trackingState.trackingMatrix = null;
+-		this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
++	    // if showing, then count miss, and hide it when reaches tolerance
++	    if (trackingState.showing) {
++	      if (!trackingState.isTracking) {
++		trackingState.trackCount = 0;
++		trackingState.trackMiss += 1;
++
++		if (trackingState.trackMiss > this.missTolerance) {
++		  trackingState.showing = false;
++		  trackingState.trackingMatrix = null;
++		  this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: null});
++		}
++	      } else {
++		trackingState.trackMiss = 0;
+ 	      }
+-	    } else {
+-	      trackingState.trackMiss = 0;
+ 	    }
+-	  }
+ 	    
+-	  // if showing, then call onUpdate, with world matrix
+-	  if (trackingState.showing) {
+-	    const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
+-	    trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
++	    // if showing, then call onUpdate, with world matrix
++	    if (trackingState.showing) {
++	      const worldMatrix = this._glModelViewMatrix(trackingState.currentModelViewTransform, i);
++	      trackingState.trackingMatrix = trackingState.filter.filter(Date.now(), worldMatrix);
+ 
+-	    let clone = [];
+-	    for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
+-	      clone[j] = trackingState.trackingMatrix[j];
+-	    }
++	      let clone = [];
++	      for (let j = 0; j < trackingState.trackingMatrix.length; j++) {
++		clone[j] = trackingState.trackingMatrix[j];
++	      }
+ 
+-      const isInputRotated = input.width === this.inputHeight && input.height === this.inputWidth;
+-      if (isInputRotated) {
+-        clone = this.getRotatedZ90Matrix(clone);
+-      }
++	      const isInputRotated = input.width === this.inputHeight && input.height === this.inputWidth;
++	      if (isInputRotated) {
++		clone = this.getRotatedZ90Matrix(clone);
++	      }
++
++	      this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
++	    }
++	  }
+ 
+-	    this.onUpdate && this.onUpdate({type: 'updateMatrix', targetIndex: i, worldMatrix: clone});
++	  if (!this.processingVideo) break;
++	  this.onUpdate && this.onUpdate({type: 'processDone'});
++	} finally {
++	  try {
++	    inputT && inputT.dispose && inputT.dispose();
++	  } catch (err) {
++	    // ignore
+ 	  }
++	  inputT = null;
+ 	}
+-
+-	inputT.dispose();
+-        this.onUpdate && this.onUpdate({type: 'processDone'});
++	if (!this.processingVideo) break;
+ 	await tf.nextFrame();
+       }
+     }
+@@ -280,6 +311,25 @@ class Controller {
+ 
+   stopProcessVideo() {
+     this.processingVideo = false;
++    // Resolve in-flight worker waits so the loop can exit and finally-dispose inputT.
++    const matchDone = this.workerMatchDone;
++    const trackDone = this.workerTrackDone;
++    this.workerMatchDone = null;
++    this.workerTrackDone = null;
++    if (matchDone) {
++      try {
++	matchDone({ targetIndex: -1, modelViewTransform: null, debugExtra: null });
++      } catch (err) {
++	// ignore
++      }
++    }
++    if (trackDone) {
++      try {
++	trackDone({ modelViewTransform: null });
++      } catch (err) {
++	// ignore
++      }
++    }
+   }
+ 
+   async detect(input) {
+@@ -308,21 +358,33 @@ class Controller {
+   }
+ 
+   _workerMatch(featurePoints, targetIndexes) {
+-    return new Promise(async (resolve, reject) => {
++    return new Promise((resolve) => {
+       this.workerMatchDone = (data) => {
++        this.workerMatchDone = null;
+         resolve({targetIndex: data.targetIndex, modelViewTransform: data.modelViewTransform, debugExtra: data.debugExtra});
+       }
+-      this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndexes});
++      try {
++        this.worker.postMessage({type: 'match', featurePoints: featurePoints, targetIndexes});
++      } catch (err) {
++        this.workerMatchDone = null;
++        resolve({targetIndex: -1, modelViewTransform: null, debugExtra: null});
++      }
+     });
+   }
+ 
+   _workerTrackUpdate(modelViewTransform, trackingFeatures) {
+-    return new Promise(async (resolve, reject) => {
++    return new Promise((resolve) => {
+       this.workerTrackDone = (data) => {
++        this.workerTrackDone = null;
+         resolve(data.modelViewTransform);
+       }
+-      const {worldCoords, screenCoords} = trackingFeatures;
+-      this.worker.postMessage({type: 'trackUpdate', modelViewTransform, worldCoords, screenCoords});
++      try {
++        const {worldCoords, screenCoords} = trackingFeatures;
++        this.worker.postMessage({type: 'trackUpdate', modelViewTransform, worldCoords, screenCoords});
++      } catch (err) {
++        this.workerTrackDone = null;
++        resolve(null);
++      }
+     });
+   }
+ 
+diff --git a/node_modules/mind-ar/src/image-target/input-loader.js b/node_modules/mind-ar/src/image-target/input-loader.js
+index 6b58dcf..0d6b2da 100644
+--- a/node_modules/mind-ar/src/image-target/input-loader.js
++++ b/node_modules/mind-ar/src/image-target/input-loader.js
+@@ -98,6 +98,29 @@ class InputLoader {
+     const outInfo = tf.backend().runWebGLProgram(program, inputs, outputType);
+     return tf.engine().makeTensorFromDataId(outInfo.dataId, outInfo.shape, outInfo.dtype);
+   }
++
++  // Best-effort GPU/canvas release for session teardown (Patch AB).
++  dispose() {
++    try {
++      if (this.tempPixelHandle) {
++        const backend = tf.backend();
++        backend.disposeData(this.tempPixelHandle.dataId);
++        this.tempPixelHandle = null;
++      }
++    } catch (err) {
++      // ignore
++    }
++    try {
++      if (this.context && this.context.canvas) {
++        this.context.canvas.width = 0;
++        this.context.canvas.height = 0;
++      }
++    } catch (err) {
++      // ignore
++    }
++    this.program = null;
++    this.context = null;
++  }
+ }
+ 
+ export {
 diff --git a/node_modules/mind-ar/src/image-target/three.js b/node_modules/mind-ar/src/image-target/three.js
-index aed5e35..14f8d2c 100644
+index aed5e35..7ec0d70 100644
 --- a/node_modules/mind-ar/src/image-target/three.js
 +++ b/node_modules/mind-ar/src/image-target/three.js
 @@ -43,7 +43,8 @@ export class MindARThree {
@@ -34,10 +552,16 @@ index aed5e35..14f8d2c 100644
    }
  
    async start() {
-@@ -53,6 +54,17 @@ export class MindARThree {
+@@ -53,12 +54,59 @@ export class MindARThree {
    }
  
    stop() {
+-    this.controller.stopProcessVideo();
+-    const tracks = this.video.srcObject.getTracks();
+-    tracks.forEach(function (track) {
+-      track.stop();
+-    });
+-    this.video.remove();
 +    // Remove window.resize before tearing down camera/controller so callbacks
 +    // cannot re-enter a half-stopped instance. Idempotent for repeated stop().
 +    try {
@@ -49,6 +573,48 @@ index aed5e35..14f8d2c 100644
 +      // Best-effort: do not block camera/tracking cleanup.
 +    }
 +
-     this.controller.stopProcessVideo();
-     const tracks = this.video.srcObject.getTracks();
-     tracks.forEach(function (track) {
++    try {
++      // Patch AB: prefer full controller.dispose() (worker terminate + loader GPU release).
++      if (this.controller) {
++        if (typeof this.controller.dispose === "function") {
++          this.controller.dispose();
++        } else if (typeof this.controller.stopProcessVideo === "function") {
++          this.controller.stopProcessVideo();
++        }
++      }
++    } catch (err) {
++      // Best-effort: continue camera/DOM teardown.
++    }
++
++    // Null-safe camera teardown: video / srcObject / tracks may already be gone.
++    // Stop each MediaStreamTrack at most once; failures must not block remaining cleanup.
++    try {
++      const stream = this.video && this.video.srcObject;
++      const tracks = stream && typeof stream.getTracks === 'function' ? stream.getTracks() : [];
++      const stopped = new Set();
++      for (let i = 0; i < tracks.length; i++) {
++        const track = tracks[i];
++        if (!track || stopped.has(track)) continue;
++        stopped.add(track);
++        try {
++          if (track.readyState !== 'ended' && typeof track.stop === 'function') {
++            track.stop();
++          }
++        } catch (err) {
++          // ignore per-track failures
++        }
++      }
++    } catch (err) {
++      // Best-effort: continue DOM removal.
++    }
++
++    try {
++      if (this.video && typeof this.video.remove === 'function') {
++        this.video.remove();
++      }
++    } catch (err) {
++      // ignore
++    }
+   }
+ 
+   switchCamera() {

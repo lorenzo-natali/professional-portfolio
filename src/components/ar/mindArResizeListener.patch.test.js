@@ -34,6 +34,7 @@ class PatchedMindARThreeContract {
     this.camera = new THREE.PerspectiveCamera();
     this.anchors = [];
     this.controller = {
+      dispose: vi.fn(),
       stopProcessVideo: vi.fn(),
       getProjectionMatrix: () => new Float32Array(16),
       inputWidth: 640,
@@ -62,10 +63,38 @@ class PatchedMindARThreeContract {
     } catch {
       // Best-effort: do not block camera/tracking cleanup.
     }
-    this.controller?.stopProcessVideo?.();
-    const tracks = this.video?.srcObject?.getTracks?.() || [];
-    tracks.forEach((track) => track.stop());
-    this.video?.remove?.();
+    try {
+      if (this.controller) {
+        if (typeof this.controller.dispose === "function") {
+          this.controller.dispose();
+        } else if (typeof this.controller.stopProcessVideo === "function") {
+          this.controller.stopProcessVideo();
+        }
+      }
+    } catch {
+      // Best-effort: continue camera/DOM teardown.
+    }
+    try {
+      const stream = this.video?.srcObject;
+      const tracks = stream && typeof stream.getTracks === "function" ? stream.getTracks() : [];
+      const stopped = new Set();
+      for (const track of tracks) {
+        if (!track || stopped.has(track)) continue;
+        stopped.add(track);
+        try {
+          if (track.readyState !== "ended") track.stop();
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // Best-effort: continue DOM removal.
+    }
+    try {
+      this.video?.remove?.();
+    } catch {
+      // ignore
+    }
   }
 
   resize() {
@@ -144,6 +173,7 @@ function makeAnimationStub(layer) {
     markLoadFinished: vi.fn(),
     resetSession: vi.fn(() => layer.resetVisualState()),
     play: vi.fn(),
+    isPlaying: vi.fn(() => state.phase === "playing"),
     getState: vi.fn(() => ({ ...state })),
     dispose: vi.fn(() => {
       state.disposed = true;
@@ -186,14 +216,35 @@ describe("mind-ar resize-listener patch", () => {
       join(repoRoot, "node_modules/mind-ar/src/image-target/three.js"),
       "utf8",
     );
+    const controller = readFileSync(
+      join(repoRoot, "node_modules/mind-ar/dist/controller-mGt1s8dJ.js"),
+      "utf8",
+    );
+    const controllerSource = readFileSync(
+      join(repoRoot, "node_modules/mind-ar/src/image-target/controller.js"),
+      "utf8",
+    );
 
     expect(runtime).toContain("this._resizeHandler=this.resize.bind(this)");
     expect(runtime).toContain('addEventListener("resize",this._resizeHandler)');
     expect(runtime).toContain('removeEventListener("resize", this._resizeHandler)');
     expect(runtime).not.toContain('addEventListener("resize", this.resize.bind(this))');
+    expect(runtime).not.toContain("this.video.srcObject.getTracks().forEach");
+    expect(runtime).toContain("this.video && this.video.srcObject");
 
     expect(source).toContain("this._resizeHandler = this.resize.bind(this)");
     expect(source).toContain("window.removeEventListener('resize', this._resizeHandler)");
+    expect(source).not.toContain("this.video.srcObject.getTracks()");
+    expect(source).toContain("this.video && this.video.srcObject");
+
+    // Patch AB: teardown completeness + abort-safe iteration
+    expect(runtime).toContain("this.controller.dispose()");
+    expect(source).toContain("this.controller.dispose()");
+    expect(controller).toContain("_disposed");
+    expect(controller).toContain("worker.terminate");
+    expect(controller).toContain("disposeData(this.tempPixelHandle");
+    expect(controllerSource).toContain("this.workerMatchDone = null");
+    expect(controllerSource).toContain("inputT && inputT.dispose");
   });
 
   describe("patched MindARThree contract", () => {
@@ -211,6 +262,14 @@ describe("mind-ar resize-listener patch", () => {
     afterEach(() => {
       tracker.restore();
       container.remove();
+    });
+
+    it("stop prefers controller.dispose over stopProcessVideo", async () => {
+      const instance = new PatchedMindARThreeContract({ container });
+      await instance.start();
+      instance.stop();
+      expect(instance.controller.dispose).toHaveBeenCalledTimes(1);
+      expect(instance.controller.stopProcessVideo).not.toHaveBeenCalled();
     });
 
     it("registers exactly one stored resize listener on construct", async () => {
@@ -246,9 +305,39 @@ describe("mind-ar resize-listener patch", () => {
       const instance = new PatchedMindARThreeContract({ container });
       // Constructed but never started — no video yet.
       expect(tracker.listeners.size).toBe(1);
-      instance.stop();
+      expect(() => instance.stop()).not.toThrow();
       expect(tracker.listeners.size).toBe(0);
       expect(instance._resizeHandler).toBeNull();
+    });
+
+    it("stop with absent video does not throw", () => {
+      const instance = new PatchedMindARThreeContract({ container });
+      expect(instance.video).toBeUndefined();
+      expect(() => instance.stop()).not.toThrow();
+    });
+
+    it("stop with null video.srcObject does not throw", async () => {
+      const instance = new PatchedMindARThreeContract({ container });
+      await instance.start();
+      instance.video.srcObject = null;
+      expect(() => instance.stop()).not.toThrow();
+      expect(tracker.listeners.size).toBe(0);
+    });
+
+    it("stop stops each MediaStreamTrack at most once", async () => {
+      const instance = new PatchedMindARThreeContract({ container });
+      await instance.start();
+      const track = {
+        readyState: "live",
+        stop: vi.fn(() => {
+          track.readyState = "ended";
+        }),
+      };
+      instance.video.srcObject = { getTracks: () => [track, track] };
+      instance.stop();
+      expect(track.stop).toHaveBeenCalledTimes(1);
+      instance.stop();
+      expect(track.stop).toHaveBeenCalledTimes(1);
     });
 
     it("resize after stop does not invoke the stopped instance", async () => {
@@ -298,12 +387,15 @@ describe("mind-ar resize-listener patch", () => {
       mocks.createInterestObjectsLayer.mockReset();
       mocks.createInterestObjectsAnimation.mockReset();
       mocks.createInterestObjectsTapController.mockReset();
-      mocks.createInterestObjectsTapController.mockImplementation(() => ({
-        dispose: vi.fn(),
-        close: vi.fn(),
-        update: vi.fn(),
-        hitLayer: document.createElement("div"),
-      }));
+    mocks.createInterestObjectsTapController.mockImplementation(() => ({
+      dispose: vi.fn(),
+      close: vi.fn(),
+      update: vi.fn(),
+      hitLayer: document.createElement("div"),
+      getGestureMode: vi.fn(() => "idle"),
+      getOpenId: vi.fn(() => null),
+      cancelActiveGesture: vi.fn(),
+    }));
       mocks.createInterestObjectsLayer.mockImplementation(() => makeInterestLayerStub());
       mocks.createInterestObjectsAnimation.mockImplementation((layer) => makeAnimationStub(layer));
       mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
@@ -341,6 +433,7 @@ describe("mind-ar resize-listener patch", () => {
         this.scene = { add: vi.fn(), environment: null };
         this.camera = new THREE.PerspectiveCamera();
         this.controller = {
+          dispose: vi.fn(),
           stopProcessVideo: vi.fn(),
           getProjectionMatrix: () => new Float32Array(16),
           inputWidth: 640,
@@ -382,13 +475,21 @@ describe("mind-ar resize-listener patch", () => {
           } catch {
             // Best-effort listener removal.
           }
-          this.controller?.stopProcessVideo?.();
+          if (typeof this.controller?.dispose === "function") {
+            this.controller.dispose();
+          } else {
+            this.controller?.stopProcessVideo?.();
+          }
           const tracks = this.video?.srcObject?.getTracks?.() || [];
           tracks.forEach((track) => track.stop());
           this.video?.remove?.();
         });
       });
     }
+
+    /** MindAR-only handlers still registered on window.resize. */
+    const liveMindArHandlerCount = () =>
+      [...mindArHandlers].filter((handler) => tracker.listeners.has(handler)).length;
 
     it("failed start followed by adapter cleanup removes the MindAR resize listener", async () => {
       installPatchedMindARMock({ failStart: true });
@@ -398,11 +499,13 @@ describe("mind-ar resize-listener patch", () => {
       const container = document.createElement("div");
       document.body.appendChild(container);
 
-      expect(mindArHandlers.size).toBe(0);
+      expect(liveMindArHandlerCount()).toBe(0);
       await adapter.start(container, { onError });
       expect(onError).toHaveBeenCalled();
       expect(adapter.isRunning()).toBe(false);
-      expect(mindArHandlers.size).toBe(0);
+      // Adapter detaches MindAR's listener on construct; stop must leave none live.
+      expect(liveMindArHandlerCount()).toBe(0);
+      expect(mocks.MindARThree.mock.instances[0]?._resizeHandler).toBeNull();
 
       container.remove();
     });
@@ -421,7 +524,9 @@ describe("mind-ar resize-listener patch", () => {
       const startPromise = adapter.start(container, {});
       await vi.waitFor(() => {
         expect(mocks.MindARThree).toHaveBeenCalled();
-        expect(mindArHandlers.size).toBe(1);
+        // Ownership transfer nulls MindAR's handler immediately after construct.
+        expect(mocks.MindARThree.mock.instances[0]._resizeHandler).toBeNull();
+        expect(liveMindArHandlerCount()).toBe(0);
       });
 
       const stopPromise = adapter.stop();
@@ -429,7 +534,7 @@ describe("mind-ar resize-listener patch", () => {
       await Promise.all([startPromise, stopPromise]);
 
       expect(adapter.isRunning()).toBe(false);
-      expect(mindArHandlers.size).toBe(0);
+      expect(liveMindArHandlerCount()).toBe(0);
       container.remove();
     });
 
@@ -442,13 +547,15 @@ describe("mind-ar resize-listener patch", () => {
       for (let i = 0; i < 20; i += 1) {
         await adapter.start(container, {});
         expect(adapter.isRunning()).toBe(true);
-        expect(mindArHandlers.size).toBe(1);
+        // Coordinator owns resize — MindAR window listener stays detached while live.
+        expect(liveMindArHandlerCount()).toBe(0);
+        expect(mocks.MindARThree.mock.instances.at(-1)._resizeHandler).toBeNull();
         await adapter.stop();
         expect(adapter.isRunning()).toBe(false);
-        expect(mindArHandlers.size).toBe(0);
+        expect(liveMindArHandlerCount()).toBe(0);
       }
 
-      expect(mindArHandlers.size).toBe(0);
+      expect(liveMindArHandlerCount()).toBe(0);
       container.remove();
     });
 
@@ -459,16 +566,16 @@ describe("mind-ar resize-listener patch", () => {
       document.body.appendChild(container);
 
       await adapter.start(container, {});
-      expect(mindArHandlers.size).toBe(1);
+      expect(liveMindArHandlerCount()).toBe(0);
 
       const first = adapter.stop();
       const second = adapter.stop();
       expect(first).toBe(second);
       await Promise.all([first, second]);
 
-      expect(mindArHandlers.size).toBe(0);
+      expect(liveMindArHandlerCount()).toBe(0);
       await adapter.stop();
-      expect(mindArHandlers.size).toBe(0);
+      expect(liveMindArHandlerCount()).toBe(0);
       container.remove();
     });
   });
