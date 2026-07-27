@@ -548,6 +548,7 @@ export function createInterestObjectsTapController(options) {
       clearCloseTimer();
       visitorAngles.clear();
       auditNote("dispose", { gestureMode: "idle" });
+      auditNote("interactionControllerDisposed", { gestureMode: "idle" });
       hitLayer.removeEventListener("pointerdown", onPointerDown, listenerOpts);
       hitLayer.removeEventListener("pointermove", onPointerMove, listenerOpts);
       hitLayer.removeEventListener("pointerup", onPointerUp, listenerOpts);

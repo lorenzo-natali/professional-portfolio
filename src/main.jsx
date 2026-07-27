@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { publishPortfolioBuildId } from './components/ar/arBuildId'
-import { captureArRuntimeFlags } from './components/ar/arRuntimeFlags'
+import {
+  captureArRuntimeFlags,
+  getArRuntimeFlags,
+} from './components/ar/arRuntimeFlags'
 import {
   createArRuntimeAudit,
   isArRuntimeAuditEnabled,
@@ -17,6 +20,13 @@ const runtimeAudit = isArRuntimeAuditEnabled()
   ? createArRuntimeAudit({ enabled: true })
   : null
 runtimeAudit?.recordPhase?.('script-load')
+
+// Earliest page-boot evidence for rotate-audit sessions (opt-in URL flag only).
+if (getArRuntimeFlags().arRotateAudit) {
+  void import('./components/ar/arRotateAudit').then((mod) => {
+    mod.recordArRotateAuditPageBoot()
+  })
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

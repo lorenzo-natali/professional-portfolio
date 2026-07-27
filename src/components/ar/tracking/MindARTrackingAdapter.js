@@ -337,6 +337,59 @@ export function createMindARTrackingAdapter({
   let sessionBlobUrl = null;
   /** @type {HTMLElement | null} */
   let sessionContainer = null;
+
+  /** Opt-in rotate audit only — never throws into the adapter path. */
+  function auditNote(kind, extra) {
+    if (typeof window === "undefined") return;
+    try {
+      window.__arRotateAudit?.note?.(kind, extra);
+    } catch {
+      // Diagnostics must never affect WebAR.
+    }
+  }
+
+  function clearAuditHealthProvider() {
+    if (typeof window === "undefined") return;
+    try {
+      window.__arRotateAudit?.setHealthProvider?.(null);
+    } catch {
+      // ignore
+    }
+  }
+
+  function bindAuditHealthProvider(renderer, layer) {
+    if (typeof window === "undefined") return;
+    try {
+      window.__arRotateAudit?.setHealthProvider?.(() => {
+        try {
+          const video = mindarThree?.video;
+          const stream =
+            video?.srcObject instanceof MediaStream ? video.srcObject : null;
+          const track = stream?.getVideoTracks?.()?.[0] ?? null;
+          const info = renderer?.info;
+          return {
+            geometries: info?.memory?.geometries ?? null,
+            textures: info?.memory?.textures ?? null,
+            programs: Array.isArray(info?.programs) ? info.programs.length : null,
+            renderCalls: info?.render?.calls ?? null,
+            triangles: info?.render?.triangles ?? null,
+            canvasWidth: renderer?.domElement?.width ?? null,
+            canvasHeight: renderer?.domElement?.height ?? null,
+            trackReadyState: track?.readyState ?? null,
+            trackMuted: track ? Boolean(track.muted) : null,
+            trackEnabled: track ? Boolean(track.enabled) : null,
+            interestEntries: Array.isArray(layer?.entries) ? layer.entries.length : null,
+            rendererAvailable: Boolean(renderer),
+          };
+        } catch {
+          return null;
+        }
+      });
+    } catch {
+      // ignore
+    }
+  }
+
   /** Shared in-flight cleanup — concurrent stop/cleanup callers await the same Promise. */
   /** @type {Promise<void> | null} */
   let cleanupPromise = null;
@@ -370,11 +423,11 @@ export function createMindARTrackingAdapter({
       // Bump first so in-flight promise callbacks from this session become no-ops.
       sessionGeneration += 1;
       clearSessionReset();
-      if (typeof window !== "undefined") {
-        window.__arRotateAudit?.note?.("cleanupSession", {
-          cleanupReason: "cleanupSession",
-        });
-      }
+      auditNote("cleanupStarted", { cleanupReason: "cleanupSession" });
+      auditNote("cleanupSession", {
+        cleanupReason: "cleanupSession",
+      });
+      clearAuditHealthProvider();
 
       try {
         viewportCleanup?.();
@@ -492,6 +545,7 @@ export function createMindARTrackingAdapter({
         }
       }
     })().finally(() => {
+      auditNote("cleanupCompleted", { cleanupReason: "cleanupSession" });
       cleanupPromise = null;
     });
 
@@ -502,7 +556,10 @@ export function createMindARTrackingAdapter({
     isRunning: () => running,
 
     async start(container, callbacks = {}) {
+      auditNote("adapterStartRequested", {});
+      auditNote("start", {});
       // Serialize against any prior start/stop: wait for in-flight cleanup, then begin.
+      // P1-1: start() always begins with stop()/cleanupSession (provisional when idle).
       await this.stop();
 
       sessionContainer = container;
@@ -553,6 +610,7 @@ export function createMindARTrackingAdapter({
 
         const { renderer, scene, camera } = mindarThree;
         configureInterestRenderer(THREE, renderer);
+        auditNote("rendererCreated", {});
         presentationLighting = createInterestLighting(THREE, scene);
         recordArViewportLifecycle(shell, "after-mindar-construct");
 
@@ -666,6 +724,10 @@ export function createMindARTrackingAdapter({
 
         recordArViewportLifecycle(shell, "before-mindar-start");
         await mindarThree.start();
+        auditNote("mindarStartCompleted", {});
+        if (mindarThree.video?.srcObject instanceof MediaStream) {
+          auditNote("cameraStreamActive", {});
+        }
 
         // Close/unmount during getUserMedia or init: do not revive the session.
         if (sessionGeneration !== sessionToken || cleanupPromise || sessionContainer !== container) {
@@ -771,6 +833,8 @@ export function createMindARTrackingAdapter({
           container,
           shell,
         });
+        auditNote("interactionControllerInstalled", {});
+        bindAuditHealthProvider(renderer, sessionLayer);
         recordArRuntimeAuditPhase("interest-tap-controller-created", {
           hasHitLayer: Boolean(interestTap?.hitLayer),
         });
@@ -781,6 +845,7 @@ export function createMindARTrackingAdapter({
           interestTap?.update?.();
         };
         running = true;
+        auditNote("adapterStartSucceeded", {});
         viewportCleanup = bindArViewportListeners(onViewportChange);
 
         callbacks.onReady?.();
@@ -808,6 +873,9 @@ export function createMindARTrackingAdapter({
           }, 500),
         );
       } catch (error) {
+        auditNote("adapterStartFailed", {
+          message: error instanceof Error ? error.message : String(error),
+        });
         // Capture ownership before cleanup clears sessionContainer / sets cleanupPromise.
         const stillOwner = sessionContainer === container && !cleanupPromise;
         await cleanupSession();
@@ -828,6 +896,8 @@ export function createMindARTrackingAdapter({
      * @returns {Promise<void>}
      */
     stop() {
+      auditNote("adapterStopRequested", {});
+      auditNote("stop", {});
       return cleanupSession();
     },
   };
