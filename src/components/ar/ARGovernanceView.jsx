@@ -41,14 +41,14 @@ function unavailableCopy(reason) {
 
 function initialArScreen(isMobile, flags) {
   // Audit field work can bypass the desktop gate when Safari misclassifies the device.
-  const allowCameraPath = isMobile || flags.arRuntimeAudit;
+  const allowCameraPath = isMobile || flags.arRuntimeAudit || flags.arRotateAudit;
   if (!allowCameraPath) return "desktop";
   return "intro";
 }
 
 function ARGovernanceExperience({ isMobile, onClose }) {
   const flags = getArRuntimeFlags();
-  const allowCameraPath = isMobile || flags.arRuntimeAudit;
+  const allowCameraPath = isMobile || flags.arRuntimeAudit || flags.arRotateAudit;
   const [screen, setScreen] = useState(() => initialArScreen(isMobile, flags));
   const [unavailableReason, setUnavailableReason] = useState(null);
 
@@ -84,6 +84,11 @@ function ARGovernanceExperience({ isMobile, onClose }) {
           <ARCameraView
             onBack={onClose}
             onFallback={(reason) => {
+              if (typeof window !== "undefined") {
+                window.__arRotateAudit?.note?.("application_fallback", {
+                  cleanupReason: String(reason || "fallback"),
+                });
+              }
               const allowed = new Set([
                 "unsupported",
                 "tracking-error",
@@ -145,8 +150,22 @@ export default function ARGovernanceView({ open, onClose }) {
         : { dispose() {}, recordPhase() {} };
     viewportDebug.recordPhase?.("portal-mount-debug");
 
+    if (flags.arRotateAudit) {
+      void import("./arRotateAudit").then((mod) => {
+        mod.installArRotateAudit();
+      });
+    }
+
     return () => {
       recordArRuntimeAuditPhase("beyond-the-cv-close");
+      if (typeof window !== "undefined") {
+        window.__arRotateAudit?.note?.("stop", {
+          cleanupReason: "beyond-the-cv-close",
+          intentionalClose: true,
+        });
+        window.__arRotateAudit?.persistNow?.();
+        window.__arRotateAudit?.dispose?.();
+      }
       viewportDebug.dispose();
       unbindViewport();
       setPortfolioInert(root, false);

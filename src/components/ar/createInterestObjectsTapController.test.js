@@ -371,6 +371,33 @@ describe("createInterestObjectsTapController", () => {
     expect(controller.getVisitorAngles("robot").yaw).toBe(0);
     expect(layer.getEntry("robot").userRotation.rotation.z).toBeCloseTo(0, 10);
   });
+
+  it("survives thousands of pointermoves without growing visitor angle entries beyond touched objects", () => {
+    const layer = makeLayerWithMesh("book");
+    layer.entries.push(...makeLayerWithMesh("robot").entries);
+    const bookMesh = layer.entries[0].content.children[0];
+    mount(layer, bookMesh);
+
+    dispatchPointer(controller.hitLayer, "pointerdown", { clientX: 100, clientY: 100 });
+    for (let i = 1; i <= 2000; i += 1) {
+      dispatchPointer(controller.hitLayer, "pointermove", {
+        clientX: 100 + 20 + (i % 5),
+        clientY: 100,
+      });
+    }
+    expect(controller.getGestureMode()).toBe("rotating");
+    expect(controller.getVisitorAngles("book").yaw).not.toBe(0);
+    expect(controller.getVisitorAngles("robot").yaw).toBe(0);
+    dispatchPointer(controller.hitLayer, "pointerup", { clientX: 140, clientY: 100 });
+    expect(controller.getGestureMode()).toBe("idle");
+
+    // Second object gesture — still only two logical angle slots max in practice.
+    intersectSpy.mockReturnValue([{ object: layer.entries[1].content.children[0] }]);
+    dispatchPointer(controller.hitLayer, "pointerdown", { clientX: 100, clientY: 100 });
+    dispatchPointer(controller.hitLayer, "pointermove", { clientX: 130, clientY: 100 });
+    dispatchPointer(controller.hitLayer, "pointerup", { clientX: 130, clientY: 100 });
+    expect(controller.getVisitorAngles("robot").yaw).not.toBe(0);
+  });
 });
 
 describe("interest userRotation hierarchy", () => {

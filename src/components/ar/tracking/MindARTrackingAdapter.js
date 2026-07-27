@@ -370,6 +370,11 @@ export function createMindARTrackingAdapter({
       // Bump first so in-flight promise callbacks from this session become no-ops.
       sessionGeneration += 1;
       clearSessionReset();
+      if (typeof window !== "undefined") {
+        window.__arRotateAudit?.note?.("cleanupSession", {
+          cleanupReason: "cleanupSession",
+        });
+      }
 
       try {
         viewportCleanup?.();
@@ -624,12 +629,18 @@ export function createMindARTrackingAdapter({
           if (sessionGeneration !== sessionToken) return;
           clearSessionReset();
           poseStabilizer?.onTargetFound();
+          if (typeof window !== "undefined") {
+            window.__arRotateAudit?.note?.("targetFound", {});
+          }
           callbacks.onTargetFound?.();
         };
         anchor.onTargetLost = () => {
           if (sessionGeneration !== sessionToken) return;
           poseStabilizer?.onTargetLost();
           clearSessionReset();
+          if (typeof window !== "undefined") {
+            window.__arRotateAudit?.note?.("targetLost", {});
+          }
           interestTap?.cancelActiveGesture?.();
           interestTap?.close?.({ animate: true });
           // Brief loss: keep last stable pose + objects. Full reset after shared threshold.

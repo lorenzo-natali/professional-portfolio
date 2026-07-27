@@ -311,14 +311,21 @@ export function createInterestObjectsTapController(options) {
     }
   }
 
-  /**
-   * Cancel pending/rotating gesture without tap. Keeps last valid visitor angles.
-   */
+  function auditNote(kind, extra) {
+    if (typeof window === "undefined") return;
+    window.__arRotateAudit?.note?.(kind, extra);
+  }
+
   function cancelActiveGesture() {
     const pointerId = activeGesture?.pointerId;
     activeGesture = null;
     gestureMode = "idle";
     releaseCapture(pointerId);
+    auditNote("cancelActiveGesture", {
+      gestureMode: "idle",
+      interestId: null,
+      pointerId: null,
+    });
   }
 
   function applyRotationForGesture(clientX, clientY) {
@@ -404,9 +411,19 @@ export function createInterestObjectsTapController(options) {
 
     try {
       hitLayer.setPointerCapture?.(event.pointerId);
+      auditNote("captureOk", {
+        gestureMode: "pending",
+        interestId,
+        pointerId: event.pointerId,
+      });
     } catch {
-      // ignore
+      auditNote("captureFail", { interestId, pointerId: event.pointerId });
     }
+    auditNote("pointerdown", {
+      gestureMode: "pending",
+      interestId,
+      pointerId: event.pointerId,
+    });
   }
 
   function onPointerMove(event) {
@@ -430,11 +447,21 @@ export function createInterestObjectsTapController(options) {
         return;
       }
       gestureMode = "rotating";
+      auditNote("pendingToRotating", {
+        gestureMode: "rotating",
+        interestId: activeGesture.interestId,
+        pointerId: activeGesture.pointerId,
+      });
       applyRotationForGesture(event.clientX, event.clientY);
       return;
     }
 
     if (gestureMode === "rotating") {
+      auditNote("pointermove", {
+        gestureMode: "rotating",
+        interestId: activeGesture.interestId,
+        pointerId: activeGesture.pointerId,
+      });
       applyRotationForGesture(event.clientX, event.clientY);
     }
   }
@@ -452,6 +479,7 @@ export function createInterestObjectsTapController(options) {
       activeGesture = null;
       gestureMode = "idle";
       releaseCapture(pointerId);
+      auditNote("pointerup", { gestureMode: "idle", interestId: null, pointerId });
       return;
     }
 
@@ -459,6 +487,7 @@ export function createInterestObjectsTapController(options) {
     activeGesture = null;
     gestureMode = "idle";
     releaseCapture(pointerId);
+    auditNote("pointerup", { gestureMode: "idle", interestId: null, pointerId });
     if (mode === "pending") {
       handleTap(startX, startY);
     }
@@ -466,11 +495,21 @@ export function createInterestObjectsTapController(options) {
 
   function onPointerCancel(event) {
     if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
+    auditNote("pointercancel", {
+      gestureMode,
+      interestId: activeGesture.interestId,
+      pointerId: event.pointerId,
+    });
     cancelActiveGesture();
   }
 
   function onLostPointerCapture(event) {
     if (!activeGesture || activeGesture.pointerId !== event.pointerId) return;
+    auditNote("lostpointercapture", {
+      gestureMode,
+      interestId: activeGesture.interestId,
+      pointerId: event.pointerId,
+    });
     if (gestureMode === "rotating") {
       finishGestureNormalize();
     }
@@ -508,6 +547,7 @@ export function createInterestObjectsTapController(options) {
       cancelActiveGesture();
       clearCloseTimer();
       visitorAngles.clear();
+      auditNote("dispose", { gestureMode: "idle" });
       hitLayer.removeEventListener("pointerdown", onPointerDown, listenerOpts);
       hitLayer.removeEventListener("pointermove", onPointerMove, listenerOpts);
       hitLayer.removeEventListener("pointerup", onPointerUp, listenerOpts);

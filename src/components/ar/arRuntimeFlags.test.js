@@ -55,4 +55,16 @@ describe("arRuntimeFlags", () => {
     expect(flags.arRuntimeAudit).toBe(false);
     expect(flags).not.toHaveProperty("arInterestsCalibrate");
   });
+
+  it("latches arRotateAudit independently of viewport debug", () => {
+    const flags = captureArRuntimeFlags({
+      href: "https://host/?arRotateAudit=1",
+      pathname: "/",
+      search: "?arRotateAudit=1",
+      hash: "",
+    });
+    expect(flags.arRotateAudit).toBe(true);
+    expect(flags.arRuntimeAudit).toBe(false);
+    expect(flags.arViewportDebug).toBe(false);
+  });
 });

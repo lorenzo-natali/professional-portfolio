@@ -7,6 +7,7 @@
 /** @typedef {{
  *   arRuntimeAudit: boolean,
  *   arViewportDebug: boolean,
+ *   arRotateAudit: boolean,
  *   source: "initial-url" | "current-url" | "session" | "forced" | "none",
  *   href: string,
  *   pathname: string,
@@ -80,14 +81,16 @@ export function captureArRuntimeFlags(loc, options = {}) {
 
   const audit = readBoolFlag(search, hash, href, "arRuntimeAudit");
   const viewportDebug = readBoolFlag(search, hash, href, "arViewportDebug");
+  const rotateAudit = readBoolFlag(search, hash, href, "arRotateAudit");
 
   /** @type {ArRuntimeFlags["source"]} */
   let source = "none";
-  if (audit || viewportDebug) source = "initial-url";
+  if (audit || viewportDebug || rotateAudit) source = "initial-url";
 
   latchedFlags = {
     arRuntimeAudit: audit,
     arViewportDebug: viewportDebug,
+    arRotateAudit: rotateAudit,
     source,
     href,
     pathname,
