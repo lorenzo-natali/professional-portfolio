@@ -64,6 +64,7 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
     <div
       className={`ticker-stream overflow-hidden border-y-2 ${borderClass} ${backgroundClass}`}
       data-ticker-stream="1"
+      data-ticker-accent={isRiskStream ? "cyan" : "violet"}
       onMouseEnter={() => {
         pausedRef.current = true;
         subscriptionRef.current?.setPaused(true);

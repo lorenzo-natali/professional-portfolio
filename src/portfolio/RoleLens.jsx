@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { roleLenses, lensSummaries } from "./portfolioData.js";
 import { isOverviewLens, lensOptions } from "./portfolioLens.js";
@@ -6,17 +7,29 @@ export default function RoleLens({ selectedLens, onSelectLens }) {
   const lens = roleLenses.find((item) => item.name === selectedLens) ?? roleLenses[0];
   const hasActiveLens = !isOverviewLens(selectedLens);
   const roleLensLetters = "ROLE LENS".split("");
+  const [resetPulse, setResetPulse] = useState(false);
+
+  const handleReset = () => {
+    onSelectLens("Overview");
+    setResetPulse(true);
+  };
 
   return (
     <section id="role-lens" className="border-t border-slate-800/70 bg-slate-950/95 px-5 py-3 sm:px-8 sm:py-2 lg:px-10">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="sticky top-0 z-30 overflow-hidden bg-slate-950/90 py-4 backdrop-blur sm:py-3">
+        <div className="role-lens-sticky sticky top-0 z-30 overflow-hidden bg-slate-950/90 py-4 backdrop-blur sm:py-3">
           <div className="relative flex flex-col gap-3 sm:gap-2.5">
             <div className="flex flex-col gap-1.5 sm:gap-1">
               <div className="min-w-0">
                 <p
-                  className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-300/80 sm:text-xs sm:tracking-[0.28em]"
+                  className={`text-sm font-semibold uppercase tracking-[0.22em] text-cyan-300/80 sm:text-xs sm:tracking-[0.28em]${
+                    resetPulse ? " role-lens-reset-pulse" : ""
+                  }`}
                   aria-label="Role Lens"
+                  onAnimationEnd={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    setResetPulse(false);
+                  }}
                 >
                   {roleLensLetters.map((letter, index) => (
                     <span
@@ -56,8 +69,8 @@ export default function RoleLens({ selectedLens, onSelectLens }) {
               {hasActiveLens ? (
                 <button
                   type="button"
-                  onClick={() => onSelectLens("Overview")}
-                  className="role-lens-reset-active self-center text-sm font-medium text-cyan-100/80 underline decoration-cyan-300/20 underline-offset-4 transition hover:text-cyan-50 hover:decoration-cyan-200/50 sm:text-xs"
+                  onClick={handleReset}
+                  className="self-center text-sm font-medium text-cyan-100/80 underline decoration-cyan-300/20 underline-offset-4 transition hover:text-cyan-50 hover:decoration-cyan-200/50 sm:text-xs"
                 >
                   Reset lens
                 </button>
