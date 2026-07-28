@@ -144,6 +144,10 @@ export function installPortfolioRuntimeCounters(options = {}) {
       typeof document !== "undefined"
         ? document.getElementsByTagName("*").length
         : 0;
+    const ticker =
+      typeof window !== "undefined" && window.__portfolioTickerScheduler?.getDiagnostics
+        ? window.__portfolioTickerScheduler.getDiagnostics()
+        : null;
     return {
       enabled: true,
       liveRaf: rafOwners.size,
@@ -153,6 +157,7 @@ export function installPortfolioRuntimeCounters(options = {}) {
       liveTimeouts: timeoutOwners.size,
       mountedSections: sectionNodes,
       domNodes,
+      tickerScheduler: ticker,
       caps: { owners: OWNER_CAP },
     };
   }
@@ -160,10 +165,14 @@ export function installPortfolioRuntimeCounters(options = {}) {
   function renderHud() {
     if (!hudEl || disposed) return;
     const s = getSnapshot();
+    const t = s.tickerScheduler;
     hudEl.textContent = [
       "runtime counters",
       `rAF=${s.liveRaf}  RO=${s.liveResizeObservers}  IO=${s.liveIntersectionObservers}`,
       `interval=${s.liveIntervals}  timeout=${s.liveTimeouts}`,
+      t
+        ? `tickerSched=${t.activeSchedulerCount}  subs=${t.subscriberCount}  vis=${t.visibleCount}`
+        : "tickerSched=n/a",
       `sections=${s.mountedSections}  dom=${s.domNodes}`,
     ].join("\n");
   }

@@ -4,12 +4,14 @@ import {
   getArRuntimeFlags,
 } from './components/ar/arRuntimeFlags'
 import { captureSiteDiagMode, getSiteDiagMode } from './diagnostics/siteDiag.js'
+import { applyIosStabilityProfile } from './portfolio/iosStability.js'
 import './index.css'
 
 // Latch URL flags + build id before any App / Beyond chunk loads.
 publishPortfolioBuildId()
 captureArRuntimeFlags()
 captureSiteDiagMode()
+applyIosStabilityProfile()
 
 const siteDiagMode = getSiteDiagMode()
 const runtimeFlags = getArRuntimeFlags()

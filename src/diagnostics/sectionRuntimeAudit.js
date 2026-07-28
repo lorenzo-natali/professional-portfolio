@@ -20,23 +20,23 @@ export const PORTFOLIO_SECTION_RUNTIME_AUDIT = Object.freeze([
     section: "hero",
     files: "sections/HeroSection.jsx, TickerStream.jsx",
     continuousRuntime:
-      "TickerStream: 2–3 requestAnimationFrame loops (one per stack stream) continuously translating tracks",
+      "Shared createTickerScheduler: one rAF owner for all TickerStream tracks; pauses offscreen",
     compositorHeavyCss:
-      "ticker-mask mask-image; backdrop-blur on streams + language chips; hero gradient overlays; will-change-transform on tracks",
-    observers: "ResizeObserver per TickerStream track",
-    cleanup: "cancelAnimationFrame + ResizeObserver.disconnect on unmount",
-    risk: "high",
+      "ticker-mask mask-image (disabled on iOS stability); backdrop-blur on streams + language chips (softened on iOS)",
+    observers: "one shared ResizeObserver + one shared IntersectionObserver for all tickers",
+    cleanup: "unsubscribe disconnects observers when last stream unmounts; rAF stops when none visible",
+    risk: "medium",
   },
   {
     section: "role-lens",
     files: "RoleLens.jsx, index.css (role-lens-*)",
     continuousRuntime:
-      "CSS infinite: role-lens-type-scan, role-lens-reset-pulse; lens-glow-clock when highlights active",
+      "CSS infinite: role-lens-type-scan, role-lens-reset-pulse; body lens-glow-clock (static on iOS stability)",
     compositorHeavyCss:
-      "sticky + backdrop-blur bar; infinite letter scan; glow box-shadows via --lens-glow",
+      "sticky + backdrop-blur bar (solid fill on iOS); infinite letter scan (disabled on iOS); glow box-shadows via --lens-glow",
     observers: "none in JS",
-    cleanup: "CSS stops when nodes detach / prefers-reduced-motion",
-    risk: "medium",
+    cleanup: "CSS stops when nodes detach / prefers-reduced-motion / iOS stability profile",
+    risk: "low",
   },
   {
     section: "capabilities",

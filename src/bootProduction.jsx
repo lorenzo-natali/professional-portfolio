@@ -11,7 +11,8 @@ import { getArRuntimeFlags } from "./components/ar/arRuntimeFlags";
 import { EAGER_SECTION_MODULES } from "./portfolio/sectionLoaders.js";
 
 /**
- * Production boot — eager Beyond graph + eager portfolio sections.
+ * Production boot — light Beyond card + eager portfolio sections.
+ * ARGovernanceView / MindAR graph load only when the user opens Beyond (App).
  * Kept in a dedicated module so siteDiag boots do not statically import App/AR.
  */
 export function bootProduction() {

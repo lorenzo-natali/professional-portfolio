@@ -14,12 +14,12 @@ describe("Step 6.2 audit artifacts", () => {
     expect(SMALLEST_IDLE_HOMEPAGE_SUSPECT_SET.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("flags Beyond view host as homepage-mounted before interaction", () => {
+  it("records Beyond view host as deferred until open (Step 6.4)", () => {
     const row = FULL_VS_EFFECTS_DELTA.find((r) =>
       r.subsystem.includes("Beyond view host"),
     );
-    expect(row?.mountedOnHomepage).toBe(true);
-    expect(row?.startsBeforeUserInteraction).toBe(true);
-    expect(row?.risk).toBe("high");
+    expect(row?.mountedOnHomepage).toBe(false);
+    expect(row?.startsBeforeUserInteraction).toBe(false);
+    expect(row?.risk).toBe("medium");
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DEFAULT_APP_FEATURES,
@@ -21,6 +21,9 @@ import "./index.css";
  *   shouldLaunchBeyondCvFromLocation?: (loc?: Location | { search?: string, hash?: string, href?: string }) => boolean,
  * }} BeyondModules
  */
+
+/** Heavy AR graph — imported only after Beyond opens (never while closed). */
+const ARGovernanceViewLazy = lazy(() => import("./components/ar/ARGovernanceView.jsx"));
 
 function getAssistantSignals(prompt) {
   if (!prompt.signalIds?.length) {
@@ -440,7 +443,8 @@ function App({
       : () => false;
 
   const BeyondCard = beyondEnabled ? beyondModules.ARGovernanceCard : null;
-  const BeyondView = beyondEnabled ? beyondModules.ARGovernanceView : null;
+  /** Optional injected view (tests); production light bundle omits this. */
+  const BeyondViewInjected = beyondEnabled ? beyondModules.ARGovernanceView : null;
 
   /** @type {string[] | null | undefined} */
   const sectionSelection = /** @type {any} */ (features).sections ?? featuresProp?.sections;
@@ -518,8 +522,14 @@ function App({
         sectionModules={sectionModules}
       />
 
-      {BeyondView ? (
-        <BeyondView open={arOpen} onClose={() => setArOpen(false)} />
+      {beyondEnabled && arOpen ? (
+        <Suspense fallback={null}>
+          {BeyondViewInjected ? (
+            <BeyondViewInjected open onClose={() => setArOpen(false)} />
+          ) : (
+            <ARGovernanceViewLazy open onClose={() => setArOpen(false)} />
+          )}
+        </Suspense>
       ) : null}
     </main>
     <AnimatePresence>

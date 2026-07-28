@@ -45,6 +45,10 @@ export function getSourceImportContracts() {
     "utf8",
   );
   const app = readFileSync(path.join(rootDir, "src/App.jsx"), "utf8");
+  const beyondBundle = readFileSync(
+    path.join(rootDir, "src/components/ar/beyondBundle.js"),
+    "utf8",
+  );
 
   return {
     mainDoesNotStaticImportApp: !/import\s+App\s+from/.test(main),
@@ -59,6 +63,14 @@ export function getSourceImportContracts() {
       !/from\s+["']\.\/components\/ar\/ARGovernanceView["']/.test(app) &&
       !/from\s+["']\.\/components\/ar\/ARGovernanceCard["']/.test(app) &&
       !/from\s+["']\.\/components\/ar\/beyondCvDeepLink["']/.test(app),
+    beyondBundleIsLight:
+      !/export\s+\{[^}]*ARGovernanceView/.test(beyondBundle) &&
+      !/from\s+["']\.\/ARGovernanceView/.test(beyondBundle) &&
+      /ARGovernanceCard/.test(beyondBundle),
+    appDefersBeyondViewUntilOpen:
+      /beyondEnabled && arOpen/.test(app) &&
+      /lazy\(\(\)\s*=>\s*import\(["']\.\/components\/ar\/ARGovernanceView\.jsx["']\)\)/.test(app),
+    mainAppliesIosStability: /applyIosStabilityProfile/.test(main),
   };
 }
 

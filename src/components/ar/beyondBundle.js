@@ -1,10 +1,8 @@
 /**
- * Eager Beyond-the-CV module surface for the production homepage.
- * Importing this module pulls the AR governance view graph into the same
- * JavaScript chunk as the caller (MindAR adapter code, .mind/.glb path strings).
- * mind-ar / three / tensorflow packages themselves remain dynamic inside the adapter.
+ * Light Beyond-the-CV surface for the production homepage.
+ * Card + deep-link only — does NOT pull ARGovernanceView / MindAR adapter graph.
+ * App lazy-imports ARGovernanceView only while Beyond is open.
  */
 
 export { default as ARGovernanceCard } from "./ARGovernanceCard.jsx";
-export { default as ARGovernanceView } from "./ARGovernanceView.jsx";
 export { shouldLaunchBeyondCvFromLocation } from "./beyondCvDeepLink.js";

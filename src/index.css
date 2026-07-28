@@ -310,16 +310,25 @@ body {
   border-radius: 9999px;
   background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.01) 10deg, rgba(34, 211, 238, 0.07) 25deg, rgba(59, 130, 246, 0.04) 42deg, transparent 64deg);
   filter: blur(0.35px);
-  animation: radar-sweep 28s linear infinite;
+  /* Continuous sweep only while the radar plane is in view (see .is-in-view). */
+  animation: none;
+  opacity: 0.45;
   transform-origin: center;
+}
+
+.radar-plane.is-in-view .radar-sweep {
+  animation: radar-sweep 28s linear infinite;
+  opacity: 1;
 }
 
 @media (max-width: 639px) {
   .radar-sweep {
     background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.05) 6deg, rgba(34, 211, 238, 0.2) 20deg, rgba(59, 130, 246, 0.12) 36deg, transparent 56deg);
     filter: blur(0.25px);
+  }
+
+  .radar-plane.is-in-view .radar-sweep {
     animation-duration: 12s;
-    will-change: transform;
   }
 }
 
@@ -332,8 +341,10 @@ body {
 @media (min-width: 640px) {
   .radar-sweep {
     background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.02) 8deg, rgba(34, 211, 238, 0.14) 24deg, rgba(59, 130, 246, 0.08) 38deg, transparent 58deg);
+  }
+
+  .radar-plane.is-in-view .radar-sweep {
     animation-duration: 18s;
-    will-change: auto;
   }
 }
 
@@ -659,6 +670,63 @@ body {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
 }
 
+/*
+ * iOS Safari stability profile (html[data-ios-stability="1"]).
+ * Applied from iosStability.js — preserves content/interaction, softens
+ * continuous compositor work that stacked across Q1+Q2 (full-top-half).
+ */
+html[data-ios-stability="1"] body {
+  animation: none;
+  --lens-glow: 0.5;
+}
+
+html[data-ios-stability="1"] .role-lens-letter,
+html[data-ios-stability="1"] .role-lens-reset-active,
+html[data-ios-stability="1"] .project-stage-current {
+  animation: none;
+}
+
+html[data-ios-stability="1"] .radar-plane.is-in-view .radar-sweep,
+html[data-ios-stability="1"] .radar-sweep {
+  animation: none !important;
+  filter: none;
+  opacity: 0.4;
+  will-change: auto;
+}
+
+html[data-ios-stability="1"] .ticker-mask {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+html[data-ios-stability="1"] .backdrop-blur,
+html[data-ios-stability="1"] .backdrop-blur-sm,
+html[data-ios-stability="1"] .backdrop-blur-md,
+html[data-ios-stability="1"] .backdrop-blur-lg,
+html[data-ios-stability="1"] .backdrop-blur-xl {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background-color: rgb(15 23 42 / 0.94);
+}
+
+html[data-ios-stability="1"] .role-lens-highlight-cyan {
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.34),
+    0 0 24px rgba(34, 211, 238, 0.2),
+    0 14px 32px rgba(2, 6, 23, 0.3);
+}
+
+html[data-ios-stability="1"] .role-lens-highlight-violet {
+  box-shadow:
+    0 0 0 1px rgba(167, 139, 250, 0.34),
+    0 0 24px rgba(167, 139, 250, 0.2),
+    0 14px 32px rgba(2, 6, 23, 0.3);
+}
+
+html[data-ios-stability="1"] .role-lens-radar-node {
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.22);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ar-interest-info-card,
   .ar-interest-info-card.is-open,
@@ -670,7 +738,8 @@ body {
     animation: none;
   }
 
-  .radar-sweep {
+  .radar-sweep,
+  .radar-plane.is-in-view .radar-sweep {
     animation: none;
     opacity: 0.35;
   }
