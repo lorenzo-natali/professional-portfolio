@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { lensRelevance } from "./portfolioData.js";
 import { isLensRelevant } from "./portfolioLens.js";
 import { subscribeTickerFrame } from "./createTickerFrameScheduler.js";
+import { subscribeTickerResize } from "./createTickerResizeObserver.js";
 
 export default function TickerStream({ stream, selectedLens = "Overview" }) {
   const trackRef = useRef(null);
@@ -59,13 +60,12 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
     };
 
     measure();
-    const resizeObserver = new ResizeObserver(measure);
-    resizeObserver.observe(track);
-    const unsubscribe = subscribeTickerFrame(onFrame);
+    const unsubscribeResize = subscribeTickerResize(track, measure);
+    const unsubscribeFrame = subscribeTickerFrame(onFrame);
 
     return () => {
-      unsubscribe();
-      resizeObserver.disconnect();
+      unsubscribeFrame();
+      unsubscribeResize();
     };
   }, [stream.direction]);
 
