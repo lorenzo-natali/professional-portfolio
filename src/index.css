@@ -95,30 +95,6 @@ code {
   mask-image: linear-gradient(to right, transparent, #000 14%, #000 86%, transparent);
 }
 
-/* Static depth for ticker rows — no backdrop-filter, no will-change, no extra rAF. */
-.ticker-stream {
-  position: relative;
-  box-shadow: inset 0 1px 0 rgb(148 163 184 / 0.1);
-}
-
-.ticker-stream[data-ticker-accent="cyan"] {
-  background-image: linear-gradient(
-    105deg,
-    rgb(34 211 238 / 0.1) 0%,
-    rgb(34 211 238 / 0.03) 42%,
-    rgb(15 23 42 / 0.2) 100%
-  );
-}
-
-.ticker-stream[data-ticker-accent="violet"] {
-  background-image: linear-gradient(
-    105deg,
-    rgb(167 139 250 / 0.1) 0%,
-    rgb(167 139 250 / 0.03) 42%,
-    rgb(15 23 42 / 0.2) 100%
-  );
-}
-
 .assistant-question-rail,
 .credentials-rail,
 .education-rail {
@@ -703,7 +679,9 @@ body {
  * iOS Safari stability profile (html[data-ios-stability="1"]).
  * Applied from iosStability.js — preserves content/interaction, softens
  * continuous compositor work that stacked across Q1+Q2 (full-top-half).
- * Package S1: static depth restorations only (no backdrop-filter / infinite CSS).
+ * History-aligned presentation: avoid opaque “panel” chrome where the
+ * pre-6.4 UI sat on the portfolio background (Role Lens, language cards,
+ * tickers). Still no backdrop-filter / mask-image / infinite first-viewport CSS.
  */
 html[data-ios-stability="1"] body {
   animation: none;
@@ -722,51 +700,33 @@ html[data-ios-stability="1"] .radar-sweep {
   will-change: auto;
 }
 
-/* Soft ticker edges via static overlays — no mask-image, no pointer capture. */
+/* No mask-image on iOS; no black lateral overlays (S1 regression). */
 html[data-ios-stability="1"] .ticker-mask {
-  position: relative;
   mask-image: none;
   -webkit-mask-image: none;
 }
 
 html[data-ios-stability="1"] .ticker-mask::before,
 html[data-ios-stability="1"] .ticker-mask::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2.75rem;
-  z-index: 1;
-  pointer-events: none;
+  content: none;
 }
 
-html[data-ios-stability="1"] .ticker-mask::before {
-  left: 0;
-  background: linear-gradient(to right, rgb(2 6 23) 0%, rgb(2 6 23 / 0.75) 35%, transparent 100%);
+/* Keep historical faint ticker tint; do not paint opaque S1 stream panels. */
+html[data-ios-stability="1"] .ticker-stream,
+html[data-ios-stability="1"] .ticker-stream.backdrop-blur {
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
-html[data-ios-stability="1"] .ticker-mask::after {
-  right: 0;
-  background: linear-gradient(to left, rgb(2 6 23) 0%, rgb(2 6 23 / 0.75) 35%, transparent 100%);
+html[data-ios-stability="1"] .ticker-stream[data-ticker-accent="cyan"].backdrop-blur {
+  background-color: rgb(34 211 238 / 0.04) !important;
 }
 
-html[data-ios-stability="1"] .ticker-stream[data-ticker-accent="cyan"] {
-  background-color: rgb(8 25 40 / 0.94);
-  border-color: rgb(34 211 238 / 0.28);
-  box-shadow:
-    inset 0 1px 0 rgb(34 211 238 / 0.14),
-    0 8px 20px rgb(2 6 23 / 0.35);
+html[data-ios-stability="1"] .ticker-stream[data-ticker-accent="violet"].backdrop-blur {
+  background-color: rgb(167 139 250 / 0.04) !important;
 }
 
-html[data-ios-stability="1"] .ticker-stream[data-ticker-accent="violet"] {
-  background-color: rgb(24 16 40 / 0.94);
-  border-color: rgb(167 139 250 / 0.28);
-  box-shadow:
-    inset 0 1px 0 rgb(167 139 250 / 0.14),
-    0 8px 20px rgb(2 6 23 / 0.35);
-}
-
-/* Replace glass blur with opaque fill + static gradient + inset highlight. */
+/* Default: replace glass blur with solid fill (SurfaceCards, etc.). */
 html[data-ios-stability="1"] .backdrop-blur,
 html[data-ios-stability="1"] .backdrop-blur-sm,
 html[data-ios-stability="1"] .backdrop-blur-md,
@@ -785,17 +745,37 @@ html[data-ios-stability="1"] .backdrop-blur-xl {
     0 12px 28px rgb(2 6 23 / 0.38);
 }
 
+/*
+ * Role Lens sticky — match 678ed1c “content on portfolio background”
+ * (bg-slate-950/90 over section bg-slate-950/95), not a bluish inner panel.
+ */
 html[data-ios-stability="1"] #role-lens .role-lens-sticky {
-  background-color: rgb(2 6 23 / 0.97);
-  background-image: linear-gradient(
-    180deg,
-    rgb(30 41 59 / 0.55) 0%,
-    rgb(2 6 23 / 0.2) 100%
-  );
-  box-shadow:
-    inset 0 1px 0 rgb(148 163 184 / 0.12),
-    0 10px 24px rgb(2 6 23 / 0.45);
-  border-bottom: 1px solid rgb(51 65 85 / 0.55);
+  background-color: rgb(2 6 23 / 0.9) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-bottom: 0 !important;
+}
+
+/* Language cards — restore light wash; flags sit on card without tile chrome. */
+html[data-ios-stability="1"] .language-card,
+html[data-ios-stability="1"] .language-card.backdrop-blur {
+  background-color: rgb(2 6 23 / 0.25) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+html[data-ios-stability="1"] .language-flag {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  width: 2.75rem;
+}
+
+/* Full-screen scrims must not inherit card inset/shadow treatment. */
+html[data-ios-stability="1"] .assistant-overlay-scrim {
+  background-color: rgb(2 6 23 / 0.75) !important;
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 html[data-ios-stability="1"] .role-lens-highlight-cyan {

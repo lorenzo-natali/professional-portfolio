@@ -62,7 +62,7 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
 
   return (
     <div
-      className={`ticker-stream overflow-hidden border-y-2 ${borderClass} ${backgroundClass}`}
+      className={`ticker-stream overflow-hidden border-y-2 ${borderClass} ${backgroundClass} backdrop-blur`}
       data-ticker-stream="1"
       data-ticker-accent={isRiskStream ? "cyan" : "violet"}
       onMouseEnter={() => {

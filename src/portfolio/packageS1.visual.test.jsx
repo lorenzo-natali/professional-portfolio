@@ -13,6 +13,11 @@ import {
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const indexCss = readFileSync(path.join(rootDir, "src/index.css"), "utf8");
+const appSrc = readFileSync(path.join(rootDir, "src/App.jsx"), "utf8");
+const heroSrc = readFileSync(
+  path.join(rootDir, "src/portfolio/sections/HeroSection.jsx"),
+  "utf8",
+);
 
 describe("Package S1 visual restorations", () => {
   afterEach(() => {
@@ -43,12 +48,9 @@ describe("Package S1 visual restorations", () => {
     expect(indexCss).not.toMatch(/project-stage-blink[^;\n]*infinite/);
   });
 
-  it("keeps iOS backdrop-filter disabled and uses static surface depth", () => {
+  it("keeps iOS backdrop-filter disabled", () => {
     expect(indexCss).toMatch(
       /html\[data-ios-stability="1"\][\s\S]*?\.backdrop-blur[\s\S]*?backdrop-filter:\s*none\s*!important/s,
-    );
-    expect(indexCss).toMatch(
-      /html\[data-ios-stability="1"\][\s\S]*?\.backdrop-blur[\s\S]*?inset\s+0\s+1px\s+0/s,
     );
     const start = indexCss.indexOf('html[data-ios-stability="1"] body');
     const iosBlock = indexCss.slice(start);
@@ -62,15 +64,15 @@ describe("Package S1 visual restorations", () => {
     expect(profile).not.toMatch(/filter:\s*blur\(/);
   });
 
-  it("replaces iOS ticker mask with pointer-events-none pseudo gradients", () => {
+  it("does not use mask-image or black lateral ticker overlays on iOS", () => {
     expect(indexCss).toMatch(
       /html\[data-ios-stability="1"\]\s+\.ticker-mask\s*\{[^}]*mask-image:\s*none/s,
     );
     expect(indexCss).toMatch(
-      /html\[data-ios-stability="1"\]\s+\.ticker-mask::before[\s\S]*?pointer-events:\s*none/s,
+      /html\[data-ios-stability="1"\]\s+\.ticker-mask::before[\s\S]*?content:\s*none/s,
     );
-    expect(indexCss).toMatch(
-      /html\[data-ios-stability="1"\]\s+\.ticker-mask::after[\s\S]*?pointer-events:\s*none/s,
+    expect(indexCss).not.toMatch(
+      /html\[data-ios-stability="1"\]\s+\.ticker-mask::before\s*\{[^}]*rgb\(2\s+6\s+23\)\s+0%/s,
     );
   });
 
@@ -101,5 +103,33 @@ describe("Package S1 visual restorations", () => {
     expect(scheduler).toMatch(/IntersectionObserver/);
     expect(scheduler).toMatch(/ResizeObserver/);
     expect(scheduler).toMatch(/let singleton = null/);
+  });
+});
+
+describe("History-based visual restoration (post-S1)", () => {
+  it("keeps Role Lens sticky without bluish panel chrome on iOS", () => {
+    expect(indexCss).toMatch(
+      /html\[data-ios-stability="1"\]\s+#role-lens\s+\.role-lens-sticky\s*\{[^}]*background-image:\s*none\s*!important/s,
+    );
+    expect(indexCss).not.toMatch(
+      /#role-lens\s+\.role-lens-sticky\s*\{[^}]*rgb\(30\s+41\s+59\s*\/\s*0\.55\)/s,
+    );
+  });
+
+  it("marks language cards for light wash and keeps flag container from 95377d5", () => {
+    expect(heroSrc).toMatch(/language-card/);
+    expect(indexCss).toMatch(
+      /\.language-flag\s*\{[^}]*width:\s*2\.75rem/s,
+    );
+    expect(indexCss).not.toMatch(
+      /\.language-flag\s*\{[^}]*border-radius:\s*9999px/s,
+    );
+  });
+
+  it("keeps assistant header visible with safe-area + dvh layout", () => {
+    expect(appSrc).toMatch(/assistant-overlay-scrim/);
+    expect(appSrc).toMatch(/env\(safe-area-inset-top\)/);
+    expect(appSrc).toMatch(/max-h-\[min\(92dvh,92vh\)\]/);
+    expect(appSrc).toMatch(/shrink-0 items-center justify-between/);
   });
 });

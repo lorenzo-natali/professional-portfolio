@@ -188,21 +188,21 @@ function PortfolioAssistant() {
             <motion.button
               type="button"
               aria-label="Close assistant overlay"
-              className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm"
+              className="assistant-overlay-scrim fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDrawerOpen(false)}
             />
             <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+              className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6 sm:pt-6 sm:pb-6"
               initial={{ opacity: 0, y: 18, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.28, ease: "easeOut" }}
             >
-              <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70">
-                <div className="flex items-center justify-between border-b border-slate-800 p-5">
+              <div className="my-auto flex max-h-[min(92dvh,92vh)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70">
+                <div className="flex shrink-0 items-center justify-between border-b border-slate-800 p-5">
                   <div className="flex items-center gap-3">
                     <img
                       src={publicAsset("profile.png")}
