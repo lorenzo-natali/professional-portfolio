@@ -314,9 +314,20 @@ body {
   transform-origin: center;
 }
 
-/* Step 4: only applied on mobile/iOS when JS drives the sweep at ~30 FPS. */
+/* Steps 4–5: mobile/iPhone only — JS drives ~30 FPS rotate; lighter/slower sweep. */
 .radar-sweep.radar-sweep--cadence-capped {
   animation: none;
+  /* ~55% of prior mobile scan intensity */
+  opacity: 0.55;
+  /* Softer mobile-style conic scan; same direction, visible leading edge */
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(56, 189, 248, 0.03) 6deg,
+    rgba(34, 211, 238, 0.11) 20deg,
+    rgba(59, 130, 246, 0.07) 36deg,
+    transparent 56deg
+  );
 }
 
 @media (max-width: 639px) {

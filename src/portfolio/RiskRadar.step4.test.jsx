@@ -12,10 +12,13 @@ vi.mock("./radarSweepCadence.js", async (importOriginal) => {
   return {
     ...actual,
     shouldReduceRadarSweepCadence: () => cadenceMock.shouldReduce,
-    getRadarSweepPeriodMs: () => 12_000,
+    getRadarSweepPeriodMs: () => actual.RADAR_SWEEP_MOBILE_PERIOD_MS,
     startCappedRadarSweep: (element, options) => {
       cadenceMock.startCalls.push(element);
-      const stop = actual.startCappedRadarSweep(element, options);
+      const stop = actual.startCappedRadarSweep(element, {
+        ...options,
+        periodMs: options?.periodMs ?? actual.RADAR_SWEEP_MOBILE_PERIOD_MS,
+      });
       return () => {
         cadenceMock.stop();
         stop();
@@ -25,9 +28,12 @@ vi.mock("./radarSweepCadence.js", async (importOriginal) => {
 });
 
 import RiskRadar from "./RiskRadar.jsx";
-import { RADAR_SWEEP_CADENCE_CLASS } from "./radarSweepCadence.js";
+import {
+  RADAR_SWEEP_CADENCE_CLASS,
+  RADAR_SWEEP_MOBILE_PERIOD_MS,
+} from "./radarSweepCadence.js";
 
-describe("Step 4 RiskRadar integration", () => {
+describe("Step 4–5 RiskRadar integration", () => {
   beforeEach(() => {
     cadenceMock.shouldReduce = false;
     cadenceMock.startCalls = [];
@@ -45,7 +51,7 @@ describe("Step 4 RiskRadar integration", () => {
     vi.unstubAllGlobals();
   });
 
-  it("desktop cadence remains uncapped", () => {
+  it("desktop cadence remains uncapped and without the lighter sweep class", () => {
     cadenceMock.shouldReduce = false;
     render(<RiskRadar />);
     expect(document.querySelector(".radar-sweep")).toBeTruthy();
@@ -53,7 +59,8 @@ describe("Step 4 RiskRadar integration", () => {
     expect(document.querySelector(`.${RADAR_SWEEP_CADENCE_CLASS}`)).toBeNull();
   });
 
-  it("mobile cadence starts exactly one capped sweep loop", () => {
+  it("mobile applies the cadence-capped visual class with a 24s period constant", () => {
+    expect(RADAR_SWEEP_MOBILE_PERIOD_MS).toBe(24_000);
     cadenceMock.shouldReduce = true;
     render(<RiskRadar />);
     expect(cadenceMock.startCalls).toHaveLength(1);

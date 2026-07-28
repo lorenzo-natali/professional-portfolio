@@ -1,13 +1,14 @@
 /**
- * Step 4 — Mobile/iOS Risk Radar sweep cadence cap (~30 FPS).
+ * Step 4–5 — Mobile/iOS Risk Radar sweep: ~30 FPS cadence + lighter/slower profile.
  *
  * Desktop keeps the original CSS @keyframes radar-sweep animation.
  * On mobile radar viewports / iPhone|iPod, CSS animation is disabled and a
  * single rAF loop advances rotate() only after the frame interval elapses,
- * using elapsed time so apparent angular speed matches the CSS period.
+ * using elapsed time so apparent angular speed matches the mobile period.
  */
 
 export const RADAR_SWEEP_MOBILE_FRAME_MS = 1000 / 30;
+export const RADAR_SWEEP_MOBILE_PERIOD_MS = 24_000;
 export const RADAR_SWEEP_CADENCE_CLASS = "radar-sweep--cadence-capped";
 
 /** Activation: existing mobile radar breakpoint OR iPhone/iPod (incl. landscape). */
@@ -23,17 +24,19 @@ export function shouldReduceRadarSweepCadence(
   return mobileRadarViewport || iosPhone;
 }
 
-/** Match CSS periods: ≤639px → 12s; otherwise (e.g. iPhone landscape) → 18s. */
+/**
+ * Step 5: one consistent mobile/iPhone sweep period (~24s), independent of
+ * the previous 12s / 18s CSS durations.
+ */
 export function getRadarSweepPeriodMs(
-  win = typeof window !== "undefined" ? window : undefined,
+  _win = typeof window !== "undefined" ? window : undefined,
 ) {
-  if (win?.matchMedia?.("(max-width: 639px)")?.matches) return 12_000;
-  return 18_000;
+  return RADAR_SWEEP_MOBILE_PERIOD_MS;
 }
 
 /**
  * @param {HTMLElement} element
- * @param {{ periodMs?: number, frameIntervalMs?: number, now?: () => number }} [options]
+ * @param {{ periodMs?: number, frameIntervalMs?: number }} [options]
  * @returns {() => void} stop
  */
 export function startCappedRadarSweep(element, options = {}) {
