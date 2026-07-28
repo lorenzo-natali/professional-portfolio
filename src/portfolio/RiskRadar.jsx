@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   coverageBandText,
@@ -14,43 +14,17 @@ import {
 } from "./portfolioLens.js";
 import ProfileRadarChart from "./ProfileRadarChart.jsx";
 import { SurfaceCard } from "./portfolioUi.jsx";
-import { isIosStabilityActive } from "./iosStability.js";
 
 export default function RiskRadar({ selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
   const [mapView, setMapView] = useState("risk-map");
   const [activeCoverageId, setActiveCoverageId] = useState(profileCoverage[0].id);
-  const [inView, setInView] = useState(false);
-  const sectionRef = useRef(null);
   const selectedDomain = radarDomains[activeDomain];
   const selectedTone = getRadarTone(selectedDomain.maturity);
   const selectedCoverage = profileCoverage.find((axis) => axis.id === activeCoverageId) ?? profileCoverage[0];
   const selectedCoverageTone = getCoverageTone(selectedCoverage.band);
-  const allowContinuousMotion = inView && !isIosStabilityActive();
-
-  useEffect(() => {
-    const el = sectionRef.current;
-    if (!el || typeof IntersectionObserver !== "function") {
-      setInView(true);
-      return undefined;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        setInView(Boolean(entry?.isIntersecting && (entry.intersectionRatio ?? 0) > 0));
-      },
-      { root: null, rootMargin: "48px 0px", threshold: [0, 0.05] },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
   return (
-    <section
-      ref={sectionRef}
-      id="risk-radar"
-      className="border-t border-slate-800/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20"
-      data-radar-in-view={allowContinuousMotion ? "1" : "0"}
-    >
+    <section id="risk-radar" className="border-t border-slate-800/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-7 max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight !text-slate-50 sm:text-3xl">
@@ -102,9 +76,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: "easeOut" }}
-                  className={`radar-plane relative mx-auto aspect-square w-full max-w-[500px] overflow-hidden rounded-full border border-slate-800/80 bg-slate-950/45${
-                    allowContinuousMotion ? " is-in-view" : ""
-                  }`}
+                  className="radar-plane relative mx-auto aspect-square w-full max-w-[500px] overflow-hidden rounded-full border border-slate-800/80 bg-slate-950/45"
                 >
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.14),transparent_18%),radial-gradient(circle_at_center,rgba(124,58,237,0.08),transparent_42%)]" />
                   <div className="radar-sweep" />

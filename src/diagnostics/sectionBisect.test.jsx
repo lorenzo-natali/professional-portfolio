@@ -31,11 +31,13 @@ vi.mock("../App.jsx", () => ({
 
 vi.mock("../components/ar/beyondBundle.js", () => ({
   ARGovernanceCard: () => null,
+  ARGovernanceView: () => null,
   shouldLaunchBeyondCvFromLocation: () => false,
 }));
 
 vi.mock("../components/ar/beyondBundleDeferred.jsx", () => ({
   ARGovernanceCard: () => null,
+  ARGovernanceView: () => null,
   shouldLaunchBeyondCvFromLocation: () => false,
 }));
 
@@ -136,7 +138,7 @@ describe("siteDiag section bisection", () => {
 
   it("publishes section runtime audit rows", () => {
     const rows = getPortfolioSectionRuntimeAudit();
-    expect(rows.find((r) => r.section === "hero")?.risk).toBe("medium");
+    expect(rows.find((r) => r.section === "hero")?.risk).toBe("high");
     expect(rows.find((r) => r.section === "risk-radar")?.risk).toBe("high");
     expect(rows.length).toBe(8);
   });

@@ -29,11 +29,13 @@ vi.mock("../App.jsx", () => ({
 
 vi.mock("../components/ar/beyondBundle.js", () => ({
   ARGovernanceCard: () => null,
+  ARGovernanceView: () => null,
   shouldLaunchBeyondCvFromLocation: () => false,
 }));
 
 vi.mock("../components/ar/beyondBundleDeferred.jsx", () => ({
   ARGovernanceCard: () => null,
+  ARGovernanceView: () => null,
   shouldLaunchBeyondCvFromLocation: () => false,
 }));
 

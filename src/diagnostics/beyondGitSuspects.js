@@ -105,16 +105,22 @@ export const BEYOND_GIT_SUSPECTS = Object.freeze([
  */
 export const SMALLEST_IDLE_HOMEPAGE_SUSPECT_SET = Object.freeze([
   {
-    id: "cumulative-top-half-compositor",
-    commit: "step-6.3+",
-    files: "TickerStream + body lens-glow + role-lens CSS + SurfaceCard backdrop-blur (Q1+Q2)",
-    why: "Device: full-q1 and full-q2 stable alone; full-top-half / full-core crash — cumulative compositor/runtime ownership",
+    id: "static-app-ar-graph",
+    commit: "5499715",
+    files: "App.jsx → beyondBundle → ARGovernanceView → MindARTrackingAdapter",
+    why: "Root cause of AR modules on every normal homepage load even with AR closed",
   },
   {
-    id: "duplicated-ticker-raf-pre-6.4",
-    commit: "pre-step-6.4",
-    files: "TickerStream.jsx (per-instance rAF + ResizeObserver)",
-    why: "Historical: 2–3 independent ticker loops on hero; mitigated by shared createTickerScheduler",
+    id: "interest-glb-pipeline-growth",
+    commit: "153bbdc",
+    files: "interest layer / loadInterestGlb / adapter static imports",
+    why: "Largest eager JS-graph weight growth while assets stay unfetched until session",
+  },
+  {
+    id: "closed-view-resize-hook",
+    commit: "5499715+",
+    files: "ARGovernanceView.jsx → useIsMobileDevice.js",
+    why: "ARGovernanceView mounts when closed and installs window.resize; weak alone, real as App-mount delta vs siteDiag=effects",
   },
   {
     id: "global-main-latch",
@@ -125,7 +131,7 @@ export const SMALLEST_IDLE_HOMEPAGE_SUSPECT_SET = Object.freeze([
   {
     id: "real-app-content-runtimes",
     commit: "pre-Beyond + retained",
-    files: "App.jsx TickerStream, RiskRadar motion, PortfolioAssistant interval",
+    files: "App.jsx TickerStream, RiskRadar infinite motion, PortfolioAssistant interval",
     why: "effects shell is stable, so real App content owners remain primary non-AR candidates",
   },
 ]);

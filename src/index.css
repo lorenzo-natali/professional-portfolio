@@ -161,22 +161,8 @@ body {
     0 0 calc(22px + 12px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.28 + 0.14 * var(--lens-glow, 0)));
 }
 
-.role-lens-reset-pulse {
-  /* Finite, event-driven only — opacity/transform; 3 iterations ≈ 2.55s then static. */
-  animation: role-lens-reset-pulse 0.85s ease-in-out 3;
-}
-
-@keyframes role-lens-reset-pulse {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
+.role-lens-reset-active {
+  animation: role-lens-reset-pulse 3.2s ease-in-out infinite;
 }
 
 @keyframes assistant-signal-flash {
@@ -215,6 +201,21 @@ body {
       0 0 8px rgba(103, 232, 249, 0.72),
       0 0 18px rgba(34, 211, 238, 0.34);
     transform: scale(1.14);
+  }
+}
+
+@keyframes role-lens-reset-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    text-shadow: 0 0 0 rgba(103, 232, 249, 0);
+  }
+
+  50% {
+    opacity: 1;
+    text-shadow:
+      0 0 8px rgba(103, 232, 249, 0.34),
+      0 0 18px rgba(34, 211, 238, 0.18);
   }
 }
 
@@ -272,9 +273,7 @@ body {
 }
 
 .project-stage-current {
-  /* Finite blink (3×) then hold the bright “current” state — no infinite loop. */
-  animation: project-stage-blink 1s steps(1, end) 3;
-  animation-fill-mode: forwards;
+  animation: project-stage-blink 1s steps(1, end) infinite;
 }
 
 @keyframes project-stage-blink {
@@ -284,10 +283,6 @@ body {
 
   50% {
     background-color: rgba(34, 211, 238, 0.45);
-  }
-
-  100% {
-    background-color: rgb(165, 243, 252);
   }
 }
 
@@ -315,25 +310,16 @@ body {
   border-radius: 9999px;
   background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.01) 10deg, rgba(34, 211, 238, 0.07) 25deg, rgba(59, 130, 246, 0.04) 42deg, transparent 64deg);
   filter: blur(0.35px);
-  /* Continuous sweep only while the radar plane is in view (see .is-in-view). */
-  animation: none;
-  opacity: 0.45;
-  transform-origin: center;
-}
-
-.radar-plane.is-in-view .radar-sweep {
   animation: radar-sweep 28s linear infinite;
-  opacity: 1;
+  transform-origin: center;
 }
 
 @media (max-width: 639px) {
   .radar-sweep {
     background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.05) 6deg, rgba(34, 211, 238, 0.2) 20deg, rgba(59, 130, 246, 0.12) 36deg, transparent 56deg);
     filter: blur(0.25px);
-  }
-
-  .radar-plane.is-in-view .radar-sweep {
     animation-duration: 12s;
+    will-change: transform;
   }
 }
 
@@ -346,10 +332,8 @@ body {
 @media (min-width: 640px) {
   .radar-sweep {
     background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.02) 8deg, rgba(34, 211, 238, 0.14) 24deg, rgba(59, 130, 246, 0.08) 38deg, transparent 58deg);
-  }
-
-  .radar-plane.is-in-view .radar-sweep {
     animation-duration: 18s;
+    will-change: auto;
   }
 }
 
@@ -675,127 +659,6 @@ body {
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
 }
 
-/*
- * iOS Safari stability profile (html[data-ios-stability="1"]).
- * Applied from iosStability.js — preserves content/interaction, softens
- * continuous compositor work that stacked across Q1+Q2 (full-top-half).
- * History-aligned presentation: avoid opaque “panel” chrome where the
- * pre-6.4 UI sat on the portfolio background (Role Lens, language cards,
- * tickers). Still no backdrop-filter / mask-image / infinite first-viewport CSS.
- */
-html[data-ios-stability="1"] body {
-  animation: none;
-  --lens-glow: 0.5;
-}
-
-html[data-ios-stability="1"] .role-lens-letter {
-  animation: none;
-}
-
-html[data-ios-stability="1"] .radar-plane.is-in-view .radar-sweep,
-html[data-ios-stability="1"] .radar-sweep {
-  animation: none !important;
-  filter: none;
-  opacity: 0.4;
-  will-change: auto;
-}
-
-/* No mask-image on iOS; no black lateral overlays (S1 regression). */
-html[data-ios-stability="1"] .ticker-mask {
-  mask-image: none;
-  -webkit-mask-image: none;
-}
-
-html[data-ios-stability="1"] .ticker-mask::before,
-html[data-ios-stability="1"] .ticker-mask::after {
-  content: none;
-}
-
-/* Keep historical faint ticker tint; do not paint opaque S1 stream panels. */
-html[data-ios-stability="1"] .ticker-stream,
-html[data-ios-stability="1"] .ticker-stream.backdrop-blur {
-  background-image: none !important;
-  box-shadow: none !important;
-}
-
-html[data-ios-stability="1"] .ticker-stream[data-ticker-accent="cyan"].backdrop-blur {
-  background-color: rgb(34 211 238 / 0.04) !important;
-}
-
-html[data-ios-stability="1"] .ticker-stream[data-ticker-accent="violet"].backdrop-blur {
-  background-color: rgb(167 139 250 / 0.04) !important;
-}
-
-/* Default: replace glass blur with solid fill (SurfaceCards, etc.). */
-html[data-ios-stability="1"] .backdrop-blur,
-html[data-ios-stability="1"] .backdrop-blur-sm,
-html[data-ios-stability="1"] .backdrop-blur-md,
-html[data-ios-stability="1"] .backdrop-blur-lg,
-html[data-ios-stability="1"] .backdrop-blur-xl {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-  background-color: rgb(15 23 42 / 0.96);
-  background-image: linear-gradient(
-    180deg,
-    rgb(51 65 85 / 0.28) 0%,
-    rgb(15 23 42 / 0) 52%
-  );
-  box-shadow:
-    inset 0 1px 0 rgb(226 232 240 / 0.1),
-    0 12px 28px rgb(2 6 23 / 0.38);
-}
-
-/*
- * Role Lens sticky — match 678ed1c “content on portfolio background”
- * (bg-slate-950/90 over section bg-slate-950/95), not a bluish inner panel.
- */
-html[data-ios-stability="1"] #role-lens .role-lens-sticky {
-  background-color: rgb(2 6 23 / 0.9) !important;
-  background-image: none !important;
-  box-shadow: none !important;
-  border-bottom: 0 !important;
-}
-
-/* Language cards — restore light wash; flags sit on card without tile chrome. */
-html[data-ios-stability="1"] .language-card,
-html[data-ios-stability="1"] .language-card.backdrop-blur {
-  background-color: rgb(2 6 23 / 0.25) !important;
-  background-image: none !important;
-  box-shadow: none !important;
-}
-
-html[data-ios-stability="1"] .language-flag {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  width: 2.75rem;
-}
-
-/* Full-screen scrims must not inherit card inset/shadow treatment. */
-html[data-ios-stability="1"] .assistant-overlay-scrim {
-  background-color: rgb(2 6 23 / 0.75) !important;
-  background-image: none !important;
-  box-shadow: none !important;
-}
-
-html[data-ios-stability="1"] .role-lens-highlight-cyan {
-  box-shadow:
-    0 0 0 1px rgba(34, 211, 238, 0.34),
-    0 0 24px rgba(34, 211, 238, 0.2),
-    0 14px 32px rgba(2, 6, 23, 0.3);
-}
-
-html[data-ios-stability="1"] .role-lens-highlight-violet {
-  box-shadow:
-    0 0 0 1px rgba(167, 139, 250, 0.34),
-    0 0 24px rgba(167, 139, 250, 0.2),
-    0 14px 32px rgba(2, 6, 23, 0.3);
-}
-
-html[data-ios-stability="1"] .role-lens-radar-node {
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.22);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .ar-interest-info-card,
   .ar-interest-info-card.is-open,
@@ -807,15 +670,14 @@ html[data-ios-stability="1"] .role-lens-radar-node {
     animation: none;
   }
 
-  .radar-sweep,
-  .radar-plane.is-in-view .radar-sweep {
+  .radar-sweep {
     animation: none;
     opacity: 0.35;
   }
 
   body,
   .role-lens-letter,
-  .role-lens-reset-pulse,
+  .role-lens-reset-active,
   .role-lens-highlight-cyan,
   .role-lens-highlight-violet,
   .role-lens-radar-node,
@@ -842,7 +704,8 @@ html[data-ios-stability="1"] .role-lens-radar-node {
     box-shadow: none;
   }
 
-  .role-lens-reset-pulse {
+  .role-lens-reset-active {
     opacity: 1;
+    text-shadow: 0 0 8px rgba(103, 232, 249, 0.18);
   }
 }

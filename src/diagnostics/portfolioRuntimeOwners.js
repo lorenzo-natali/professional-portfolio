@@ -29,14 +29,13 @@ export const PORTFOLIO_RUNTIME_OWNERS = Object.freeze([
     notes: "Prove one root via lifecycle reactRootMountCount===1 per boot",
   },
   {
-    subsystem: "TickerStream shared scheduler",
+    subsystem: "TickerStream rAF + ResizeObserver",
     mountedOnHomepage: true,
-    loopListenerObserver:
-      "one createTickerScheduler rAF; shared ResizeObserver + IntersectionObserver; pause offscreen",
-    cleanup: "unsubscribe; observers disconnect when last subscriber leaves; rAF stops when none visible",
-    suspectedRisk: "medium",
-    owner: "src/portfolio/createTickerScheduler.js + TickerStream.jsx",
-    notes: "Step 6.4: was N rAF loops; now ≤1 active scheduler for full-top-half",
+    loopListenerObserver: "requestAnimationFrame loop per stream; ResizeObserver on track",
+    cleanup: "cancelAnimationFrame + resizeObserver.disconnect on unmount",
+    suspectedRisk: "high",
+    owner: "src/App.jsx TickerStream",
+    notes: "Continuous GPU/compositor work while homepage idle",
   },
   {
     subsystem: "PortfolioAssistant preview interval",

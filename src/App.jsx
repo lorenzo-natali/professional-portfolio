@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DEFAULT_APP_FEATURES,
@@ -21,9 +21,6 @@ import "./index.css";
  *   shouldLaunchBeyondCvFromLocation?: (loc?: Location | { search?: string, hash?: string, href?: string }) => boolean,
  * }} BeyondModules
  */
-
-/** Heavy AR graph — imported only after Beyond opens (never while closed). */
-const ARGovernanceViewLazy = lazy(() => import("./components/ar/ARGovernanceView.jsx"));
 
 function getAssistantSignals(prompt) {
   if (!prompt.signalIds?.length) {
@@ -188,21 +185,21 @@ function PortfolioAssistant() {
             <motion.button
               type="button"
               aria-label="Close assistant overlay"
-              className="assistant-overlay-scrim fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm"
+              className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsDrawerOpen(false)}
             />
             <motion.div
-              className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center sm:p-6 sm:pt-6 sm:pb-6"
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
               initial={{ opacity: 0, y: 18, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.28, ease: "easeOut" }}
             >
-              <div className="my-auto flex max-h-[min(92dvh,92vh)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-800 p-5">
+              <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70">
+                <div className="flex items-center justify-between border-b border-slate-800 p-5">
                   <div className="flex items-center gap-3">
                     <img
                       src={publicAsset("profile.png")}
@@ -443,8 +440,7 @@ function App({
       : () => false;
 
   const BeyondCard = beyondEnabled ? beyondModules.ARGovernanceCard : null;
-  /** Optional injected view (tests); production light bundle omits this. */
-  const BeyondViewInjected = beyondEnabled ? beyondModules.ARGovernanceView : null;
+  const BeyondView = beyondEnabled ? beyondModules.ARGovernanceView : null;
 
   /** @type {string[] | null | undefined} */
   const sectionSelection = /** @type {any} */ (features).sections ?? featuresProp?.sections;
@@ -522,14 +518,8 @@ function App({
         sectionModules={sectionModules}
       />
 
-      {beyondEnabled && arOpen ? (
-        <Suspense fallback={null}>
-          {BeyondViewInjected ? (
-            <BeyondViewInjected open onClose={() => setArOpen(false)} />
-          ) : (
-            <ARGovernanceViewLazy open onClose={() => setArOpen(false)} />
-          )}
-        </Suspense>
+      {BeyondView ? (
+        <BeyondView open={arOpen} onClose={() => setArOpen(false)} />
       ) : null}
     </main>
     <AnimatePresence>

@@ -69,7 +69,7 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
               {languageItems.map((item) => (
                 <div
                   key={item.language}
-                  className="language-card flex min-w-0 items-center gap-3 rounded-lg bg-slate-950/25 px-3.5 py-3 backdrop-blur"
+                  className="flex min-w-0 items-center gap-3 rounded-lg bg-slate-950/25 px-3.5 py-3 backdrop-blur"
                 >
                   <div className="language-flag shrink-0" aria-hidden="true">
                     <span>{item.flag}</span>
