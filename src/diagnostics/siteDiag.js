@@ -4,14 +4,16 @@
  *
  * Additive shells:
  *   blank | shell | motion | effects
- * Full App + subtractive variants:
- *   full | full-no-beyond | full-no-assistant | full-no-intro | full-no-preload | full-core
+ * Full App + subtractive / section-bisection variants:
+ *   full | full-no-* | full-core
+ *   full-top-half | full-bottom-half | full-q1..full-q4
  */
 
 import {
   getAppFeaturesForSiteDiagMode,
   isFullAppSiteDiagMode,
 } from "./appFeatures.js";
+import { getSectionsForSiteDiagMode } from "../portfolio/sectionCatalog.js";
 
 export const SITE_DIAG_PARAM = "siteDiag";
 
@@ -26,6 +28,12 @@ export const SITE_DIAG_MODES = Object.freeze([
   "full-no-intro",
   "full-no-preload",
   "full-core",
+  "full-top-half",
+  "full-bottom-half",
+  "full-q1",
+  "full-q2",
+  "full-q3",
+  "full-q4",
 ]);
 
 /** Canonical subsystem ids used by mode matrices + init markers. */
@@ -44,13 +52,15 @@ export const SITE_DIAG_SUBSYSTEM_IDS = Object.freeze([
   "arPreloadEager",
   "canvasWebgl",
   "fullPortfolioApp",
+  "sectionBisect",
+  "runtimeCounters",
 ]);
 
 /**
- * @typedef {"blank"|"shell"|"motion"|"effects"|"full"|"full-no-beyond"|"full-no-assistant"|"full-no-intro"|"full-no-preload"|"full-core"} SiteDiagMode
+ * @typedef {typeof SITE_DIAG_MODES[number]} SiteDiagMode
  */
 
-function fullAppSubsystemSet(features) {
+function fullAppSubsystemSet(features, mode) {
   const set = new Set([
     "lifecycleTrace",
     "reactRoot",
@@ -61,6 +71,7 @@ function fullAppSubsystemSet(features) {
     "tickerRaf",
     "cssInfiniteAnimations",
     "fullPortfolioApp",
+    "runtimeCounters",
   ]);
   if (features.assistant) set.add("portfolioAssistant");
   if (features.intro) set.add("portfolioIntro");
@@ -69,6 +80,7 @@ function fullAppSubsystemSet(features) {
     set.add("canvasWebgl");
   }
   if (features.beyond && features.preload) set.add("arPreloadEager");
+  if (getSectionsForSiteDiagMode(mode)) set.add("sectionBisect");
   return set;
 }
 
@@ -101,21 +113,13 @@ const MODE_ENABLED = Object.freeze({
       "cssInfiniteAnimations",
     ]),
   ),
-  full: Object.freeze(fullAppSubsystemSet(getAppFeaturesForSiteDiagMode("full"))),
-  "full-no-beyond": Object.freeze(
-    fullAppSubsystemSet(getAppFeaturesForSiteDiagMode("full-no-beyond")),
-  ),
-  "full-no-assistant": Object.freeze(
-    fullAppSubsystemSet(getAppFeaturesForSiteDiagMode("full-no-assistant")),
-  ),
-  "full-no-intro": Object.freeze(
-    fullAppSubsystemSet(getAppFeaturesForSiteDiagMode("full-no-intro")),
-  ),
-  "full-no-preload": Object.freeze(
-    fullAppSubsystemSet(getAppFeaturesForSiteDiagMode("full-no-preload")),
-  ),
-  "full-core": Object.freeze(
-    fullAppSubsystemSet(getAppFeaturesForSiteDiagMode("full-core")),
+  ...Object.fromEntries(
+    SITE_DIAG_MODES.filter((m) => m.startsWith("full")).map((mode) => [
+      mode,
+      Object.freeze(
+        fullAppSubsystemSet(getAppFeaturesForSiteDiagMode(mode), mode),
+      ),
+    ]),
   ),
 });
 

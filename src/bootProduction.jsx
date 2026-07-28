@@ -8,9 +8,10 @@ import {
 } from "./components/ar/createArRuntimeAudit";
 import { installArExitTrace } from "./components/ar/createArExitTrace";
 import { getArRuntimeFlags } from "./components/ar/arRuntimeFlags";
+import { EAGER_SECTION_MODULES } from "./portfolio/sectionLoaders.js";
 
 /**
- * Production boot — eager Beyond graph (unchanged homepage composition).
+ * Production boot — eager Beyond graph + eager portfolio sections.
  * Kept in a dedicated module so siteDiag boots do not statically import App/AR.
  */
 export function bootProduction() {
@@ -28,7 +29,10 @@ export function bootProduction() {
   const root = createRoot(document.getElementById("root"));
   root.render(
     <StrictMode>
-      <App beyondModules={beyondModules} />
+      <App
+        beyondModules={beyondModules}
+        eagerSectionModules={EAGER_SECTION_MODULES}
+      />
     </StrictMode>,
   );
 

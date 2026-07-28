@@ -8,6 +8,11 @@ import {
 } from "./siteDiag.js";
 import { getPortfolioRuntimeOwnerMatrix } from "./portfolioRuntimeOwners.js";
 import { getFullVsEffectsDeltaMatrix } from "./fullVsEffectsDelta.js";
+import { getPortfolioSectionRuntimeAudit } from "./sectionRuntimeAudit.js";
+import {
+  getSectionLabel,
+  getSectionsForSiteDiagMode,
+} from "../portfolio/sectionCatalog.js";
 import {
   PortfolioLifecycleAppProbe,
   PortfolioLifecycleBootBanner,
@@ -35,7 +40,8 @@ const mono = {
 /**
  * True subtractive full-App variant loader.
  * Beyond modules are imported only when features.beyond is true.
- * preload=false uses beyondBundleDeferred (heavy AR view deferred until open).
+ * Section bisection passes features.sections so App/PortfolioCore dynamic-imports
+ * only that half/quarter (App does not statically import EAGER_SECTION_MODULES).
  */
 function FullAppVariant({ mode }) {
   const [payload, setPayload] = useState(null);
@@ -47,8 +53,17 @@ function FullAppVariant({ mode }) {
     async function load() {
       try {
         markSiteDiagInit("fullPortfolioApp", mode);
+        markSiteDiagInit("runtimeCounters", mode);
         if (features.assistant) markSiteDiagInit("portfolioAssistant", mode);
         if (features.intro) markSiteDiagInit("portfolioIntro", mode);
+
+        const sectionIds = getSectionsForSiteDiagMode(mode);
+        if (sectionIds) {
+          markSiteDiagInit("sectionBisect", sectionIds.join(","));
+          for (const id of sectionIds) {
+            markSiteDiagInit(`section:${id}`, mode);
+          }
+        }
 
         const [{ default: App }] = await Promise.all([import("../App.jsx")]);
 
@@ -123,12 +138,19 @@ export default function SiteDiagRoot({ mode }) {
   const matrix = getSiteDiagSubsystemMatrix(mode);
   const audit = getPortfolioRuntimeOwnerMatrix();
   const delta = getFullVsEffectsDeltaMatrix();
+  const sectionAudit = getPortfolioSectionRuntimeAudit();
+  const sectionIds = getSectionsForSiteDiagMode(mode);
 
   if (isFullAppSiteDiagMode(mode)) {
     return (
       <>
         <PortfolioLifecycleBootBanner />
-        <SiteDiagMatrixHud mode={mode} matrix={matrix} compact />
+        <SiteDiagMatrixHud
+          mode={mode}
+          matrix={matrix}
+          sectionIds={sectionIds}
+          compact
+        />
         <PortfolioLifecycleAppProbe>
           <FullAppVariant mode={mode} />
         </PortfolioLifecycleAppProbe>
@@ -218,6 +240,20 @@ export default function SiteDiagRoot({ mode }) {
             .join("\n")}
         </pre>
       </details>
+
+      <details style={{ maxWidth: 900, margin: "16px auto 0", ...mono }}>
+        <summary style={{ cursor: "pointer" }}>
+          Per-section runtime audit
+        </summary>
+        <pre style={{ whiteSpace: "pre-wrap", marginTop: 10, opacity: 0.9 }}>
+          {sectionAudit
+            .map(
+              (row) =>
+                `${row.section} | ${row.files} | runtime=${row.continuousRuntime} | css=${row.compositorHeavyCss} | observers=${row.observers} | cleanup=${row.cleanup} | risk=${row.risk}`,
+            )
+            .join("\n")}
+        </pre>
+      </details>
     </div>
   );
 }
@@ -265,7 +301,7 @@ function StaticShellBody() {
   );
 }
 
-function SiteDiagMatrixHud({ mode, matrix, compact = false }) {
+function SiteDiagMatrixHud({ mode, matrix, sectionIds = null, compact = false }) {
   return (
     <div
       data-site-diag-matrix={mode}
@@ -294,6 +330,15 @@ function SiteDiagMatrixHud({ mode, matrix, compact = false }) {
       <div style={{ fontWeight: 700, marginBottom: 6 }}>
         enabled subsystems · siteDiag={mode}
       </div>
+      {sectionIds ? (
+        <div
+          data-site-diag-sections={mode}
+          style={{ marginBottom: 8, opacity: 0.95 }}
+        >
+          sections:{" "}
+          {sectionIds.map((id) => getSectionLabel(id)).join(" · ")}
+        </div>
+      ) : null}
       <ul style={{ margin: 0, paddingLeft: 16 }}>
         {matrix.map((row) => (
           <li

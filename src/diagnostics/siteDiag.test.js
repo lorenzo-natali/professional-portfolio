@@ -54,6 +54,12 @@ describe("siteDiag flags", () => {
     });
     expect(getAppFeaturesForSiteDiagMode("full-no-preload").preload).toBe(false);
     expect(getAppFeaturesForSiteDiagMode("effects")).toBeNull();
+    expect(getAppFeaturesForSiteDiagMode("full-top-half")).toMatchObject({
+      beyond: false,
+      assistant: false,
+      intro: false,
+      sections: ["hero", "role-lens", "capabilities", "credentials"],
+    });
   });
 
   it("full-no-beyond matrix disables AR subsystems", () => {
