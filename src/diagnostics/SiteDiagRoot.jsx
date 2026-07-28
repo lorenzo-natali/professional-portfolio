@@ -1,17 +1,19 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import {
+  getAppFeaturesForSiteDiagMode,
   getSiteDiagSubsystemMatrix,
+  isFullAppSiteDiagMode,
   isSiteDiagSubsystemEnabled,
   markSiteDiagInit,
 } from "./siteDiag.js";
 import { getPortfolioRuntimeOwnerMatrix } from "./portfolioRuntimeOwners.js";
+import { getFullVsEffectsDeltaMatrix } from "./fullVsEffectsDelta.js";
 import {
   PortfolioLifecycleAppProbe,
   PortfolioLifecycleBootBanner,
   SiteDiagTickerProbe,
 } from "./PortfolioLifecycleBoundary.jsx";
 
-const FullPortfolioApp = lazy(() => import("../App.jsx"));
 const MotionEffectsBody = lazy(() => import("./SiteDiagMotionEffectsBody.jsx"));
 
 const panelStyle = {
@@ -29,6 +31,69 @@ const mono = {
   fontSize: 12,
   lineHeight: 1.45,
 };
+
+/**
+ * True subtractive full-App variant loader.
+ * Beyond modules are imported only when features.beyond is true.
+ * preload=false uses beyondBundleDeferred (heavy AR view deferred until open).
+ */
+function FullAppVariant({ mode }) {
+  const [payload, setPayload] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const features = getAppFeaturesForSiteDiagMode(mode);
+    async function load() {
+      try {
+        markSiteDiagInit("fullPortfolioApp", mode);
+        if (features.assistant) markSiteDiagInit("portfolioAssistant", mode);
+        if (features.intro) markSiteDiagInit("portfolioIntro", mode);
+
+        const [{ default: App }] = await Promise.all([import("../App.jsx")]);
+
+        let beyondModules = null;
+        if (features.beyond) {
+          markSiteDiagInit("arBeyond", mode);
+          markSiteDiagInit("canvasWebgl", "on-demand-when-open");
+          if (features.preload) {
+            markSiteDiagInit("arPreloadEager", mode);
+            beyondModules = await import("../components/ar/beyondBundle.js");
+          } else {
+            beyondModules = await import(
+              "../components/ar/beyondBundleDeferred.jsx"
+            );
+          }
+        }
+
+        if (!cancelled) {
+          setPayload({ App, beyondModules, features });
+        }
+      } catch (err) {
+        if (!cancelled) setError(err);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
+
+  if (error) {
+    return (
+      <div style={{ ...panelStyle, ...mono }}>
+        Failed to load full App variant: {String(error?.message || error)}
+      </div>
+    );
+  }
+
+  if (!payload) {
+    return <div style={{ ...panelStyle, ...mono }}>Loading full App variant…</div>;
+  }
+
+  const { App, beyondModules, features: f } = payload;
+  return <App features={f} beyondModules={beyondModules} />;
+}
 
 /**
  * @param {{ mode: import("./siteDiag.js").SiteDiagMode }} props
@@ -53,31 +118,19 @@ export default function SiteDiagRoot({ mode }) {
     if (isSiteDiagSubsystemEnabled(mode, "cssInfiniteAnimations")) {
       markSiteDiagInit("cssInfiniteAnimations", mode);
     }
-    if (isSiteDiagSubsystemEnabled(mode, "fullPortfolioApp")) {
-      markSiteDiagInit("fullPortfolioApp", mode);
-      markSiteDiagInit("portfolioAssistant", "via-full-app");
-      markSiteDiagInit("portfolioIntro", "via-full-app");
-      markSiteDiagInit("arBeyond", "via-full-app-on-demand");
-      markSiteDiagInit("canvasWebgl", "via-ar-on-demand");
-    }
   }, [mode]);
 
   const matrix = getSiteDiagSubsystemMatrix(mode);
   const audit = getPortfolioRuntimeOwnerMatrix();
+  const delta = getFullVsEffectsDeltaMatrix();
 
-  if (mode === "full") {
+  if (isFullAppSiteDiagMode(mode)) {
     return (
       <>
         <PortfolioLifecycleBootBanner />
         <SiteDiagMatrixHud mode={mode} matrix={matrix} compact />
         <PortfolioLifecycleAppProbe>
-          <Suspense
-            fallback={
-              <div style={{ ...panelStyle, ...mono }}>Loading full portfolio…</div>
-            }
-          >
-            <FullPortfolioApp />
-          </Suspense>
+          <FullAppVariant mode={mode} />
         </PortfolioLifecycleAppProbe>
       </>
     );
@@ -151,6 +204,20 @@ export default function SiteDiagRoot({ mode }) {
             .join("\n")}
         </pre>
       </details>
+
+      <details style={{ maxWidth: 900, margin: "16px auto 0", ...mono }}>
+        <summary style={{ cursor: "pointer" }}>
+          Full App vs siteDiag=effects delta
+        </summary>
+        <pre style={{ whiteSpace: "pre-wrap", marginTop: 10, opacity: 0.9 }}>
+          {delta
+            .map(
+              (row) =>
+                `${row.file} | homepage=${row.mountedOnHomepage} | beforeInteract=${row.startsBeforeUserInteraction} | longLived=${row.longLivedResource} | cleanup=${row.cleanup} | beyondEra=${row.introducedOrChangedDuringBeyond} | risk=${row.risk}`,
+            )
+            .join("\n")}
+        </pre>
+      </details>
     </div>
   );
 }
@@ -209,7 +276,7 @@ function SiteDiagMatrixHud({ mode, matrix, compact = false }) {
               top: 8,
               right: 8,
               zIndex: 2147483000,
-              maxWidth: 280,
+              maxWidth: 300,
               maxHeight: "70vh",
               overflow: "auto",
             }

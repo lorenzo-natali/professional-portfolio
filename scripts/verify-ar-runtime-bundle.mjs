@@ -3,8 +3,11 @@
  * Post-build proof that the publishable dist contains AR runtime markers
  * and no authoring / calibrate surfaces. Delegates HTML allowlist + authoring
  * marker scanning to verify-public-dist.mjs.
+ *
+ * After the siteDiag boot split, production App/AR live in async chunks
+ * (bootProduction / App / ARGovernanceView) — scan all dist JS/CSS assets.
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -33,11 +36,16 @@ if (!mainMatch) {
   process.exit(1);
 }
 
-const mainJsPath = join(dist, "assets", mainMatch[1]);
-const cssMatch = html.match(/href="\.\/assets\/(main-[^"]+\.css)"/);
-const mainCssPath = cssMatch ? join(dist, "assets", cssMatch[1]) : null;
-const js = readFileSync(mainJsPath, "utf8");
-const css = mainCssPath && existsSync(mainCssPath) ? readFileSync(mainCssPath, "utf8") : "";
+const assetsDir = join(dist, "assets");
+const assetNames = readdirSync(assetsDir);
+const jsBundle = assetNames
+  .filter((name) => name.endsWith(".js"))
+  .map((name) => readFileSync(join(assetsDir, name), "utf8"))
+  .join("\n");
+const cssBundle = assetNames
+  .filter((name) => name.endsWith(".css"))
+  .map((name) => readFileSync(join(assetsDir, name), "utf8"))
+  .join("\n");
 
 const requiredJs = [
   "__PORTFOLIO_BUILD_ID",
@@ -49,35 +57,35 @@ const requiredJs = [
   "data-ar-interest-hit",
   "data-ar-interest-info-card",
   "ar-interest-info-card",
+  "bootProduction",
 ];
 
 const requiredCss = ["ar-interest-info-card", "ar-portal-host", "data-ar-interest-interactive"];
 
 let failed = false;
 for (const needle of requiredJs) {
-  const ok = js.includes(needle);
+  const ok = jsBundle.includes(needle);
   console.log(`${ok ? "OK" : "MISSING"} js: ${needle}`);
   if (!ok) failed = true;
 }
 for (const needle of requiredCss) {
-  const ok = css.includes(needle);
+  const ok = cssBundle.includes(needle);
   console.log(`${ok ? "OK" : "MISSING"} css: ${needle}`);
   if (!ok) failed = true;
 }
 
-const buildIdLiteral = js.match(/__PORTFOLIO_BUILD_ID["']?\s*[:=]\s*["']([^"']+)["']/);
-const bakedId =
-  js.match(/[a-f0-9]{7}\+\d{4}-\d{2}-\d{2}T/) ||
-  js.includes("__PORTFOLIO_BUILD_ID__") === false;
-
-console.log("index.html main bundle:", mainMatch[1]);
-if (buildIdLiteral) {
-  console.log("build id literal:", buildIdLiteral[1]);
-} else if (bakedId) {
-  console.log("build id: appears inlined by Vite define");
+// Entry main must stay thin (no eager MindAR package).
+const mainJs = readFileSync(join(assetsDir, mainMatch[1]), "utf8");
+if (/mindar-image-three/i.test(mainJs)) {
+  console.error("FAIL: entry main chunk unexpectedly embeds mindar-image-three");
+  failed = true;
 } else {
-  console.log("WARN: could not locate inlined build id pattern");
+  console.log("OK entry-main: no mindar-image-three package");
 }
+
+console.log("index.html main bundle:", mainMatch[1], `(${mainJs.length} bytes)`);
+console.log("scanned js assets:", assetNames.filter((n) => n.endsWith(".js")).length);
+console.log("scanned css assets:", assetNames.filter((n) => n.endsWith(".css")).length);
 
 if (failed) {
   console.error("[verify-ar-runtime-bundle] FAILED");

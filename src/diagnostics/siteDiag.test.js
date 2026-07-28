@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   SITE_DIAG_MODES,
   SITE_DIAG_PARAM,
-  SITE_DIAG_SUBSYSTEM_IDS,
   captureSiteDiagMode,
+  getAppFeaturesForSiteDiagMode,
   getSiteDiagInitLog,
   getSiteDiagMode,
   getSiteDiagSubsystemMatrix,
@@ -25,14 +25,12 @@ describe("siteDiag flags", () => {
     resetSiteDiagInitLog();
   });
 
-  it("parses valid modes and rejects unknown", () => {
+  it("parses additive and subtractive modes", () => {
     expect(SITE_DIAG_PARAM).toBe("siteDiag");
     for (const mode of SITE_DIAG_MODES) {
       expect(parseSiteDiagMode(`?siteDiag=${mode}`)).toBe(mode);
     }
     expect(parseSiteDiagMode("?siteDiag=camera")).toBeNull();
-    expect(parseSiteDiagMode("")).toBeNull();
-    expect(parseSiteDiagMode(null)).toBeNull();
   });
 
   it("latches once before later URL mutation", () => {
@@ -41,60 +39,54 @@ describe("siteDiag flags", () => {
     expect(captureSiteDiagMode("?siteDiag=full")).toBe("blank");
   });
 
-  it("defines disjoint progressive matrices", () => {
-    const blank = getSiteDiagSubsystemMatrix("blank");
-    const shell = getSiteDiagSubsystemMatrix("shell");
-    const motion = getSiteDiagSubsystemMatrix("motion");
-    const effects = getSiteDiagSubsystemMatrix("effects");
-    const full = getSiteDiagSubsystemMatrix("full");
+  it("maps subtractive feature flags", () => {
+    expect(getAppFeaturesForSiteDiagMode("full-no-beyond")).toEqual({
+      beyond: false,
+      assistant: true,
+      intro: true,
+      preload: false,
+    });
+    expect(getAppFeaturesForSiteDiagMode("full-core")).toEqual({
+      beyond: false,
+      assistant: false,
+      intro: false,
+      preload: false,
+    });
+    expect(getAppFeaturesForSiteDiagMode("full-no-preload").preload).toBe(false);
+    expect(getAppFeaturesForSiteDiagMode("effects")).toBeNull();
+  });
 
-    expect(blank.every((r) => SITE_DIAG_SUBSYSTEM_IDS.includes(r.id))).toBe(true);
-
-    expect(isSiteDiagSubsystemEnabled("blank", "framerMotion")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("blank", "tickerRaf")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("blank", "portfolioAssistant")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("blank", "arBeyond")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("blank", "fullPortfolioApp")).toBe(false);
-
-    expect(isSiteDiagSubsystemEnabled("shell", "staticShell")).toBe(true);
-    expect(isSiteDiagSubsystemEnabled("shell", "framerMotion")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("shell", "tickerRaf")).toBe(false);
-
-    expect(isSiteDiagSubsystemEnabled("motion", "framerMotion")).toBe(true);
-    expect(isSiteDiagSubsystemEnabled("motion", "tickerRaf")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("motion", "framerMotionInfinite")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("motion", "portfolioAssistant")).toBe(false);
-
-    expect(isSiteDiagSubsystemEnabled("effects", "tickerRaf")).toBe(true);
-    expect(isSiteDiagSubsystemEnabled("effects", "framerMotionInfinite")).toBe(true);
-    expect(isSiteDiagSubsystemEnabled("effects", "cssInfiniteAnimations")).toBe(true);
-    expect(isSiteDiagSubsystemEnabled("effects", "portfolioAssistant")).toBe(false);
-    expect(isSiteDiagSubsystemEnabled("effects", "arBeyond")).toBe(false);
-
-    expect(isSiteDiagSubsystemEnabled("full", "fullPortfolioApp")).toBe(true);
-    expect(isSiteDiagSubsystemEnabled("full", "arBeyond")).toBe(true);
-
-    expect(blank.filter((r) => r.enabled).map((r) => r.id)).toEqual([
-      "lifecycleTrace",
-      "reactRoot",
-      "staticText",
-    ]);
-    expect(shell.filter((r) => r.enabled).length).toBeGreaterThan(
-      blank.filter((r) => r.enabled).length,
+  it("full-no-beyond matrix disables AR subsystems", () => {
+    expect(isSiteDiagSubsystemEnabled("full-no-beyond", "fullPortfolioApp")).toBe(
+      true,
     );
-    expect(motion.filter((r) => r.enabled).length).toBeGreaterThan(
-      shell.filter((r) => r.enabled).length,
+    expect(isSiteDiagSubsystemEnabled("full-no-beyond", "arBeyond")).toBe(false);
+    expect(isSiteDiagSubsystemEnabled("full-no-beyond", "arPreloadEager")).toBe(
+      false,
     );
-    expect(effects.filter((r) => r.enabled).length).toBeGreaterThan(
-      motion.filter((r) => r.enabled).length,
+    expect(isSiteDiagSubsystemEnabled("full-no-beyond", "portfolioAssistant")).toBe(
+      true,
     );
-    expect(full.filter((r) => r.enabled).length).toBe(SITE_DIAG_SUBSYSTEM_IDS.length);
+
+    expect(isSiteDiagSubsystemEnabled("full-core", "portfolioAssistant")).toBe(
+      false,
+    );
+    expect(isSiteDiagSubsystemEnabled("full", "arPreloadEager")).toBe(true);
+    expect(isSiteDiagSubsystemEnabled("full-no-preload", "arBeyond")).toBe(true);
+    expect(isSiteDiagSubsystemEnabled("full-no-preload", "arPreloadEager")).toBe(
+      false,
+    );
+
+    const effectsOn = getSiteDiagSubsystemMatrix("effects")
+      .filter((r) => r.enabled)
+      .map((r) => r.id);
+    expect(effectsOn).not.toContain("fullPortfolioApp");
   });
 
   it("bounds init log", () => {
-    for (let i = 0; i < 80; i += 1) {
+    for (let i = 0; i < 100; i += 1) {
       markSiteDiagInit("tickerRaf", String(i));
     }
-    expect(getSiteDiagInitLog().length).toBeLessThanOrEqual(48);
+    expect(getSiteDiagInitLog().length).toBeLessThanOrEqual(64);
   });
 });

@@ -14,10 +14,19 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import CodeiakMascotVideo from "./components/CodeiakMascotVideo";
-import ARGovernanceCard from "./components/ar/ARGovernanceCard";
-import ARGovernanceView from "./components/ar/ARGovernanceView";
-import { shouldLaunchBeyondCvFromLocation } from "./components/ar/beyondCvDeepLink";
+import {
+  DEFAULT_APP_FEATURES,
+  resolveAppFeatures,
+} from "./diagnostics/appFeatures.js";
 import "./index.css";
+
+/**
+ * @typedef {{
+ *   ARGovernanceCard?: import("react").ComponentType<{ onLaunch: () => void }>,
+ *   ARGovernanceView?: import("react").ComponentType<{ open: boolean, onClose: () => void }>,
+ *   shouldLaunchBeyondCvFromLocation?: (loc?: Location | { search?: string, hash?: string, href?: string }) => boolean,
+ * }} BeyondModules
+ */
 
 const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
 
@@ -2337,15 +2346,37 @@ function PortfolioIntro({ onComplete }) {
   );
 }
 
-function App() {
+/**
+ * Production portfolio App.
+ * Beyond modules are injected by the boot entry so siteDiag subtractive variants
+ * can omit AR imports entirely (not merely hide the UI).
+ *
+ * @param {{
+ *   features?: Partial<import("./diagnostics/appFeatures.js").AppFeatures>,
+ *   beyondModules?: BeyondModules | null,
+ * }} [props]
+ */
+function App({ features: featuresProp, beyondModules = null } = {}) {
+  const features = resolveAppFeatures(featuresProp ?? DEFAULT_APP_FEATURES);
+  const beyondEnabled = Boolean(features.beyond && beyondModules);
+  const launchBeyond =
+    beyondEnabled &&
+    typeof beyondModules.shouldLaunchBeyondCvFromLocation === "function"
+      ? () => beyondModules.shouldLaunchBeyondCvFromLocation()
+      : () => false;
+
+  const BeyondCard = beyondEnabled ? beyondModules.ARGovernanceCard : null;
+  const BeyondView = beyondEnabled ? beyondModules.ARGovernanceView : null;
+
   const [selectedLens, setSelectedLens] = useState("Overview");
   const [expandedExperiences, setExpandedExperiences] = useState({});
   // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
-  const [arOpen, setArOpen] = useState(() => shouldLaunchBeyondCvFromLocation());
+  const [arOpen, setArOpen] = useState(() => launchBeyond());
   const [showIntro, setShowIntro] = useState(() => {
+    if (!features.intro) return false;
     if (typeof window === "undefined") return false;
     // Deep-link launches skip the portfolio splash so AR is not covered.
-    if (shouldLaunchBeyondCvFromLocation()) return false;
+    if (launchBeyond()) return false;
     try {
       if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
       if (window.sessionStorage.getItem("portfolioIntroSeen") === "1") return false;
@@ -2358,20 +2389,21 @@ function App() {
   useLayoutEffect(() => {
     // Ensure deep-link opens the same AR portal as the Beyond the CV button,
     // even if something reset arOpen before first paint.
-    if (shouldLaunchBeyondCvFromLocation()) {
+    if (!beyondEnabled) return;
+    if (launchBeyond()) {
       setArOpen(true);
       setShowIntro(false);
     }
-  }, []);
+  }, [beyondEnabled]);
 
   useEffect(() => {
-    if (!showIntro) return;
+    if (!features.intro || !showIntro) return;
     try {
       window.sessionStorage.setItem("portfolioIntroSeen", "1");
     } catch {
       // sessionStorage unavailable (e.g. privacy mode); intro simply won't persist.
     }
-  }, [showIntro]);
+  }, [features.intro, showIntro]);
 
   const toggleExperienceDetails = (experienceId) => {
     setExpandedExperiences((current) => ({
@@ -2494,13 +2526,15 @@ function App() {
           </div>
 
           <div className="flex w-full flex-col gap-14 lg:w-[320px]">
-            <ARGovernanceCard onLaunch={() => setArOpen(true)} />
-            <PortfolioAssistant />
+            {BeyondCard ? <BeyondCard onLaunch={() => setArOpen(true)} /> : null}
+            {features.assistant ? <PortfolioAssistant /> : null}
           </div>
         </div>
       </section>
 
-      <ARGovernanceView open={arOpen} onClose={() => setArOpen(false)} />
+      {BeyondView ? (
+        <BeyondView open={arOpen} onClose={() => setArOpen(false)} />
+      ) : null}
 
       <RoleLens selectedLens={selectedLens} onSelectLens={setSelectedLens} />
 
@@ -2744,7 +2778,9 @@ function App() {
       <RiskRadar selectedLens={selectedLens} />
     </main>
     <AnimatePresence>
-      {showIntro && <PortfolioIntro onComplete={() => setShowIntro(false)} />}
+      {features.intro && showIntro ? (
+        <PortfolioIntro onComplete={() => setShowIntro(false)} />
+      ) : null}
     </AnimatePresence>
     </>
   );

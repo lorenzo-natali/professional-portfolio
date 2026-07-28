@@ -13,6 +13,7 @@
     "postinstall": "patch-package",
     "verify:ar-bundle": "node scripts/verify-ar-runtime-bundle.mjs",
     "verify:public-dist": "node scripts/verify-public-dist.mjs",
+    "verify:import-graph": "node scripts/verify-import-graph.mjs",
     "verify:mindar-patch": "node scripts/verify-mindar-resize-patch.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
@@ -11,7 +11,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.
  * CI / local: `npm run build && npm run verify:ar-bundle && npm test`.
  */
 describe("production AR bundle markers (dist)", () => {
-  it("dist main bundle includes audit + interest tap markers when present", () => {
+  it("dist bundles include audit + interest tap markers when present", () => {
     const indexPath = path.join(rootDir, "dist/index.html");
     if (!existsSync(indexPath)) {
       expect(true).toBe(true);
@@ -20,28 +20,34 @@ describe("production AR bundle markers (dist)", () => {
     const html = readFileSync(indexPath, "utf8");
     const main = html.match(/src="\.\/assets\/(main-[^"]+\.js)"/)?.[1];
     expect(main).toBeTruthy();
-    const js = readFileSync(path.join(rootDir, "dist/assets", main), "utf8");
-    // Soft-skip stale dist until a fresh production build is available.
+    const assetsDir = path.join(rootDir, "dist/assets");
+    const names = readdirSync(assetsDir).filter((n) => n.endsWith(".js"));
+    const js = names.map((n) => readFileSync(path.join(assetsDir, n), "utf8")).join("\n");
     if (!js.includes("AI & Intelligent Systems") || !js.includes("data-ar-interest-hit")) {
       expect(true).toBe(true);
       return;
     }
     expect(js).toContain("Copy runtime audit");
     expect(js).toContain("__PORTFOLIO_BUILD_ID");
+    expect(js).toContain("bootProduction");
     expect(js).not.toContain("Save final layout");
     expect(js).not.toContain("arInterestsCalibrate");
   });
 
-  it("source entry latches flags before React render", () => {
+  it("source entry latches flags before React boot modules", () => {
     const mainSrc = readFileSync(path.join(rootDir, "src/main.jsx"), "utf8");
     expect(mainSrc).toMatch(/captureArRuntimeFlags/);
     expect(mainSrc).toMatch(/publishPortfolioBuildId/);
     expect(mainSrc).not.toMatch(/mountCalibrateBootBanner/);
     const latchAt = mainSrc.indexOf("captureArRuntimeFlags()");
-    const renderAt = mainSrc.indexOf("createRoot(document.getElementById");
+    const bootAt = mainSrc.indexOf("bootProduction");
     expect(latchAt).toBeGreaterThan(-1);
-    expect(renderAt).toBeGreaterThan(-1);
-    expect(latchAt).toBeLessThan(renderAt);
+    expect(bootAt).toBeGreaterThan(-1);
+    expect(latchAt).toBeLessThan(bootAt);
+
+    const bootProd = readFileSync(path.join(rootDir, "src/bootProduction.jsx"), "utf8");
+    expect(bootProd).toMatch(/createRoot\(document.getElementById/);
+    expect(bootProd).toMatch(/beyondBundle/);
   });
 
   it("adapter mounts interest tap controller without static debug import", () => {
