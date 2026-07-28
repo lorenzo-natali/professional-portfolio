@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { lensRelevance } from "./portfolioData.js";
 import { isLensRelevant } from "./portfolioLens.js";
+import { subscribeTickerFrame } from "./createTickerFrameScheduler.js";
 
 export default function TickerStream({ stream, selectedLens = "Overview" }) {
   const trackRef = useRef(null);
@@ -20,7 +21,6 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
     const track = trackRef.current;
     if (!track) return undefined;
 
-    let frameId;
     const speed = 28;
 
     const measure = () => {
@@ -31,7 +31,7 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
       track.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
     };
 
-    const animate = (time) => {
+    const onFrame = (time) => {
       if (!lastTimeRef.current) {
         lastTimeRef.current = time;
       }
@@ -56,17 +56,15 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
 
         track.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
       }
-
-      frameId = requestAnimationFrame(animate);
     };
 
     measure();
     const resizeObserver = new ResizeObserver(measure);
     resizeObserver.observe(track);
-    frameId = requestAnimationFrame(animate);
+    const unsubscribe = subscribeTickerFrame(onFrame);
 
     return () => {
-      cancelAnimationFrame(frameId);
+      unsubscribe();
       resizeObserver.disconnect();
     };
   }, [stream.direction]);
