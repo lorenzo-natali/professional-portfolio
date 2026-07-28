@@ -11,7 +11,7 @@ export const AR_DISCOVERY_PROMPT_DELAY_MS = 1250;
 export const AR_TARGET_LOSS_GRACE_MS = 500;
 
 export const AR_STATUS_COPY = {
-  searching: "Point your camera at the CV",
+  searching: "Point your camera at the first page of my CV",
   detected: "CV detected",
   promptTitle: "A few things I love beyond work",
   promptHint: "Tap an object to discover more",

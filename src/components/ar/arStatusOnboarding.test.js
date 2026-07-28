@@ -14,7 +14,9 @@ describe("createArStatusOnboarding", () => {
   it("starts in searching with the looking-for-CV copy", () => {
     const onboarding = createArStatusOnboarding();
     expect(onboarding.getPhase()).toBe("searching");
-    expect(AR_STATUS_COPY.searching).toBe("Point your camera at the CV");
+    expect(AR_STATUS_COPY.searching).toBe(
+      "Point your camera at the first page of my CV",
+    );
     onboarding.dispose();
   });
 
