@@ -314,6 +314,11 @@ body {
   transform-origin: center;
 }
 
+/* Step 4: only applied on mobile/iOS when JS drives the sweep at ~30 FPS. */
+.radar-sweep.radar-sweep--cadence-capped {
+  animation: none;
+}
+
 @media (max-width: 639px) {
   .radar-sweep {
     background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.05) 6deg, rgba(34, 211, 238, 0.2) 20deg, rgba(59, 130, 246, 0.12) 36deg, transparent 56deg);

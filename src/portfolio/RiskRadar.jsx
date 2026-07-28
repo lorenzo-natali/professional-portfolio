@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   coverageBandText,
@@ -14,15 +14,31 @@ import {
 } from "./portfolioLens.js";
 import ProfileRadarChart from "./ProfileRadarChart.jsx";
 import { SurfaceCard } from "./portfolioUi.jsx";
+import {
+  getRadarSweepPeriodMs,
+  shouldReduceRadarSweepCadence,
+  startCappedRadarSweep,
+} from "./radarSweepCadence.js";
 
 export default function RiskRadar({ selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
   const [mapView, setMapView] = useState("risk-map");
   const [activeCoverageId, setActiveCoverageId] = useState(profileCoverage[0].id);
+  const sweepRef = useRef(null);
   const selectedDomain = radarDomains[activeDomain];
   const selectedTone = getRadarTone(selectedDomain.maturity);
   const selectedCoverage = profileCoverage.find((axis) => axis.id === activeCoverageId) ?? profileCoverage[0];
   const selectedCoverageTone = getCoverageTone(selectedCoverage.band);
+
+  // Step 4: mobile/iOS only — cap sweep compositor updates to ~30 FPS via one rAF loop.
+  // Desktop keeps CSS @keyframes unchanged (effect no-ops when shouldReduce is false).
+  useEffect(() => {
+    if (mapView !== "risk-map") return undefined;
+    const element = sweepRef.current;
+    if (!element || !shouldReduceRadarSweepCadence()) return undefined;
+    return startCappedRadarSweep(element, { periodMs: getRadarSweepPeriodMs() });
+  }, [mapView]);
+
   return (
     <section id="risk-radar" className="border-t border-slate-800/70 px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
       <div className="mx-auto w-full max-w-6xl">
@@ -79,7 +95,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                   className="radar-plane relative mx-auto aspect-square w-full max-w-[500px] overflow-hidden rounded-full border border-slate-800/80 bg-slate-950/45"
                 >
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.14),transparent_18%),radial-gradient(circle_at_center,rgba(124,58,237,0.08),transparent_42%)]" />
-                  <div className="radar-sweep" />
+                  <div ref={sweepRef} className="radar-sweep" />
                   <div className="absolute inset-[14%] rounded-full border border-slate-700/35" />
                   <div className="absolute inset-[26%] rounded-full border border-slate-800/75" />
                   <div className="absolute inset-[38%] rounded-full border border-slate-800/60" />
