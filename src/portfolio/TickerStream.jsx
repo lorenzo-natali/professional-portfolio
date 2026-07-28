@@ -3,13 +3,17 @@ import { lensRelevance } from "./portfolioData.js";
 import { isLensRelevant } from "./portfolioLens.js";
 import { subscribeTickerFrame } from "./createTickerFrameScheduler.js";
 import { subscribeTickerResize } from "./createTickerResizeObserver.js";
+import { subscribeTickerVisibility } from "./createTickerVisibilityObserver.js";
 
 export default function TickerStream({ stream, selectedLens = "Overview" }) {
+  const rootRef = useRef(null);
   const trackRef = useRef(null);
   const offsetRef = useRef(0);
   const lastTimeRef = useRef(0);
   const pausedRef = useRef(false);
   const halfWidthRef = useRef(0);
+  const frameUnsubscribeRef = useRef(null);
+  const visibleRef = useRef(true);
 
   const isRiskStream = stream.accent === "cyan";
   const dotClass = isRiskStream ? "bg-cyan-300/80 shadow-cyan-300/20" : "bg-violet-300/80 shadow-violet-300/20";
@@ -19,8 +23,9 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
   const hasStreamHighlights = (lensRelevance[selectedLens]?.streamItems?.length ?? 0) > 0;
 
   useEffect(() => {
+    const root = rootRef.current;
     const track = trackRef.current;
-    if (!track) return undefined;
+    if (!root || !track) return undefined;
 
     const speed = 28;
 
@@ -59,18 +64,48 @@ export default function TickerStream({ stream, selectedLens = "Overview" }) {
       }
     };
 
+    const stopFrames = () => {
+      if (frameUnsubscribeRef.current) {
+        frameUnsubscribeRef.current();
+        frameUnsubscribeRef.current = null;
+      }
+    };
+
+    const startFrames = () => {
+      if (frameUnsubscribeRef.current) return;
+      // Avoid a large time jump after being offscreen or mouse-paused.
+      lastTimeRef.current = 0;
+      frameUnsubscribeRef.current = subscribeTickerFrame(onFrame);
+    };
+
+    const setVisible = (visible) => {
+      visibleRef.current = visible;
+      if (visible) {
+        startFrames();
+      } else {
+        stopFrames();
+      }
+    };
+
     measure();
+    // Assume visible until the shared observer delivers its first entry so the
+    // ticker always starts (and can be paused if the first entry is offscreen).
+    visibleRef.current = true;
+    startFrames();
+
     const unsubscribeResize = subscribeTickerResize(track, measure);
-    const unsubscribeFrame = subscribeTickerFrame(onFrame);
+    const unsubscribeVisibility = subscribeTickerVisibility(root, setVisible);
 
     return () => {
-      unsubscribeFrame();
+      stopFrames();
+      unsubscribeVisibility();
       unsubscribeResize();
     };
   }, [stream.direction]);
 
   return (
     <div
+      ref={rootRef}
       className={`ticker-stream overflow-hidden border-y-2 ${borderClass} ${backgroundClass} backdrop-blur`}
       onMouseEnter={() => {
         pausedRef.current = true;
