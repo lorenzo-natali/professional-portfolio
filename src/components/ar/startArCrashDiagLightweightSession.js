@@ -3,6 +3,8 @@
  * Used for arDiag=camera and arDiag=render only.
  */
 
+import { recordArExitTrace } from "./createArExitTrace";
+
 /**
  * @param {object} options
  * @param {'camera' | 'render'} options.mode
@@ -29,6 +31,8 @@ export async function startArCrashDiagLightweightSession({
   const shell =
     container.closest?.("[data-ar-viewport-shell='true']") || container.parentElement;
 
+  recordArExitTrace("arSessionStart", { mode, path: "lightweight" }, { asReason: false });
+
   container.style.position = container.style.position || "absolute";
   container.style.inset = container.style.inset || "0";
   container.style.width = "100%";
@@ -47,6 +51,8 @@ export async function startArCrashDiagLightweightSession({
   container.appendChild(video);
 
   let stream = null;
+  /** @type {(() => void) | null} */
+  let unbindMedia = null;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
@@ -58,21 +64,54 @@ export async function startArCrashDiagLightweightSession({
     });
   } catch (err) {
     monitor.note("cameraDenied", err instanceof Error ? err.message : String(err));
+    recordArExitTrace(
+      "cameraDenied",
+      err instanceof Error ? err.message : String(err),
+      { asReason: true },
+    );
     throw err;
   }
 
   if (getSessionGeneration() !== sessionToken) {
+    recordArExitTrace(
+      "streamStop",
+      {
+        reason: "session-aborted-before-attach",
+        caller: "lightweight-generation-mismatch",
+      },
+      { asReason: true },
+    );
     stream.getTracks().forEach((t) => t.stop());
     throw new Error("ar-crash-diag-session-aborted");
   }
 
   video.srcObject = stream;
   try {
+    unbindMedia =
+      typeof window !== "undefined" && window.__arExitTrace?.bindMedia
+        ? window.__arExitTrace.bindMedia(video, stream)
+        : null;
+  } catch {
+    unbindMedia = null;
+  }
+
+  try {
     await video.play();
   } catch {
     // Autoplay policies: still consider stream active.
   }
   monitor.note("cameraStreamActive");
+  recordArExitTrace(
+    "cameraStreamAcquired",
+    {
+      mode,
+      tracks: stream
+        .getTracks()
+        .map((t) => `${t.kind}:${t.readyState}`)
+        .join(","),
+    },
+    { asReason: false },
+  );
 
   const unbindVideoFrames = monitor.bindVideoFrameCounter(video);
   monitor.mountHud(shell);
@@ -85,6 +124,14 @@ export async function startArCrashDiagLightweightSession({
   if (mode === "render") {
     const THREE = await import("three");
     if (getSessionGeneration() !== sessionToken) {
+      recordArExitTrace(
+        "streamStop",
+        {
+          reason: "session-aborted-before-render",
+          caller: "lightweight-generation-mismatch",
+        },
+        { asReason: true },
+      );
       stream.getTracks().forEach((t) => t.stop());
       throw new Error("ar-crash-diag-session-aborted");
     }
@@ -147,8 +194,22 @@ export async function startArCrashDiagLightweightSession({
     rafLoop: renderer,
     video,
     cleanup: async () => {
+      recordArExitTrace(
+        "arCleanup",
+        {
+          reason: "lightweight-cleanup",
+          mode,
+          caller: "startArCrashDiagLightweightSession.cleanup",
+        },
+        { asReason: true },
+      );
       try {
         unbindVideoFrames?.();
+      } catch {
+        // ignore
+      }
+      try {
+        unbindMedia?.();
       } catch {
         // ignore
       }
@@ -171,6 +232,15 @@ export async function startArCrashDiagLightweightSession({
         const tracks = stream?.getTracks?.() || [];
         for (const track of tracks) {
           try {
+            recordArExitTrace(
+              "streamStop",
+              {
+                kind: track.kind,
+                caller: "lightweight-cleanup",
+                readyState: track.readyState,
+              },
+              { asReason: true },
+            );
             track.stop();
           } catch {
             // ignore

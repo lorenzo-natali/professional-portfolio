@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { recordArExitTrace } from "./createArExitTrace";
 
 /**
  * Narrow error boundary for the live AR tracking subtree.
@@ -22,6 +23,18 @@ export class ARTrackingErrorBoundary extends Component {
         : typeof error === "string"
           ? error
           : "ar-tracking-render-error";
+    try {
+      recordArExitTrace(
+        "errorBoundary",
+        {
+          message: String(message).slice(0, 160),
+          componentStack: String(info?.componentStack || "").slice(0, 120),
+        },
+        { asReason: true },
+      );
+    } catch {
+      // ignore
+    }
     try {
       if (typeof window !== "undefined") {
         window.__arRotateAudit?.note?.("windowError", {

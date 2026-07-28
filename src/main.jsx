@@ -11,10 +11,29 @@ import {
   createArRuntimeAudit,
   isArRuntimeAuditEnabled,
 } from './components/ar/createArRuntimeAudit'
+import { installArExitTrace } from './components/ar/createArExitTrace'
+import { captureSiteDiagMode, getSiteDiagMode } from './diagnostics/siteDiag.js'
+import { installPortfolioLifecycleTrace } from './diagnostics/createPortfolioLifecycleTrace.js'
+import { PortfolioLifecycleBoundary } from './diagnostics/PortfolioLifecycleBoundary.jsx'
+import SiteDiagRoot from './diagnostics/SiteDiagRoot.jsx'
 
 // Latch URL flags + build id before React mounts (before Beyond the CV / camera).
 publishPortfolioBuildId()
 captureArRuntimeFlags()
+captureSiteDiagMode()
+
+const runtimeFlags = getArRuntimeFlags()
+const siteDiagMode = getSiteDiagMode()
+
+// Opt-in exit/crash reconstruction trace when any arDiag variant is active.
+if (runtimeFlags.arCrashDiag) {
+  installArExitTrace({ enabled: true })
+}
+
+// Opt-in global portfolio lifecycle trace for siteDiag isolation shells.
+const lifecycleTrace = siteDiagMode
+  ? installPortfolioLifecycleTrace({ enabled: true })
+  : null
 
 const runtimeAudit = isArRuntimeAuditEnabled()
   ? createArRuntimeAudit({ enabled: true })
@@ -22,17 +41,25 @@ const runtimeAudit = isArRuntimeAuditEnabled()
 runtimeAudit?.recordPhase?.('script-load')
 
 // Earliest page-boot evidence for rotate-audit sessions (opt-in URL flag only).
-if (getArRuntimeFlags().arRotateAudit) {
+if (runtimeFlags.arRotateAudit) {
   void import('./components/ar/arRotateAudit').then((mod) => {
     mod.recordArRotateAuditPageBoot()
   })
 }
 
-createRoot(document.getElementById('root')).render(
+const root = createRoot(document.getElementById('root'))
+root.render(
   <StrictMode>
-    <App />
+    {siteDiagMode ? (
+      <PortfolioLifecycleBoundary>
+        <SiteDiagRoot mode={siteDiagMode} />
+      </PortfolioLifecycleBoundary>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 )
 
+lifecycleTrace?.recordReactRootMount?.()
 runtimeAudit?.recordPhase?.('react-mount')
 window.__arRuntimeAuditRoot = runtimeAudit

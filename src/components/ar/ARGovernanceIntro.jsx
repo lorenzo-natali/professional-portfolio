@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { checkArTargetAvailable } from "./checkArTargetAvailable";
+import { recordArExitTrace } from "./createArExitTrace";
 
 /**
  * Lightweight transition before launching AR.
  * Camera permission is never requested here — only after “Activate Camera”.
  */
-export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
+export default function ARGovernanceIntro({
+  onActivateCamera,
+  onBack,
+  previousExitReason = null,
+}) {
   const [targetState, setTargetState] = useState("checking"); // checking | available | unavailable
 
   useEffect(() => {
@@ -17,6 +22,11 @@ export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
 
     return () => {
       cancelled = true;
+      recordArExitTrace(
+        "componentUnmount",
+        { component: "ARGovernanceIntro" },
+        { asReason: false },
+      );
     };
   }, []);
 
@@ -34,6 +44,16 @@ export default function ARGovernanceIntro({ onActivateCamera, onBack }) {
         <p className="mx-auto mt-4 max-w-xs text-center text-[11px] leading-5 text-slate-500">
           Camera processing happens entirely on your device.
         </p>
+
+        {previousExitReason ? (
+          <p
+            data-ar-exit-trace-banner="true"
+            className="mx-auto mt-5 max-w-sm rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-[11px] leading-5 text-amber-100"
+            role="status"
+          >
+            Previous camera session ended: {previousExitReason}
+          </p>
+        ) : null}
 
         {targetState === "available" && (
           <button

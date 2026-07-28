@@ -36,6 +36,7 @@ import {
 import { getArCrashDiagCapabilities } from "../arCrashDiag";
 import { createArCrashDiagMonitor } from "../createArCrashDiagMonitor";
 import { startArCrashDiagLightweightSession } from "../startArCrashDiagLightweightSession";
+import { recordArExitTrace } from "../createArExitTrace";
 
 /**
  * Keep the MindAR container as a true fullscreen absolute layer.
@@ -497,6 +498,15 @@ export function createMindARTrackingAdapter({
       // Bump first so in-flight promise callbacks from this session become no-ops.
       sessionGeneration += 1;
       clearSessionReset();
+      recordArExitTrace(
+        "arCleanup",
+        {
+          reason: "cleanupSession",
+          caller: "MindARTrackingAdapter.cleanupSession",
+          crashDiag: getArRuntimeFlags().arCrashDiag,
+        },
+        { asReason: true },
+      );
       auditNote("cleanupStarted", { cleanupReason: "cleanupSession" });
       auditNote("cleanupSession", {
         cleanupReason: "cleanupSession",
@@ -932,6 +942,11 @@ export function createMindARTrackingAdapter({
         });
 
         recordArViewportLifecycle(shell, "before-mindar-start");
+        recordArExitTrace(
+          "arSessionStart",
+          { mode: crashDiagMode || "production", path: "mindar" },
+          { asReason: false },
+        );
         await mindarThree.start();
         auditNote("mindarStartCompleted", {});
         if (crashDiagMonitor && mindarThree.controller) {
@@ -949,6 +964,34 @@ export function createMindARTrackingAdapter({
           mindarThree.video?.srcObject instanceof MediaStream
         ) {
           auditNote("cameraStreamActive", {});
+          recordArExitTrace(
+            "cameraStreamAcquired",
+            { path: "mindar", crashDiag: crashDiagMode },
+            { asReason: false },
+          );
+          try {
+            if (window.__arExitTrace?.bindMedia && mindarThree.video) {
+              const unbind = window.__arExitTrace.bindMedia(
+                mindarThree.video,
+                mindarThree.video.srcObject,
+              );
+              const prevVideoCleanup = videoFrameCounterCleanup;
+              videoFrameCounterCleanup = () => {
+                try {
+                  unbind?.();
+                } catch {
+                  // ignore
+                }
+                try {
+                  prevVideoCleanup?.();
+                } catch {
+                  // ignore
+                }
+              };
+            }
+          } catch {
+            // ignore
+          }
         }
 
         // FROZEN_TRACKING: stop MindAR processVideo after first stable pose emit.

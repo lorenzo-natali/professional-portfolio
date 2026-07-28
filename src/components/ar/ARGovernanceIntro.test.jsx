@@ -85,4 +85,21 @@ describe("ARGovernanceIntro entry CTA", () => {
     });
     expect(getUserMedia).not.toHaveBeenCalled();
   });
+
+  it("shows previous camera session ended banner when provided", async () => {
+    checkArTargetAvailable.mockResolvedValue(true);
+
+    render(
+      <ARGovernanceIntro
+        onActivateCamera={vi.fn()}
+        onBack={vi.fn()}
+        previousExitReason="arCleanup:cleanupSession"
+      />,
+    );
+
+    expect(
+      await screen.findByText(/Previous camera session ended: arCleanup:cleanupSession/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveAttribute("data-ar-exit-trace-banner", "true");
+  });
 });

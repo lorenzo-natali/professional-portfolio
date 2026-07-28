@@ -32,6 +32,10 @@ import {
   recordArRuntimeAuditPhase,
   setArRuntimeAuditState,
 } from "./createArRuntimeAudit";
+import {
+  getDisplayedArExitReason,
+  recordArExitTrace,
+} from "./createArExitTrace";
 
 function unavailableCopy(reason) {
   switch (reason) {
@@ -75,6 +79,11 @@ function ARGovernanceExperience({ isMobile, onClose }) {
         cleanupReason: String(reason || "fallback"),
       });
     }
+    recordArExitTrace(
+      "screenTransition",
+      { to: "unavailable", reason: String(reason || "fallback") },
+      { asReason: true },
+    );
     const allowed = new Set([
       "unsupported",
       "tracking-error",
@@ -96,6 +105,11 @@ function ARGovernanceExperience({ isMobile, onClose }) {
       isMobile,
       allowCameraPath,
     });
+    recordArExitTrace(
+      "screenTransition",
+      { screen, isMobile, allowCameraPath },
+      { asReason: screen === "intro" },
+    );
   }, [screen, isMobile, allowCameraPath]);
 
   return (
@@ -104,11 +118,22 @@ function ARGovernanceExperience({ isMobile, onClose }) {
 
       {screen === "intro" && (
         <ARGovernanceIntro
+          previousExitReason={
+            flags.arCrashDiag ? getDisplayedArExitReason() : null
+          }
           onActivateCamera={() => {
             recordArRuntimeAuditPhase("activate-camera");
+            recordArExitTrace("screenTransition", { to: "camera" }, { asReason: false });
             setScreen("camera");
           }}
-          onBack={onClose}
+          onBack={() => {
+            recordArExitTrace(
+              "screenTransition",
+              { to: "portfolio", reason: "intro-back" },
+              { asReason: true },
+            );
+            onClose();
+          }}
         />
       )}
 
@@ -120,7 +145,14 @@ function ARGovernanceExperience({ isMobile, onClose }) {
             }}
           >
             <ARCameraView
-              onBack={onClose}
+              onBack={() => {
+                recordArExitTrace(
+                  "screenTransition",
+                  { to: "portfolio", reason: "camera-close" },
+                  { asReason: true },
+                );
+                onClose();
+              }}
               onFallback={(reason) => {
                 goUnavailable(reason);
               }}
