@@ -12,6 +12,7 @@ import {
   signalMap,
 } from "./portfolio/portfolioData.js";
 import { PORTFOLIO_SECTION_IDS } from "./portfolio/sectionCatalog.js";
+import { useLensGlowActiveMarker } from "./portfolio/useLensGlowActiveMarker.js";
 import "./index.css";
 
 /**
@@ -449,6 +450,8 @@ function App({
     : [...PORTFOLIO_SECTION_IDS];
 
   const [selectedLens, setSelectedLens] = useState("Overview");
+  // Step 6: gate CSS lens-glow-clock to non-Overview Role Lens only.
+  useLensGlowActiveMarker(selectedLens);
   const [expandedExperiences, setExpandedExperiences] = useState({});
   // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
   const [arOpen, setArOpen] = useState(() => launchBeyond());

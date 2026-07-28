@@ -119,14 +119,15 @@ code {
 /* Shared glow clock: a single animation drives --lens-glow on a stable
    ancestor, and every highlighted element reads the same value so card,
    panel and Risk Map glows stay perfectly in phase regardless of when each
-   element was highlighted. */
+   element was highlighted.
+   Step 6: run only while html[data-lens-glow-active="true"] (non-Overview lens). */
 @property --lens-glow {
   syntax: "<number>";
   inherits: true;
   initial-value: 0;
 }
 
-body {
+html[data-lens-glow-active="true"] body {
   animation: lens-glow-clock 2.8s ease-in-out infinite;
 }
 
