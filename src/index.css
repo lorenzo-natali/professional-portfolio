@@ -419,6 +419,20 @@ html[data-lens-glow-active="true"] body {
   shape-rendering: geometricPrecision;
 }
 
+/* AR+ logo: black silhouette masked so fill follows button currentColor. */
+.ar-reticle-mark {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
 /*
  * AR fullscreen stack under document.documentElement:
  *   .ar-portal-host (only fixed owner)

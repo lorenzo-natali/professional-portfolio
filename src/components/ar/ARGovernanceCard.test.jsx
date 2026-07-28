@@ -12,23 +12,20 @@ describe("ARGovernanceCard entry button", () => {
     expect(button).toBeInTheDocument();
     expect(button).toHaveClass("ar-lens-button");
     expect(button.querySelector(".ar-reticle-anchor")).toHaveAttribute("aria-hidden", "true");
-    expect(button.querySelector(".ar-reticle-svg")).toBeTruthy();
+    expect(button.querySelector(".ar-reticle-mark")).toBeTruthy();
     expect(button.querySelector(".ar-cube-anchor")).toBeNull();
 
     await userEvent.click(button);
     expect(onLaunch).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the static AR-view glyph with no animation hooks", () => {
+  it("renders the AR+ logo mark with no animation hooks", () => {
     render(<ARGovernanceCard onLaunch={vi.fn()} />);
     const button = screen.getByRole("button", { name: "Beyond the CV" });
-    const svg = button.querySelector(".ar-reticle-svg");
-    expect(svg).toBeTruthy();
-    expect(svg.getAttribute("fill")).toBe("currentColor");
-    expect(svg.querySelectorAll("path").length).toBe(4);
+    const mark = button.querySelector(".ar-reticle-mark");
+    expect(mark).toBeTruthy();
+    expect(mark.getAttribute("style") || "").toMatch(/mask-image/i);
     expect(button.querySelector("animate")).toBeNull();
     expect(button.querySelector("animateTransform")).toBeNull();
   });
 });
-
-
