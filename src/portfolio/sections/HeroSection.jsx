@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import linkedinLogo from "../../assets/linkedin-logo.png";
 import { languageItems, stackStreams } from "../portfolioData.js";
 import TickerStream from "../TickerStream.jsx";
 
@@ -89,9 +90,12 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/35 bg-slate-950/55 px-5 py-3.5 text-left font-semibold text-slate-100 shadow-lg shadow-black/50 transition hover:border-white/60 hover:bg-slate-900/75 hover:text-white hover:shadow-black/70"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded bg-sky-400/90 text-sm font-bold leading-none text-slate-950">
-                  in
-                </span>
+                <img
+                  src={linkedinLogo}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-7 w-7 shrink-0 rounded object-cover"
+                />
                 <span className="flex flex-col leading-none">
                   <span>Connect on LinkedIn</span>
                   <span className="mt-1 text-xs font-normal text-slate-400">Request CV or discuss opportunities</span>
