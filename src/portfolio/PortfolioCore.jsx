@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { groupSectionIdsByMacro } from "./macroSectionRegistry.js";
 import { PORTFOLIO_SECTION_IDS } from "./sectionCatalog.js";
 
 /**
@@ -102,27 +103,33 @@ export default function PortfolioCore({
     return null;
   }
 
+  const macroGroups = groupSectionIdsByMacro(orderedIds);
+
   return (
     <>
-      {orderedIds.map((id) => {
-        const SectionComponent = modules[id];
-        if (!SectionComponent) return null;
+      {macroGroups.map((group) => (
+        <div key={group.key} data-macro-section={group.key}>
+          {group.memberSectionIds.map((id) => {
+            const SectionComponent = modules[id];
+            if (!SectionComponent) return null;
 
-        const sectionProps = {
-          selectedLens,
-          setSelectedLens,
-          onSelectLens: setSelectedLens,
-          expandedExperiences,
-          toggleExperienceDetails,
-          sidebarSlot: id === "hero" ? sidebarSlot : undefined,
-        };
+            const sectionProps = {
+              selectedLens,
+              setSelectedLens,
+              onSelectLens: setSelectedLens,
+              expandedExperiences,
+              toggleExperienceDetails,
+              sidebarSlot: id === "hero" ? sidebarSlot : undefined,
+            };
 
-        return (
-          <div key={id} data-portfolio-section={id}>
-            <SectionComponent {...sectionProps} />
-          </div>
-        );
-      })}
+            return (
+              <div key={id} data-portfolio-section={id}>
+                <SectionComponent {...sectionProps} />
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </>
   );
 }
