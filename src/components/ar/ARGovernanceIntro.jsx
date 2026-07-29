@@ -32,7 +32,12 @@ export default function ARGovernanceIntro({
 
   return (
     <div className="flex h-full items-center justify-center bg-slate-950 px-5 py-8 text-slate-100">
-      <div className="w-full max-w-md rounded-xl border border-slate-700 bg-slate-950/90 px-7 py-8 shadow-xl sm:px-8 sm:py-10">
+      <div
+        className="w-full max-w-md rounded-xl border border-cyan-400/75 bg-slate-950/90 px-7 py-8 shadow-xl sm:px-8 sm:py-10"
+        style={{
+          boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
+        }}
+      >
         <h2 className="text-center text-xl font-semibold tracking-[0.14em] text-slate-50 uppercase">
           Beyond the CV
         </h2>
@@ -59,7 +64,10 @@ export default function ARGovernanceIntro({
           <button
             type="button"
             onClick={onActivateCamera}
-            className="mt-8 w-full rounded-md border border-cyan-400/40 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100"
+            className="mt-8 w-full rounded-md border border-cyan-400/75 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+            style={{
+              boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
+            }}
           >
             Activate Camera
           </button>
@@ -76,7 +84,10 @@ export default function ARGovernanceIntro({
           onClick={onBack}
           className={`${
             targetState === "checking" ? "mt-8" : "mt-3"
-          } w-full rounded-md border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300`}
+          } w-full rounded-md border border-cyan-400/75 bg-transparent px-4 py-2.5 text-sm font-medium text-slate-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35`}
+          style={{
+            boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
+          }}
         >
           Back to Portfolio
         </button>
