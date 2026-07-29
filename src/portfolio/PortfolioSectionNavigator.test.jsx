@@ -13,15 +13,17 @@ describe("PortfolioSectionNavigator", () => {
   });
 
   it("renders exactly the visible registry macros in order and omits Insights", () => {
-    render(<PortfolioSectionNavigator />);
+    render(<PortfolioSectionNavigator activeMacroKey="profile" />);
     fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
 
     const nav = screen.getByRole("navigation", { name: "Portfolio sections" });
     const items = within(nav).getAllByRole("button");
     const visible = getVisibleMacroSections();
 
-    expect(items.map((item) => item.textContent)).toEqual(
-      visible.map((macro) => macro.label)
+    expect(items.map((item) => item.textContent.replace(/\s+/g, " ").trim())).toEqual(
+      visible.map((macro, index) =>
+        index === 0 ? `${macro.label} (current section)` : macro.label
+      )
     );
     expect(items).toHaveLength(3);
     expect(screen.queryByRole("button", { name: "Insights" })).toBeNull();
@@ -51,6 +53,7 @@ describe("PortfolioSectionNavigator", () => {
   it("navigates to registry targets, closes, and uses motion-aware scroll", () => {
     const scrollIntoView = vi.fn();
     const getElement = vi.fn((id) => ({ id, scrollIntoView }));
+    const onActiveMacroSelect = vi.fn();
 
     expect(
       scrollToMacroSection("capabilities", {
@@ -76,7 +79,12 @@ describe("PortfolioSectionNavigator", () => {
       block: "start",
     });
 
-    render(<PortfolioSectionNavigator />);
+    render(
+      <PortfolioSectionNavigator
+        activeMacroKey="profile"
+        onActiveMacroSelect={onActiveMacroSelect}
+      />
+    );
     const trigger = screen.getByRole("button", { name: "Portfolio sections" });
     fireEvent.click(trigger);
 
@@ -85,7 +93,8 @@ describe("PortfolioSectionNavigator", () => {
     hero.scrollIntoView = vi.fn();
     document.body.appendChild(hero);
 
-    fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+    fireEvent.click(screen.getByRole("button", { name: /Profile/ }));
+    expect(onActiveMacroSelect).toHaveBeenCalledWith("profile");
     expect(hero.scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ block: "start" })
     );
@@ -96,7 +105,7 @@ describe("PortfolioSectionNavigator", () => {
   });
 
   it("closes on Escape and returns focus to the trigger", () => {
-    render(<PortfolioSectionNavigator />);
+    render(<PortfolioSectionNavigator activeMacroKey="profile" />);
     const trigger = screen.getByRole("button", { name: "Portfolio sections" });
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -107,21 +116,36 @@ describe("PortfolioSectionNavigator", () => {
   });
 
   it("keeps entries keyboard-operable as buttons with focus styles", () => {
-    render(<PortfolioSectionNavigator />);
+    render(<PortfolioSectionNavigator activeMacroKey="profile" />);
     fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
 
-    const profile = screen.getByRole("button", { name: "Profile" });
+    const profile = screen.getByRole("button", { name: /Profile/ });
     expect(profile.tagName).toBe("BUTTON");
     expect(profile.className).toMatch(/focus-visible:ring/);
   });
 
-  it("does not expose active-section or Role Lens marker affordances yet", () => {
-    const { container } = render(<PortfolioSectionNavigator />);
+  it("marks exactly one current macro with aria-current and a static indicator", () => {
+    render(<PortfolioSectionNavigator activeMacroKey="capabilities" />);
     fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
 
-    expect(container.querySelector("[aria-current]")).toBeNull();
-    expect(container.textContent).not.toMatch(/Role Lens matches/i);
-    expect(container.querySelector("[data-macro-lens-relevant]")).toBeNull();
+    const current = screen.getByRole("button", { name: /Capabilities/ });
+    expect(current).toHaveAttribute("aria-current", "location");
+    expect(current).toHaveAttribute("data-macro-current", "true");
+    expect(current.textContent).toMatch(/current section/i);
+
+    const others = [
+      screen.getByRole("button", { name: /^Profile$/ }),
+      screen.getByRole("button", { name: /^Evidence$/ }),
+    ];
+    for (const button of others) {
+      expect(button).not.toHaveAttribute("aria-current");
+      expect(button).not.toHaveAttribute("data-macro-current");
+    }
+
+    expect(screen.queryByText(/Role Lens matches/i)).toBeNull();
+    expect(
+      document.querySelector("[data-macro-lens-relevant]")
+    ).toBeNull();
   });
 });
 

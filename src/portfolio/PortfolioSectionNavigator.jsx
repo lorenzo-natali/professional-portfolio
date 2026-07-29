@@ -45,10 +45,17 @@ export function scrollToMacroSection(scrollTargetId, options = {}) {
 }
 
 /**
- * Static floating section index (Phase 2).
- * Local open/closed state only — no active-section or Role Lens markers.
+ * Floating section index with optional current-location indication (Phase 3).
+ *
+ * @param {{
+ *   activeMacroKey?: string,
+ *   onActiveMacroSelect?: (macroKey: string) => void,
+ * }} [props]
  */
-export default function PortfolioSectionNavigator() {
+export default function PortfolioSectionNavigator({
+  activeMacroKey = "profile",
+  onActiveMacroSelect,
+} = {}) {
   const macros = getVisibleMacroSections();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(/** @type {HTMLButtonElement | null} */ (null));
@@ -73,8 +80,9 @@ export default function PortfolioSectionNavigator() {
 
   const closePanel = () => setOpen(false);
 
-  const onSelectMacro = (scrollTargetId) => {
-    scrollToMacroSection(scrollTargetId);
+  const onSelectMacro = (macro) => {
+    onActiveMacroSelect?.(macro.key);
+    scrollToMacroSection(macro.scrollTargetId);
     closePanel();
     triggerRef.current?.focus();
   };
@@ -94,17 +102,35 @@ export default function PortfolioSectionNavigator() {
           Sections
         </p>
         <ul className="flex flex-col gap-1">
-          {macros.map((macro) => (
-            <li key={macro.key}>
-              <button
-                type="button"
-                className="flex min-h-11 w-full items-center rounded-md border border-transparent px-3 py-2 text-left text-sm text-slate-100 outline-none transition-[border-color,background-color] hover:border-cyan-400/40 hover:bg-cyan-400/5 focus-visible:border-cyan-300/60 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
-                onClick={() => onSelectMacro(macro.scrollTargetId)}
-              >
-                {macro.label}
-              </button>
-            </li>
-          ))}
+          {macros.map((macro) => {
+            const isCurrent = activeMacroKey === macro.key;
+            return (
+              <li key={macro.key}>
+                <button
+                  type="button"
+                  aria-current={isCurrent ? "location" : undefined}
+                  data-macro-current={isCurrent ? "true" : undefined}
+                  className={`flex min-h-11 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm outline-none transition-[border-color,background-color,color] focus-visible:ring-2 focus-visible:ring-cyan-400/35 ${
+                    isCurrent
+                      ? "border-cyan-400/55 bg-cyan-400/10 font-medium text-cyan-50"
+                      : "border-transparent text-slate-100 hover:border-cyan-400/40 hover:bg-cyan-400/5 focus-visible:border-cyan-300/60"
+                  }`}
+                  onClick={() => onSelectMacro(macro)}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                      isCurrent ? "bg-cyan-300" : "bg-slate-600"
+                    }`}
+                  />
+                  <span>{macro.label}</span>
+                  {isCurrent ? (
+                    <span className="sr-only"> (current section)</span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
