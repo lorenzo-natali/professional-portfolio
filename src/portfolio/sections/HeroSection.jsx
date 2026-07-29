@@ -89,9 +89,9 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/35 bg-slate-950/55 px-5 py-3.5 text-left font-semibold text-slate-100 shadow-lg shadow-black/50 transition hover:border-white/60 hover:bg-slate-900/75 hover:text-white hover:shadow-black/70"
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-7 w-7 shrink-0 fill-current text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.16)]">
-                  <path d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.5 8.5h4V23h-4V8.5zM8.5 8.5h3.84v1.98h.05c.53-1.01 1.84-2.08 3.79-2.08 4.05 0 4.8 2.67 4.8 6.14V23h-4v-6.6c0-1.57-.03-3.6-2.19-3.6-2.2 0-2.53 1.71-2.53 3.48V23h-4V8.5z" />
-                </svg>
+                <span className="flex h-7 w-7 items-center justify-center rounded bg-sky-400/90 text-sm font-bold leading-none text-slate-950">
+                  in
+                </span>
                 <span className="flex flex-col leading-none">
                   <span>Connect on LinkedIn</span>
                   <span className="mt-1 text-xs font-normal text-slate-400">Request CV or discuss opportunities</span>
