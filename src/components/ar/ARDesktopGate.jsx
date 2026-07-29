@@ -10,7 +10,10 @@ export default function ARDesktopGate({ onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-600 px-5 py-2.5 text-sm font-medium text-slate-200"
+            className="rounded-md border border-cyan-400/75 bg-transparent px-5 py-2.5 text-sm font-medium text-cyan-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 hover:text-cyan-200 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+            style={{
+              boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
+            }}
           >
             Close
           </button>
