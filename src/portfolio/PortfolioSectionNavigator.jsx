@@ -44,17 +44,24 @@ export function scrollToMacroSection(scrollTargetId, options = {}) {
   return true;
 }
 
+/** Accessible suffix for Role Lens participation (not ranking). */
+export const MACRO_LENS_RELEVANT_LABEL =
+  "Contains content relevant to the selected role lens";
+
 /**
- * Floating section index with optional current-location indication (Phase 3).
+ * Floating section index with current-location and optional Role Lens
+ * participation markers (Phases 3–4). Relevance is a read-only derived prop.
  *
  * @param {{
  *   activeMacroKey?: string,
  *   onActiveMacroSelect?: (macroKey: string) => void,
+ *   macroLensRelevance?: Readonly<Record<string, boolean>>,
  * }} [props]
  */
 export default function PortfolioSectionNavigator({
   activeMacroKey = "profile",
   onActiveMacroSelect,
+  macroLensRelevance = null,
 } = {}) {
   const macros = getVisibleMacroSections();
   const [open, setOpen] = useState(false);
@@ -104,28 +111,46 @@ export default function PortfolioSectionNavigator({
         <ul className="flex flex-col gap-1">
           {macros.map((macro) => {
             const isCurrent = activeMacroKey === macro.key;
+            const isRelevant = Boolean(macroLensRelevance?.[macro.key]);
             return (
               <li key={macro.key}>
                 <button
                   type="button"
                   aria-current={isCurrent ? "location" : undefined}
                   data-macro-current={isCurrent ? "true" : undefined}
+                  data-macro-lens-relevant={isRelevant ? "true" : undefined}
                   className={`flex min-h-11 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm outline-none transition-[border-color,background-color,color] focus-visible:ring-2 focus-visible:ring-cyan-400/35 ${
                     isCurrent
                       ? "border-cyan-400/55 bg-cyan-400/10 font-medium text-cyan-50"
-                      : "border-transparent text-slate-100 hover:border-cyan-400/40 hover:bg-cyan-400/5 focus-visible:border-cyan-300/60"
+                      : isRelevant
+                        ? "border-slate-700/90 text-slate-100 hover:border-cyan-400/40 hover:bg-cyan-400/5 focus-visible:border-cyan-300/60"
+                        : "border-transparent text-slate-100 hover:border-cyan-400/40 hover:bg-cyan-400/5 focus-visible:border-cyan-300/60"
                   }`}
                   onClick={() => onSelectMacro(macro)}
                 >
                   <span
                     aria-hidden="true"
+                    data-macro-location-marker=""
                     className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
                       isCurrent ? "bg-cyan-300" : "bg-slate-600"
                     }`}
                   />
-                  <span>{macro.label}</span>
+                  <span className="min-w-0 flex-1">{macro.label}</span>
+                  {isRelevant ? (
+                    <span
+                      aria-hidden="true"
+                      data-macro-relevance-marker=""
+                      className="inline-block h-1.5 w-1.5 shrink-0 rotate-45 border border-cyan-300/80 bg-transparent"
+                    />
+                  ) : null}
                   {isCurrent ? (
                     <span className="sr-only"> (current section)</span>
+                  ) : null}
+                  {isRelevant ? (
+                    <span className="sr-only">
+                      {" "}
+                      ({MACRO_LENS_RELEVANT_LABEL})
+                    </span>
                   ) : null}
                 </button>
               </li>

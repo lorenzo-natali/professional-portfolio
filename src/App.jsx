@@ -6,6 +6,7 @@ import {
 } from "./diagnostics/appFeatures.js";
 import PortfolioCore from "./portfolio/PortfolioCore.jsx";
 import PortfolioSectionNavigator from "./portfolio/PortfolioSectionNavigator.jsx";
+import { deriveMacroLensRelevance } from "./portfolio/deriveMacroLensRelevance.js";
 import { useActiveMacroSection } from "./portfolio/useActiveMacroSection.js";
 import {
   assistantCategories,
@@ -455,6 +456,7 @@ function App({
   // Step 6: gate CSS lens-glow-clock to non-Overview Role Lens only.
   useLensGlowActiveMarker(selectedLens);
   const { activeMacroKey, selectMacro } = useActiveMacroSection();
+  const macroLensRelevance = deriveMacroLensRelevance(selectedLens);
   const [expandedExperiences, setExpandedExperiences] = useState({});
   // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
   const [arOpen, setArOpen] = useState(() => launchBeyond());
@@ -527,6 +529,7 @@ function App({
       <PortfolioSectionNavigator
         activeMacroKey={activeMacroKey}
         onActiveMacroSelect={selectMacro}
+        macroLensRelevance={macroLensRelevance}
       />
 
       {BeyondView ? (
