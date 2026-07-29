@@ -1,9 +1,10 @@
 # Portfolio Navigation UX Refactor — Audit & Plan
 
 **Branch:** `feature/navigation-ux-refactor`  
-**Baseline HEAD:** `157240652a23db2fb756244d6666de29590fa4da`  
+**Baseline HEAD (audit start):** `157240652a23db2fb756244d6666de29590fa4da`  
 **Live baseline:** https://lorenzo-natali.github.io/professional-portfolio/  
-**Phase:** Audit and planning only — no navigation implementation in this document’s commit.  
+**Phase:** Audit and planning only — no navigation implementation in this document’s planning commits.  
+**Macro labels:** Profile / Capabilities / Evidence / Insights are **working titles** only. Do not treat naming polish as a blocker; refine terminology after the IA is fully designed.  
 **Status legend used below:** **Verified** (observed live or in code) · **Inferred** (reasonable implication) · **Proposed** (planned behaviour) · **Open** (needs Lorenzo’s product approval)
 
 ---
@@ -12,11 +13,13 @@
 
 The live portfolio is a continuous one-page experience with a strong visual identity and no site-wide navigation. As content grows, sections near the bottom (Experience, Projects, Education, Risk Radar) require substantial scrolling and receive less opportunistic discovery, while Role Lens sticky behaviour ends as soon as the visitor leaves the short `#role-lens` block.
 
-**Recommendation:** preserve the one-page narrative and current physical order; add a lightweight floating **section index** with three visible macro-targets — **Profile**, **Capabilities**, **Evidence** — and keep a fourth registry slot, **Insights**, hidden until publication content exists.
+**Recommendation:** preserve the one-page narrative and current physical order; add a lightweight floating **section index** with three visible macro-targets — **Profile**, **Capabilities**, **Evidence** (working titles) — and keep a fourth registry slot, **Insights**, hidden until publication content exists.
 
 Role Lens must continue to highlight the same individual elements. The navigator only derives a boolean “contains relevant content” marker per macro-section from the existing `lensRelevance` map. No content filtering, reordering, or parallel lens configuration.
 
 Safari constitution is non-negotiable: zero new infinite animations, rAF loops, timers for visual behaviour, permanent `will-change`, animated custom properties, backdrop-filter surfaces, or scroll-driven React state churn. Active-section detection should use one IntersectionObserver over three macro roots only.
+
+**Architecture validation note (see §§11, 16–18, Appendix C):** with today’s `lensRelevance` data, every non-Overview lens marks both Capabilities and Evidence. Macro markers therefore act as a participation map and jump aid, not as a strong relative ranking between those two macros. Element-level highlights remain the primary differentiator. Profile macro markers should **not** be driven by ticker `streamItems` alone (always non-empty today), or Profile would light on every lens without useful destination signal.
 
 ---
 
@@ -175,9 +178,11 @@ These risks justify a floating macro-navigator without converting the site into 
 
 ## 7. Recommended macro-information architecture
 
+> Working titles only. Structural membership matters more than final English wording.
+
 ### Recommended visible structure (3 entries)
 
-| Menu label | Scroll target | Contiguous catalog members | Includes |
+| Menu label (working) | Scroll target | Contiguous catalog members | Includes |
 |---|---|---|---|
 | **Profile** | `#hero` | `hero`, `role-lens` | Identity, positioning, streams, languages, CTAs, Beyond CV, Assistant, Role Lens control |
 | **Capabilities** | `#capabilities` | `capabilities`, `credentials` | Professional Capabilities, Certifications Roadmap, Additional Training |
@@ -185,53 +190,51 @@ These risks justify a floating macro-navigator without converting the site into 
 
 ### Fourth registry entry (not visible yet)
 
-| Menu label | Status | Future contents |
+| Menu label (working) | Status | Future contents |
 |---|---|---|
 | **Insights** | Hidden until content exists | Articles, AI Governance Notes, white papers, downloadable publications |
 
-### Assessment against the original hypothesis
+### Structural validation (independent of naming)
 
 | Question | Answer |
 |---|---|
-| Are these the right four macros? | Yes as a **registry**; only three should be **visible** until Insights has content |
-| Is “Evidence” intuitive? | Yes — already used in “Professional Risk & Evidence Map.” |
-| Education & certifications? | Certifications → Capabilities; Education → Evidence (academic proof), matching current contiguous order |
-| Experience + Projects together? | Yes, inside Evidence |
-| Profile include Role Lens, Assistant, Beyond? | Yes — they are orientation tools, not proof artefacts |
+| Are three contiguous macros feasible without reorder? | **Yes** — ranges map 1:1 onto `PORTFOLIO_SECTION_IDS` (**Verified**) |
+| Can Insights join later without restructuring? | **Yes** — append a fourth contiguous block when content exists |
+| Certifications vs Education | Certifications with Capabilities; Education with Evidence (current order) |
+| Experience + Projects together? | **Yes** — both are proof artefacts inside Evidence |
+| Profile include Role Lens, Assistant, Beyond? | **Yes** — orientation tools, not proof artefacts |
 | Insights visible before content? | **No** — hide until publishable |
-| Clearer four-label structure? | Splitting Evidence into Work + Risk Map adds a fourth thin item without enough gain |
+| Split Evidence into Work + Risk Map? | Rejected for MVP — fourth thin item while Insights still pending |
 
-### English label rationale
+### Contiguity proof (**Verified**)
 
-- **Profile** — universally understood entry point for recruiters and international visitors.
-- **Capabilities** — matches the live section title language; less generic than “Skills”.
-- **Evidence** — precise for audit/risk audiences and already native to this portfolio.
-- **Insights** — reserved for thought leadership; do not show empty.
+```
+[hero, role-lens]                              → Profile
+[capabilities, credentials]                    → Capabilities
+[experience, projects, education, risk-radar]  → Evidence
+```
+
+No gaps, no interleaving. Macro observational wrappers can surround these ranges without changing render order.
 
 ---
 
 ## 8. Alternative structures considered
 
-### Alternative A — Profile / Skills / Track Record
+Documented for completeness; naming variants are deferred.
 
-- Pros: familiar HR vocabulary.
-- Cons: “Skills” undersells certifications/governance framing; “Track Record” is vaguer than Evidence for this brand.
+### Alternative A — same three macros, different working labels
+
+Same membership as recommended; only labels differ. **No structural difference.** Defer label choice.
 
 ### Alternative B — Profile / Capabilities / Work / Risk Map (4 visible)
 
 - Pros: separates employment/projects from the radar.
-- Cons: Risk Map becomes a thin fourth item; Education placement becomes awkward; exceeds the preference for a small menu when Insights is still pending.
+- Cons: Risk Map becomes thin; Education placement awkward; crowded once Insights arrives.
+- **Rejected for MVP.**
 
-### Comparison and decision
+### Decision
 
-| Criterion | Recommended (3 + hidden Insights) | Alt A | Alt B |
-|---|---|---|---|
-| Matches live vocabulary | Strong | Medium | Medium |
-| Contiguous scroll targets without reorder | Yes | Yes | Weak for Education |
-| Scalable to Insights | Yes | Yes | Crowded (5 conceptual slots) |
-| Recruiter clarity | High | Medium | Medium-high |
-
-**Definitive recommendation:** Profile · Capabilities · Evidence (visible), Insights (registry-only until content).
+Keep the three-macro contiguous structure + hidden Insights. Treat labels as working titles until IA behaviour is validated on device.
 
 ---
 
@@ -246,14 +249,14 @@ hero → role-lens → capabilities → credentials → experience → projects 
 ### Why no essential moves
 
 - The three recommended macros already map to **contiguous** catalog ranges.
-- Reordering would risk breaking Assistant `signalMap` expectations, SiteDiag bisect sets, and visitor familiarity with the live site.
-- Education after Projects is slightly awkward conceptually (academic vs applied), but still valid as Evidence and does not break macro contiguity.
+- Reordering would risk breaking Assistant `signalMap` expectations, SiteDiag bisect sets (`SITE_DIAG_SECTION_SETS` in `sectionCatalog.js`), and visitor familiarity with the live site.
+- Education after Projects is slightly awkward conceptually, but still valid as Evidence and does not break macro contiguity.
 
 ### Optional later move (Phase 7 only, approval-gated)
 
 | Move | From → To | Why | Risk if lost | Essential? |
 |---|---|---|---|---|
-| Education section | After Projects → after Credentials | Groups academic foundation nearer Capabilities | Separates Education from closing Evidence Map; changes scroll muscle memory | **Optional** |
+| Education section | After Projects → after Credentials | Groups academic foundation nearer Capabilities | Separates Education from closing Evidence Map; changes scroll muscle memory; requires bisect/set updates | **Optional** |
 
 No other moves are proposed.
 
@@ -263,38 +266,65 @@ No other moves are proposed.
 
 ### Concept
 
-A discreet **compact section index** that reuses the portfolio’s cyan border, uppercase tracking, and subtle radar/reticle vocabulary. Not a new compass brand object; not a second Role Lens.
+A discreet **compact section index** that reuses the portfolio’s cyan border, uppercase tracking, and subtle radar/reticle vocabulary already visible in Risk Radar / Beyond reticle language. Not a new compass brand object; not a second Role Lens.
 
-### Placement
+### Placement and z-index stack (**Verified** band)
 
-- **Desktop:** fixed lower-trailing corner, clear of content gutters; z-index **above** Role Lens (`z-30`) and **below** Assistant (`z-50`) / Intro (`z-100`) / AR portal.
-- **Mobile:** dedicated compact control in the thumb-reachable trailing corner with `env(safe-area-inset-*)` padding — not a scaled-down desktop panel.
+| Layer | z-index | Source |
+|---|---|---|
+| Role Lens sticky bar | `z-30` | `RoleLens.jsx` |
+| AcademicFocusInfo tooltip | `z-30` (absolute) | `portfolioUi.jsx` |
+| **Navigator (proposed)** | **`z-40`** | Unoccupied in repo today (**Verified**: no `z-40` in production UI) |
+| Assistant overlay + panel | `z-50` | `App.jsx` |
+| Portfolio Intro | `z-[100]` | `App.jsx` |
+| AR portal host | `2147483000` | `index.css` |
 
-### States
+- **Desktop:** fixed lower-trailing corner; solid slate surface; clear of content gutters.
+- **Mobile:** trailing-bottom thumb zone with `env(safe-area-inset-*)`. Note: safe-area is used today mainly in Beyond AR (`viewport-fit=cover` already set in `index.html`); the navigator would be the first main-page consumer (**Verified**).
 
-| State | Behaviour (**Proposed**) |
-|---|---|
-| A. Closed | Small circular/rounded trigger with subdued cyan border; accessible name “Portfolio sections” |
-| B. Open | Compact panel listing 3 visible macros; no full-screen scrim required (avoid large composited overlay) |
-| C. Current section | `aria-current="true"` + static border/text emphasis (no pulse) |
-| D. Lens match (not current) | Static relevance marker (dot/icon) + non-colour text affordance |
-| E. Current + lens match | Both current and relevance markers combined |
-| F. No active Role Lens / Overview | Relevance markers hidden; menu still navigates |
-| G. Dismissal | Select item, Escape, or toggle closes; focus returns to trigger |
-| H. Mobile compact | Larger tap targets, panel opens upward, max height capped (~40–50vh), labels remain readable |
-| I. Reduced motion | Instant open/close; no transform animation; immediate state changes |
+### States A–I (validated)
 
-### Interaction rules
+| State | Behaviour (**Proposed**) | Validation note |
+|---|---|---|
+| A. Closed | Small rounded trigger; cyan border at low opacity; name “Portfolio sections” | Must remain readable without glow/pulse |
+| B. Open | Compact panel of visible macros; **no** full-screen scrim | Avoids another large composited blur layer (Assistant already uses blur when open) |
+| C. Current | `aria-current="location"` + static border/text | No Framer infinite / no CSS pulse |
+| D. Lens match | Static marker + non-colour text | See §11 for when markers fire |
+| E. Current + match | Combined markers | Still static |
+| F. Overview | Relevance markers off; navigation still works | Aligns with glow marker cleared on Overview |
+| G. Dismissal | Toggle, item activate, Escape, optional outside press | Escape/focus must exceed Assistant quality (Assistant lacks Escape today) |
+| H. Mobile | ≥44px targets; panel opens upward; max ~40–50vh; no inner scroll for 3 items | Dedicated layout, not scaled desktop |
+| I. Reduced motion | Instant open/close; `scrollIntoView({ behavior: "auto" })` | Second JS consumer of `prefers-reduced-motion` after Intro skip |
 
-- Smooth scroll to macro start (`scrollIntoView` / equivalent) when motion is allowed; instant under reduced motion.
-- Manual scrolling remains primary; menu never traps scroll.
-- Selecting a macro closes the panel on mobile; desktop may keep open or close — prefer close for consistency.
-- Does not obstruct LinkedIn/GitHub in hero, Assistant FAB-equivalent card, or Beyond control; if collision occurs on short landscape phones, bias control slightly upward within safe area.
+### Scroll behaviour (must not blindly copy Assistant)
+
+Assistant signals today (**Verified**, `App.jsx`):
+
+```js
+element.scrollIntoView({ behavior: "smooth", block: "center" });
+```
+
+Navigator (**Proposed**) differs on purpose:
+
+| Concern | Assistant | Navigator |
+|---|---|---|
+| Behaviour | Always `"smooth"` | `"smooth"` unless reduced-motion → `"auto"` |
+| Block | `"center"` | `"start"` (macro beginning) |
+| Flash class | `assistant-signal-target` 1.8s | **None** — avoid extra animation |
+| Project carousel retries | setTimeout loop | Not required for macro anchors |
+
+**Hash URLs:** section ids already exist; Risk Radar and Assistant use them. **No** `scroll-margin-top` exists today (**Verified**). Not required for MVP because there is no site-wide sticky header; Role Lens sticky is section-scoped. Revisit only if a future sticky top chrome is added.
 
 ### Motif decision
 
-**Chosen:** compact section index with cyan system chrome.  
-**Rejected:** literal compass (not in design system); heavy “navigator HUD” (risk of new glow/blur identity).
+**Chosen:** compact section index with cyan system chrome / optional static reticle accent.  
+**Rejected:** literal compass; HUD with continuous glow; copying Assistant’s full-screen blurred scrim.
+
+### Coexistence rules
+
+- Does not replace Role Lens; does not open Assistant or Beyond.
+- When Assistant drawer or Intro or AR is open, navigator stays visually under them (`z-40`).
+- Under SiteDiag bisect with incomplete macros, hide the navigator or disable incomplete destinations (see §17).
 
 ---
 
@@ -302,47 +332,75 @@ A discreet **compact section index** that reuses the portfolio’s cyan border, 
 
 ### Required conceptual behaviour (**Proposed**)
 
-1. Element-level highlights remain exactly as today.
-2. When a lens is active, the floating menu marks only macros that contain ≥1 relevant mapped element.
+1. Element-level highlights remain exactly as today (`lensSurfaceClass`, radar nodes, ticker dimming).
+2. When a lens is active, the floating menu marks only macros that contain ≥1 relevant **mapped content group**.
 3. Selecting a marked macro scrolls to it; in-section highlights remain visible.
 4. Menu never hides, filters, or reorders content.
-5. Menu is a **relevance map**, not a content filter.
+5. Menu is a **relevance / participation map**, not a content filter and not a ranked scoreboard.
 
 ### Single source of truth
 
-Reuse `lensRelevance` + `isLensRelevant` / group membership. Add a **derived** mapping only:
+Reuse `lensRelevance` in `portfolioData.js` via helpers in `portfolioLens.js`. Add only a **derived** group→macro registry link — never a second ID list.
 
 ```text
-lensRelevanceGroup → catalogSectionId → macroId
+lensRelevanceGroup → catalogSectionId → macroId   (marker eligibility)
 
-capabilities  → capabilities → Capabilities
-credentials   → credentials  → Capabilities
-streamItems   → hero         → Profile
-experiences   → experience   → Evidence
-projects      → projects     → Evidence
-education     → education    → Evidence
-radar         → risk-radar   → Evidence
+capabilities  → capabilities → Capabilities   ✅ marker-eligible
+credentials   → credentials  → Capabilities   ✅ marker-eligible
+experiences   → experience   → Evidence       ✅ marker-eligible
+projects      → projects     → Evidence       ✅ marker-eligible
+education     → education    → Evidence       ✅ marker-eligible
+radar         → risk-radar   → Evidence       ✅ marker-eligible
+streamItems   → hero         → Profile        ⚠️ element highlight only; NOT used for macro markers
 ```
 
-Macro match state:
+### Why exclude `streamItems` from macro markers (**Validated**)
+
+**Verified:** every non-Overview lens currently has a non-empty `streamItems` array. If Profile markers were derived from `streamItems`, Profile would light for **every** active lens, adding noise without a useful jump destination (the visitor already used Role Lens near Profile).
+
+Tickers continue to dim/highlight at element level unchanged. Macro markers answer: “Which destinations contain Role Lens–relevant cards/nodes?”
+
+### Derivation rule
 
 ```text
 macroContainsRelevant(lens, macroId) =
   lens !== "Overview" &&
-  some(group in macro.groups where lensRelevance[lens][group].length > 0)
+  some(group in macro.markerGroups where lensRelevance[lens][group].length > 0)
 ```
 
-Prefer group non-emptiness (already the SoT) over querying the DOM. This avoids stale DOM class scraping and keeps education/projects honest even when a card is off-carousel.
+Prefer group non-emptiness over DOM class scraping so:
 
-### Stale mapping prevention
+- off-carousel projects still count toward Evidence when listed in `lensRelevance.projects`;
+- education can join later by filling `lensRelevance.education` without DOM hacks;
+- markers stay consistent even if highlight CSS changes.
 
-- One registry module owns macro ↔ section ↔ lens-group links.
-- Unit tests assert every `lensRelevance` group key maps to a registry group and every visible macro has defined members.
-- Do **not** copy ID lists into the navigator.
+### Per-lens expected macro markers (from current `lensRelevance`)
+
+| Lens (internal name) | UI label | Profile marker | Capabilities | Evidence | Notes |
+|---|---|---|---|---|---|
+| Overview | — | no | no | no | Glow off |
+| Banking Risk | Financial Risk | no | yes (capabilities+credentials) | yes (experiences+radar) | No projects |
+| IT Audit | IT Audit | no | yes | yes (experiences+radar) | No projects |
+| Technology Risk | Technology Risk | no | yes | yes (experiences+radar) | No projects |
+| Information Security Governance | same | no | yes | yes (experiences+radar) | No projects |
+| AI Governance | AI Governance | no | yes (capabilities+credentials) | yes (projects+radar; **no** experiences) | Live audit confirmed highlights in capabilities, credentials, projects, radar |
+
+**Honest UX implication:** with today’s mappings, Capabilities and Evidence **both** mark for every non-Overview lens. That is still correct per “contains ≥1 match.” Differentiation remains at **element** level inside each macro. Do not invent counts or fake exclusivity to force visual ranking. Future content or lens tuning may create stronger macro differentiation naturally.
 
 ### Counts
 
-**Do not show numeric match counts** in the MVP. Boolean presence is enough; counts add noise and invite inconsistency with carousel-only project highlighting.
+**Do not show numeric match counts** in the MVP.
+
+- Counts would still show “both macros have matches” for current lenses.
+- Project carousel only styles the active card, so DOM-visible count ≠ mapped count.
+- Boolean presence matches the product requirement with less noise.
+
+### Stale mapping prevention
+
+1. Registry lists `markerGroups` per macro (not copied entity IDs).
+2. Unit test: every `lensRelevance` group key is either assigned to a macro’s `markerGroups` or explicitly listed as `elementOnlyGroups` (e.g. `streamItems`).
+3. Unit test: expected marker matrix above for all five lenses + Overview.
+4. Do not read `signalMap` for lens relevance (Assistant-only deep links).
 
 ### Edge cases
 
@@ -350,98 +408,111 @@ Prefer group non-emptiness (already the SoT) over querying the DOM. This avoids 
 |---|---|
 | Lens matches nothing in a macro | No relevance marker |
 | Active macro has no matches | Current marker only |
-| Overview / no lens | No relevance markers anywhere |
-| Future Insights content | Add Insights member sections + lens groups to the same registry when content ships |
+| Overview / no lens | No relevance markers |
+| AI Governance + Experience | Experience stays visible/dimmed as today; Evidence still marks via projects+radar |
+| Future Insights | Add member sections + marker groups to the same registry |
 
 ---
 
 ## 12. Desktop behaviour
 
 - Trigger remains visible while scrolling; does not replace Role Lens.
-- Panel width modest (~220–280px); opaque/solid slate surface preferred over new `backdrop-filter`.
-- Keyboard: Tab to trigger, Enter/Space open, Arrow keys between items, Enter activates, Escape closes.
-- After navigation, active-section observer may briefly ignore intersections until scroll settles (coordination flag).
-- Hash URLs (`#experience`, etc.) should still work; observer should adopt the correct macro afterwards.
+- Panel width modest (~220–280px); **opaque** `bg-slate-950` / `bg-slate-900` + cyan border — **no** new `backdrop-filter`.
+- Focus ring: reuse existing portfolio pattern (`focus-visible:ring-2 focus-visible:ring-cyan-400/35` or white/40 from `portfolioUi`).
+- Keyboard: Tab → trigger; Enter/Space toggles; when open, Tab/Arrows move among items; Enter activates; Escape closes and returns focus to trigger.
+- After navigation: optimistic `activeMacroId`; ignore IO churn until scroll settles (`scrollend` where available, else one-shot ≤500ms timeout cleared on unmount).
+- Native hash navigation to `#experience` etc. continues to work; observer converges to the owning macro.
+- Do not put the navigator inside Framer `AnimatePresence` that remounts on route-less scroll (**Verified:** no `layoutId` coupling needed).
 
 ---
 
 ## 13. Mobile behaviour
 
-| Topic | Plan |
-|---|---|
-| Position | Trailing bottom corner with safe-area insets |
-| Thumb reach | Prefer bottom-end over mid-side |
-| Browser chrome | Keep clear of iOS home indicator / Android nav via safe-area |
-| Panel direction | Open upward / inward |
-| Max size | Cap height; internal scroll only if absolutely necessary (prefer 3 short labels — no inner scroll) |
-| Tap targets | ≥ 44×44 px |
-| Labels | Full words: Profile / Capabilities / Evidence |
-| Scroll while open | Allow page scroll; optional light dismiss on outside tap without full-screen scrim |
-| After selection | Close panel, move focus to destination heading or keep on trigger (prefer destination heading if focusable) |
-| Screen readers | Trigger name + expanded state; items as buttons/links with current and relevance announced in text |
-| Landscape | Keep trailing-end; shrink panel; ensure no overlap with Beyond/Assistant when those are in view |
-| Assistant / Beyond | Lower z-index than Assistant drawer; never cover AR portal |
-| Content obstruction | Small closed control; open panel must not cover the entire evidence cards column |
-| iPhone Safari perf | Solid surface, opacity/transform only, no blur, no infinite animation |
+| Topic | Plan | Grounding |
+|---|---|---|
+| Position | Trailing bottom with safe-area | Thumb reach; AR already proves `env(safe-area-inset-*)` pattern |
+| vs mid-side | Prefer bottom-end | Avoid conflict with vertical scroll thumb on right edge mid-screen |
+| Browser chrome | Safe-area padding on trigger + panel | `viewport-fit=cover` already present |
+| Panel direction | Open upward / inward | Keep labels above home indicator |
+| Max size | ~40–50vh; **no** inner scroll for 3 labels | Prevent nested scroll traps |
+| Tap targets | ≥ 44×44 px | iOS HIG |
+| Labels | Full working titles | Readability over icons-only |
+| Scroll while open | Allow page scroll; dismiss on outside press **without** full-screen blur scrim | Perf + constitution |
+| After selection | Close panel; move focus to destination `h2` if focusable, else leave on trigger after close | Stronger than Assistant |
+| Landscape | Keep trailing-end; reduce panel height; avoid covering Beyond/Assistant when those are in the first screens | Hero is tall on phone |
+| Assistant / Beyond | `z-40` < Assistant `z-50`; never above AR portal | **Verified** stack |
+| Content obstruction | Closed control small; open panel must not cover entire card column | Visual QA Phase 5 |
+| iPhone Safari perf | Solid surface; opacity/transform only; no blur; no infinite animation | Safari constitution |
 
 ---
 
 ## 14. Accessibility requirements
 
+**Do not mirror the Assistant drawer as the a11y model.** **Verified** gaps in Assistant today: no Escape, no `aria-expanded`, no `aria-controls`, no dialog role, no focus restore. Better local precedents:
+
+- Escape: `AcademicFocusInfo` in `portfolioUi.jsx`
+- `aria-expanded`: Experience expand/collapse
+- Modal inert/dialog: AR portal when open (navigator is **not** modal — do not copy `aria-modal` unless a scrim is later approved)
+
 | Requirement | Spec |
 |---|---|
-| Control type | `button` trigger; panel as grouped list of navigation buttons/links |
-| Accessible name | e.g. “Portfolio sections” |
-| `aria-expanded` | Reflects open/closed |
-| Relationship | `aria-controls` → panel id |
-| Keyboard | As in §12 |
-| Escape | Closes and returns focus to trigger |
-| Focus return | On close, focus trigger unless user activated an item (then follow focus policy in §13) |
-| Current section | `aria-current="location"` (or `true`) on the active item |
-| Lens relevance without colour | Visible icon/dot **plus** accessible text, e.g. “Contains Role Lens matches” via `aria-describedby` or appended visually hidden text |
-| Reduced motion | Instant transitions; honor `prefers-reduced-motion` |
+| Control type | `button` trigger; panel items as buttons (or in-page links to `#anchors`) |
+| Accessible name | “Portfolio sections” (or equivalent) |
+| `aria-expanded` | On trigger |
+| `aria-controls` | Panel id |
+| Keyboard | §12 |
+| Escape | Close + focus trigger |
+| Focus return | Escape/toggle close → trigger; item activate → destination heading when practical |
+| Current section | `aria-current="location"` |
+| Lens relevance without colour | Visible marker **plus** accessible text (“Contains Role Lens matches”) via visually hidden span or `aria-describedby` |
+| Reduced motion | Instant UI; `behavior: "auto"` scroll |
 | Tap targets | ≥ 44px |
-| Contrast | Meet WCAG AA against slate-950 surfaces; do not rely on cyan glow alone |
+| Contrast | WCAG AA on solid slate; no glow-only meaning |
+| Modal behaviour | Non-modal by default (page remains operable) |
 
 ---
 
 ## 15. Performance and Safari constraints
 
-Navigator design must comply with the constitution derived from `docs/safari-recovery-log.md` and `docs/safari-workload-audit.md`.
+Navigator design must comply with `docs/safari-recovery-log.md` and `docs/safari-workload-audit.md`, and must remain isolatable from Steps 1–6.
 
 ### Forbidden for this feature
 
 - New infinite animations; new rAF loops; new visual timers
 - Permanent `will-change`; animated CSS custom properties; moving gradients
 - Continuous glow / pulse / shimmer / sweep / breathing
-- New `backdrop-filter` unless reusing an existing safe surface without adding another large layer (prefer **no** new blur)
+- New `backdrop-filter` / large blurred scrim
 - Full-height / full-screen composited overlay
-- Per-item IntersectionObserver; duplicated observer infrastructure
+- Per-item IntersectionObserver; reuse of ticker IO singleton for unrelated roots
 - Scroll handlers that continuously `setState`
 - Animated box-shadow / filter / layout-triggering animation
+- Mounting Beyond / WebGL as a side effect of navigation
 
 ### Permitted
 
-- Short event-driven opacity/transform transitions
+- Short event-driven opacity/transform transitions (disabled under reduced motion)
 - Static colour/border/opacity for current + relevance
-- Reuse of existing highlight tokens for in-page content (unchanged)
-- One shared IntersectionObserver over macro roots only
+- Existing in-page highlight tokens unchanged
+- Exactly one IntersectionObserver over macro roots; disconnect when empty/unmounted
 - Immediate state under reduced motion
 
 ### Performance budget table
 
 | Category | Target | Plan |
 |---|---|---|
-| New animation systems | **0** | Closed/open may use one-shot CSS transition only |
-| New observers | **0 continuous extras beyond one** | Exactly **one** IO for macro roots; disconnect on unmount |
-| New timers | **0** | No setInterval/setTimeout for visuals; optional one-shot scroll-lock timeout only if unavoidable — prefer IO + rAF-free flag cleared on `scrollend` / single timeout ≤500ms documented if needed |
+| New animation systems | **0** continuous | Optional one-shot CSS transition only |
+| New observers | **1** IO total | Macro roots only; dispose on unmount |
+| New timers | **0** continuous | Optional one-shot ≤500ms scroll-settle, cleared on unmount |
 | New rAF loops | **0** | None |
-| New persistent layers | **0** | Avoid `will-change`; keep trigger as normal fixed element |
+| New persistent layers | **0** promoted | No `will-change`; normal `position: fixed` |
 | New blurred surfaces | **0** | Solid slate panel |
-| React state updates during scroll | Minimal | Active macro id updates only when crossing macro boundaries (not per frame) |
-| Style/layout/paint | Low | Class toggles on 3 items; no document-wide custom properties |
+| React state updates during scroll | Boundary-only | `activeMacroId` changes only when macro candidate changes |
+| Style/layout/paint | Low | Class toggles on ≤4 items; no document-wide custom properties |
+| Runtime counters (diag) | Idle closed ≈ baseline | Validate with `__portfolioRuntimeCounters` in Phase 6 |
 
-If a short scroll-settling timeout proves necessary after click-to-scroll, it must be one-shot, cleared on unmount, and covered by the Safari validation phase — not a continuous clock.
+### Isolation rule
+
+Do not ship navigator changes bundled with ticker-mask removal, ticker `will-change`/blur drops, or further radar filter experiments. Keep Safari variables separable.
 
 ---
 
@@ -451,20 +522,25 @@ If a short scroll-settling timeout proves necessary after click-to-scroll, it mu
 
 | Approach | Risk | Verdict |
 |---|---|---|
-| Reuse ticker IntersectionObserver singleton | Couples unrelated systems; different thresholds | Reject |
-| **One new IO on 3–4 macro roots** | Low; mirrors existing singleton discipline | **Recommend** |
-| CSS scroll-driven animations for current state | Support/stability uneven; harder a11y sync | Reject for MVP |
-| Throttled scroll + `getBoundingClientRect` | Easy to regress into frequent React updates | Reject |
+| Reuse ticker IO singleton (`createTickerVisibilityObserver.js`) | Couples unrelated systems; ticker threshold `[0, 0.01]` wrong for macros | **Reject** |
+| **One new IO on 3 macro roots** | Low; mirrors singleton dispose discipline | **Recommend** |
+| CSS scroll-driven animations | Support/a11y sync weak for current-state | Reject MVP |
+| Throttled scroll + `getBoundingClientRect` | Easy to regress into high-frequency React updates | Reject |
 
-### Recommended rules
+### Recommended algorithm (**Proposed**)
 
-- Observe only macro root elements (Profile/Capabilities/Evidence[/Insights when visible]).
-- Threshold: use multiple thresholds or a top-biased `rootMargin` (e.g. shrink bottom so the section occupying the upper mid-viewport wins).
-- Hysteresis: change `activeMacroId` only when a different macro is the clearest intersection candidate; avoid flicker at boundaries.
-- Top of page: force **Profile**.
-- Near footer: keep **Evidence** (last macro) rather than clearing.
-- After nav click: set active macro optimistically to the destination; ignore IO churn until scroll completes / short settling window.
-- Manual and programmatic scrolling share the same active state; programmatic path uses a temporary `isProgrammaticScroll` guard.
+1. Macro roots are observational wrappers (or first-section anchors) for Profile / Capabilities / Evidence.
+2. One `IntersectionObserver` with top-biased `rootMargin` (e.g. shrink bottom so the upper mid-viewport wins) and multiple thresholds.
+3. Compute the best intersecting candidate; update React state **only** when `activeMacroId` changes.
+4. Hysteresis: require a different macro to be clearly ahead before switching (prevents flicker at boundaries between credentials→experience etc.).
+5. `scrollY <= smallEpsilon` → force Profile.
+6. Bottom of document → keep Evidence (last visible macro).
+7. Programmatic navigation sets `isProgrammaticScroll`, optimistically sets destination macro, ignores IO until settle.
+8. Partial SiteDiag mounts: if a macro root is missing, observer simply omits it; navigator UI should hide or disable incomplete macros.
+
+### Why not observe every `data-portfolio-section`
+
+There are eight leaf sections. Observing all eight would increase callback churn and tempt per-section React updates. Three macro roots are enough for menu state and match the product’s three-item IA.
 
 ---
 
@@ -474,43 +550,91 @@ If a short scroll-settling timeout proves necessary after click-to-scroll, it mu
 
 - Single macro registry; derived lens relevance; presentational navigator; minimal prop drilling; no rewrite of business content; no parallel lens config.
 
-### Likely components / modules (**Proposed**)
+### Macro root strategy without reorder (**Verified feasible**)
+
+`PortfolioCore` today:
+
+```jsx
+<>
+  {orderedIds.map((id) => (
+    <div key={id} data-portfolio-section={id}>
+      <SectionComponent {...sectionProps} />
+    </div>
+  ))}
+</>
+```
+
+**Proposed:** group contiguous ids under macro wrappers **without** moving `data-portfolio-section` off leaf nodes (runtime counters count those nodes 1:1):
+
+```text
+[data-macro-section=profile]
+  [data-portfolio-section=hero] ...
+  [data-portfolio-section=role-lens] ...
+[data-macro-section=capabilities]
+  [data-portfolio-section=capabilities] ...
+  [data-portfolio-section=credentials] ...
+[data-macro-section=evidence]
+  ...
+```
+
+Scroll targets remain existing `#hero` / `#capabilities` / `#experience` (stable for Assistant/Risk Radar hashes). Observer watches `[data-macro-section]`.
+
+### Likely modules (**Proposed**)
 
 | Piece | Role |
 |---|---|
-| `macroSectionRegistry` (data) | Macro ids, labels, member catalog section ids, lens groups, `visible` flag for Insights |
-| `deriveMacroLensRelevance(selectedLens)` | Pure function over `lensRelevance` + registry |
-| `useActiveMacroSection(macroRoots)` | One IO; returns `activeMacroId` |
-| `PortfolioSectionNavigator` | Presentational trigger + panel |
-| Light wrappers / data attributes | Ensure each macro has a stable root element to observe and scroll to |
+| `macroSectionRegistry.js` | Macro ids, working labels, members, `markerGroups`, `elementOnlyGroups`, `visible` |
+| `deriveMacroLensRelevance.js` | Pure: `selectedLens` → `{ [macroId]: boolean }` |
+| `useActiveMacroSection.js` | One IO; programmatic scroll guard; returns `activeMacroId` |
+| `PortfolioSectionNavigator.jsx` | Presentational trigger + panel only |
+| `PortfolioCore.jsx` (light) | Optional macro wrappers; still spreads lens props |
+| `App.jsx` (light) | Mount navigator; pass `selectedLens`; do not move lens ownership |
 
-### Illustrative data shape (not implementation code)
+### Illustrative registry shape
 
 ```js
-// illustrative only
+// illustrative only — working titles
 {
   id: "evidence",
   label: "Evidence",
   anchorSectionId: "experience",
   memberSectionIds: ["experience", "projects", "education", "risk-radar"],
-  lensGroups: ["experiences", "projects", "education", "radar"],
+  markerGroups: ["experiences", "projects", "education", "radar"],
   visible: true
+}
+```
+
+```js
+{
+  id: "insights",
+  label: "Insights",
+  anchorSectionId: null,
+  memberSectionIds: [],
+  markerGroups: [],
+  visible: false
 }
 ```
 
 ### State ownership
 
-- `selectedLens` remains in `App`.
-- `activeMacroId` owned by a small hook near App/PortfolioCore (or navigator container).
-- `navigatorOpen` local to the navigator component.
-- `macroLensFlags` derived during render from `selectedLens` — no stored duplicate map.
+| State | Owner |
+|---|---|
+| `selectedLens` | `App` (unchanged) |
+| `macroLensFlags` | Derived each render from `selectedLens` + registry |
+| `activeMacroId` | `useActiveMacroSection` near mount point |
+| `navigatorOpen` | Local to `PortfolioSectionNavigator` |
 
-### Insights future join path
+### Feature / bisect gating
 
-1. Add content section(s) to catalog.
-2. Append Insights registry entry `visible: true` when content ready.
-3. Attach lens groups if Role Lens should mark Insights.
-4. No navigator rewrite required.
+- Production: mount navigator when full portfolio (or when all three macros have ≥1 mounted member).
+- SiteDiag halves/quarters: prefer **hide** navigator when any visible macro is incomplete, to avoid jumping to missing sections. Do not alter bisect catalogs unless Phase 7 reorders.
+
+### Insights join path
+
+1. Add catalog section id(s) + content modules.
+2. Set Insights `visible: true` and members/markerGroups.
+3. Extend macro wrapper rendering.
+4. No second lens configuration file.
 
 ---
 
@@ -518,27 +642,33 @@ If a short scroll-settling timeout proves necessary after click-to-scroll, it mu
 
 ### Likely create
 
-- `docs/navigation-ux-refactor-plan.md` (this document)
-- `src/portfolio/macroSectionRegistry.js` (or adjacent name)
+- `src/portfolio/macroSectionRegistry.js`
 - `src/portfolio/deriveMacroLensRelevance.js`
 - `src/portfolio/useActiveMacroSection.js`
 - `src/portfolio/PortfolioSectionNavigator.jsx`
-- companion tests under `src/portfolio/`
+- `src/portfolio/*.test.js(x)` matching Vitest + RTL step-test style
+- (this document already exists)
 
 ### Likely modify
 
-- `src/App.jsx` and/or `src/portfolio/PortfolioCore.jsx` — mount navigator, pass `selectedLens`
-- Possibly `src/index.css` — static navigator styles only
-- Possibly section wrappers to expose macro root attributes/ids if needed
+- `src/portfolio/PortfolioCore.jsx` — macro wrappers; preserve leaf `data-portfolio-section`
+- `src/App.jsx` — mount navigator; pass `selectedLens` only
+- `src/index.css` — static navigator rules only (optional; Tailwind-first preferred)
 
-### Explicitly untouched in nav MVP (unless a later approved phase says otherwise)
+### Explicitly untouched in nav MVP
 
-- Beyond AR stack (`ARGovernanceView`, tracking, WebGL)
-- Ticker shared scheduler / RO / IO implementations (except not mis-reusing them)
-- Radar cadence helpers
-- Step 6 lens-glow gating semantics
-- Content copy arrays’ professional narrative (except optional Phase 7 reorder)
-- GitHub Pages workflow / `main` deployment path during feature work
+- Beyond AR stack, camera, tracking, WebGL
+- `createTickerFrameScheduler.js` / resize / visibility observers (do not overload)
+- `radarSweepCadence.js` / Risk Radar visual systems
+- Step 6 `lensGlowActive` semantics
+- `lensRelevance` entity ID lists (except future content authoring — not part of navigator code)
+- GitHub Pages / `main` deploy path during feature work
+
+### Test stack to match (**Verified**)
+
+- Vitest + jsdom + Testing Library (`vite.shared.js` / `src/test/setup.js`)
+- Portfolio step tests use `describe("Step N…")`, mocks, DOM assertions; `userEvent` available but uncommon under `src/portfolio/`
+- Mock `IntersectionObserver` pattern already used in ticker visibility tests — reuse for active-macro tests
 
 ---
 
@@ -548,38 +678,39 @@ If a short scroll-settling timeout proves necessary after click-to-scroll, it mu
 
 | Area | Assert |
 |---|---|
-| Registry | Visible macros, member sections, Insights hidden by default |
-| Active section | IO-driven id changes with hysteresis fixtures |
-| Navigation target | Clicking item scrolls/requests correct anchor |
-| Lens relevance | Derived flags match `lensRelevance` group emptiness; Overview clears all |
-| No filtering | All sections remain mounted/visible regardless of lens |
-| Element highlights | Existing `lensSurfaceClass` behaviour unchanged |
-| Panel open/close | Toggle, item select, Escape |
-| Focus | Return to trigger on Escape; aria attributes |
-| Reduced motion | No transition dependency for correctness |
-| Insights join | Registry flag flip includes fourth item without breaking three-item cases |
-| Safari constraints | Guard tests / lint-level comments: no rAF/timer in navigator module; runtime counters unchanged when idle closed |
+| Registry | Three visible macros; Insights `visible: false`; contiguity of members vs `PORTFOLIO_SECTION_IDS` |
+| Group coverage | Every `lensRelevance` group is marker-assigned or explicitly `elementOnly` |
+| Marker matrix | Table in §11 for Overview + five lenses |
+| Active section | IO fixtures; hysteresis; top → Profile; footer → Evidence |
+| Navigation target | Item activates correct `anchorSectionId` / scroll options |
+| Reduced motion | `behavior: "auto"` path |
+| Panel | Open/close; Escape; `aria-expanded`; focus return |
+| No filtering | All leaf sections remain mounted regardless of lens/navigator |
+| Element highlights | Existing `lensSurfaceClass` / glow tests still pass |
+| Insights flag | Flipping `visible` adds fourth item without breaking three-item cases |
+| Perf guards | Navigator modules contain no `requestAnimationFrame` / visual `setInterval`; dispose clears IO |
 
 ### Manual device matrix
 
 | Environment | Checks |
 |---|---|
-| Desktop Chrome | Open/close, jump, lens markers, keyboard |
-| Desktop Safari | Same + no blur regressions |
-| iPhone Safari | Safe-area, thumb reach, landscape, Assistant/Beyond coexistence |
-| Android Chrome (if available) | Placement and tap targets |
-| Keyboard-only | Full path without pointer |
-| Reduced-motion mode | Instant panel; instant scroll |
+| Desktop Chrome | Jump, markers, keyboard, hash URLs |
+| Desktop Safari | Same; no unexpected blur/compositing |
+| iPhone Safari | Safe-area, thumb reach, landscape, Assistant/Beyond coexistence, Role Lens + navigator together |
+| Android Chrome (if available) | Placement / tap targets |
+| Keyboard-only | Full path |
+| Reduced-motion | Instant panel + instant scroll |
 
 ### iPhone Safari sustained-use test (Phase 6)
 
-Comparable to prior crash-validation method:
+Align with prior crash-validation method (~multi-minute idle/scroll pressure):
 
-1. Load production build on real iPhone Safari.
+1. Production build on real iPhone Safari.
 2. Select a Role Lens; open/close navigator repeatedly.
-3. Scroll end-to-end multiple times over several minutes.
-4. Confirm no tab crash / reload; optionally compare with `__portfolioRuntimeCounters` if enabled.
-5. Pass gate before any merge consideration.
+3. Scroll end-to-end multiple times for several minutes.
+4. Confirm no tab crash/reload.
+5. Optionally enable diagnostics and confirm idle closed navigator does not raise rAF/IO/timer counts vs baseline (`__portfolioRuntimeCounters`).
+6. Pass gate before merge consideration.
 
 ---
 
@@ -587,127 +718,162 @@ Comparable to prior crash-validation method:
 
 ### Phase 0 — Baseline and documentation
 
-- **Scope:** This plan document; branch hygiene.
+- **Scope:** This plan document on `feature/navigation-ux-refactor`.
 - **Files:** `docs/navigation-ux-refactor-plan.md`
 - **Visible change:** None in the app.
-- **Tests:** None beyond doc review.
+- **Tests:** Doc review.
 - **Perf risk:** None.
-- **Rollback:** Delete doc / revert commit.
-- **Approval gate:** Lorenzo accepts IA labels + Insights-hidden policy.
+- **Rollback:** Revert doc commit(s).
+- **Approval gate:** Accept contiguous three-macro IA + Insights hidden; labels remain working titles.
 
 ### Phase 1 — Section registry and stable anchors
 
-- **Scope:** Registry module; confirm macro roots/anchors; no UI yet.
-- **Files:** new registry + tests; possibly tiny wrapper attributes.
-- **Visible change:** None (or invisible anchors only).
-- **Tests:** Registry integrity + lens-group mapping.
+- **Scope:** Registry + derive helper + tests; optional macro data attributes; no floating UI.
+- **Files:** `macroSectionRegistry.js`, `deriveMacroLensRelevance.js`, tests; maybe light `PortfolioCore` wrappers.
+- **Visible change:** None (or invisible attributes only).
+- **Tests:** Contiguity, group coverage, marker matrix.
 - **Perf risk:** None.
-- **Rollback:** Remove registry files.
-- **Approval gate:** Contiguous membership confirmed.
+- **Rollback:** Remove new modules/wrappers.
+- **Approval gate:** Marker matrix accepted as participation map (not ranking).
 
 ### Phase 2 — Static navigator shell
 
-- **Scope:** Closed/open UI; jump links; no IO; no lens markers.
-- **Files:** `PortfolioSectionNavigator.jsx`, CSS, App/Core mount.
+- **Scope:** Closed/open UI; jump to anchors; no IO; no lens markers.
+- **Files:** `PortfolioSectionNavigator.jsx`, App mount, static CSS.
 - **Visible change:** Floating control appears.
-- **Tests:** Open/close, Escape, targets.
-- **Perf risk:** Low (fixed element only).
-- **Rollback:** Unmount component / feature flag off.
-- **Approval gate:** Visual fit with brand.
+- **Tests:** Toggle, Escape, focus, scroll target, reduced-motion scroll behaviour.
+- **Perf risk:** Low (one fixed element, solid surface).
+- **Rollback:** Unmount / feature flag.
+- **Approval gate:** Visual fit; z-40 coexistence with Assistant.
 
 ### Phase 3 — Active-section indication
 
 - **Scope:** One IO; current marker; programmatic scroll guard.
-- **Files:** `useActiveMacroSection.js` + navigator wiring.
+- **Files:** `useActiveMacroSection.js` + wiring.
 - **Visible change:** Current macro indicated.
-- **Tests:** Boundary hysteresis; top/footer behaviour.
-- **Perf risk:** Low if boundary-only updates.
-- **Rollback:** Disable hook; static shell remains.
-- **Approval gate:** No flicker on desktop/mobile.
+- **Tests:** Boundary hysteresis; top/footer; programmatic lock.
+- **Perf risk:** Low if boundary-only updates — measure with counters if unsure.
+- **Rollback:** Disable hook; shell remains.
+- **Approval gate:** No flicker on desktop + mobile emulation.
 
 ### Phase 4 — Role Lens macro-section integration
 
-- **Scope:** Derive boolean relevance markers from `lensRelevance`.
-- **Files:** derive helper + navigator + tests.
+- **Scope:** Boolean markers from derive helper; Overview clears.
+- **Files:** navigator props + tests.
 - **Visible change:** Markers when lens active.
-- **Tests:** Per-lens expected macros; Overview clears; no content filtering.
+- **Tests:** §11 matrix; no content filtering; element highlights unchanged.
 - **Perf risk:** None (pure derive).
 - **Rollback:** Hide markers.
-- **Approval gate:** Markers match mental model during lens demos.
+- **Approval gate:** Markers understood as participation map during lens demos.
 
 ### Phase 5 — Mobile and accessibility refinement
 
-- **Scope:** Safe-area, tap targets, focus, announcements, landscape.
+- **Scope:** Safe-area, targets, focus, announcements, landscape, outside-dismiss without scrim.
 - **Files:** navigator + CSS.
 - **Visible change:** Mobile polish.
 - **Tests:** a11y assertions; manual matrix.
 - **Perf risk:** Low.
-- **Rollback:** Revert CSS/a11y tweaks.
+- **Rollback:** Revert polish commits.
 - **Approval gate:** Lorenzo mobile walkthrough.
 
 ### Phase 6 — Sustained Safari validation
 
-- **Scope:** Real-device sustained scroll + lens + navigator idle.
+- **Scope:** Real-device protocol above.
 - **Files:** none expected.
 - **Visible change:** None.
-- **Tests:** Manual sustained-use protocol.
+- **Tests:** Manual sustained-use + optional counters.
 - **Perf risk:** Validation only.
-- **Rollback:** Disable navigator if regression found.
-- **Approval gate:** No crash; counters acceptable.
+- **Rollback:** Disable navigator if regression.
+- **Approval gate:** No crash; idle cost ≈ baseline.
 
 ### Phase 7 — Optional content reordering
 
-- **Scope:** Only if approved — e.g. Education after Credentials.
-- **Files:** `sectionCatalog.js`, any dependent anchors/tests.
+- **Scope:** Only if explicitly approved (e.g. Education after Credentials).
+- **Files:** `sectionCatalog.js`, bisect sets, any dependent tests.
 - **Visible change:** Reordered narrative.
-- **Tests:** Catalog/bisect updates.
-- **Perf risk:** None.
-- **Rollback:** Restore catalog order.
-- **Approval gate:** Explicit Lorenzo approval — default is **skip**.
+- **Default:** **Skip.**
 
 ---
 
 ## 21. Open decisions requiring Lorenzo’s approval
 
-1. **Macro labels:** Confirm **Profile / Capabilities / Evidence**, or choose Alt A/B naming.
-2. **Insights visibility:** Confirm **hidden until content exists** (recommended) versus a visible disabled “Coming soon” item.
-3. **Content order:** Confirm **no reorder** for MVP (recommended) versus approving Phase 7 Education move.
-4. **Mobile placement:** Confirm recommended trailing-bottom safe-area control, or specify a different corner.
-5. **Role Lens stickiness (out of nav MVP):** Decide later whether Role Lens itself should become site-sticky in a separate initiative; this plan does **not** include that change.
+Genuine product decisions only (not codebase questions; **not** terminology polish):
+
+1. **Insights visibility:** Hidden until content exists (**recommended**) vs visible disabled “Coming soon”.
+2. **Content order:** No reorder for MVP (**recommended**) vs approve Phase 7 Education move.
+3. **Mobile placement:** Trailing-bottom safe-area control (**recommended**) vs a different corner preference.
+4. **Macro marker policy:** Accept markers as a participation map that may light both Capabilities and Evidence for every current lens (**recommended**) vs request a future content/lens-tuning pass to create stronger macro differentiation (still without counts).
+5. **Role Lens site-stickiness:** Out of scope for this navigator MVP; decide later as a separate initiative if desired.
+6. **SiteDiag behaviour:** Hide navigator when bisect mounts incomplete macros (**recommended**) vs show disabled items.
+
+Working titles (Profile / Capabilities / Evidence / Insights) are **not** open blockers.
 
 ---
 
 ## 22. Final recommendation
 
-Ship a **three-item floating section index** on top of the unchanged one-page portfolio:
+Proceed with a **three-macro floating section index** on the unchanged one-page portfolio:
 
-- **Profile** → hero (+ Role Lens region)
-- **Capabilities** → capabilities + credentials
-- **Evidence** → experience + projects + education + risk-radar
-- **Insights** → prepared in registry, hidden until real content exists
+- **Profile** → `hero` + `role-lens`
+- **Capabilities** → `capabilities` + `credentials`
+- **Evidence** → `experience` + `projects` + `education` + `risk-radar`
+- **Insights** → registry-ready, hidden until real content exists
 
-Integrate Role Lens only as **derived boolean macro relevance** from existing `lensRelevance`. Keep Safari pressure flat: one observer, no new continuous animation systems, no new blur layers, no scroll-driven React churn.
+Architecture constraints that are now validated against this repository:
 
-Do not implement navigation until Phase 0 decisions above are confirmed. Keep all work on `feature/navigation-ux-refactor` until an explicit merge/push decision.
+1. Contiguous macros require **no** content reorder.
+2. Role Lens SoT remains `lensRelevance`; navigator derives boolean macro flags; `streamItems` stay element-only for markers.
+3. z-index `40` is free between Role Lens (`30`) and Assistant (`50`).
+4. One macro-root IntersectionObserver; solid surfaces; no new blur/rAF/infinite animation.
+5. Accessibility should follow Escape / `aria-expanded` / focus-return patterns stronger than the current Assistant drawer.
+6. Labels remain working titles until after behavioural validation.
+
+Do not begin implementation until the open decisions in §21 (except naming) are confirmed. Keep work on `feature/navigation-ux-refactor` until an explicit merge decision.
 
 ---
 
-## Appendix A — Working context at plan authoring
+## Appendix A — Working context
 
 | Check | Value |
 |---|---|
 | Repository root | `/Users/lorenzonatali/Desktop/professional-portfolio` |
 | Active branch | `feature/navigation-ux-refactor` |
-| HEAD | `157240652a23db2fb756244d6666de29590fa4da` |
+| Audit baseline HEAD | `157240652a23db2fb756244d6666de29590fa4da` |
+| Plan doc commit (initial) | `40b23c4` |
 | Remote | `https://github.com/lorenzo-natali/professional-portfolio.git` |
-| Push performed for this plan | No |
+| Branch pushed | Yes — `origin/feature/navigation-ux-refactor` (plan doc); `main` untouched |
 
 ## Appendix B — Key source references
 
-- `src/portfolio/sectionCatalog.js` — render order
+- `src/portfolio/sectionCatalog.js` — render order + SiteDiag sets
 - `src/portfolio/portfolioData.js` — `sectionAnchors`, `roleLenses`, `lensRelevance`, `signalMap`
 - `src/portfolio/portfolioLens.js` — highlight helpers
-- `src/portfolio/PortfolioCore.jsx` — section composition
-- `src/App.jsx` — lens state, Assistant, Beyond, Intro
-- `src/portfolio/RoleLens.jsx` — sticky lens UI
+- `src/portfolio/PortfolioCore.jsx` — section composition / leaf wrappers
+- `src/App.jsx` — lens state, Assistant `scrollIntoView`, Beyond, Intro, reduced-motion Intro skip
+- `src/portfolio/RoleLens.jsx` — sticky `z-30` lens UI
+- `src/portfolio/portfolioUi.jsx` — Escape precedent, focus rings
+- `src/portfolio/createTickerVisibilityObserver.js` — shared IO pattern to **mirror discipline**, not reuse for macros
+- `src/diagnostics/createPortfolioRuntimeCounters.js` — Safari/diag counters
 - `docs/safari-recovery-log.md` / `docs/safari-workload-audit.md` — Safari constitution
+
+## Appendix C — Architecture validation checklist
+
+| Claim | Status |
+|---|---|
+| Live page is one continuous scroll with 8 catalog sections | **Verified** |
+| No site-wide nav / scroll-spy today | **Verified** |
+| Role Lens sticky ends outside `#role-lens` | **Verified** (live + code) |
+| Three macros map to contiguous catalog ranges without reorder | **Verified** |
+| `lensRelevance` is the membership SoT | **Verified** |
+| Deriving macro flags without copying entity IDs is feasible | **Verified** / **Proposed** |
+| `streamItems` would mark Profile on every lens if used for macros | **Verified** → exclude from markers |
+| Capabilities + Evidence both mark for all current non-Overview lenses | **Verified** → accept as participation map |
+| Education / additional-training largely unhighlighted today | **Verified** — still belong structurally; markers ignore empty groups |
+| z-40 free between Role Lens and Assistant | **Verified** |
+| Assistant is a weak Escape/focus precedent | **Verified** |
+| Safe-area exists but is AR-centric | **Verified** |
+| No `scroll-margin-top` on anchors | **Verified** — OK for MVP |
+| Ticker IO must not be overloaded for macros | **Verified** |
+| Macro wrappers can preserve leaf `data-portfolio-section` counts | **Verified** / **Proposed** |
+| Insights content absent | **Verified** → keep hidden |
+| Real iPhone Safari sustained test still required before merge | **Open** (Phase 6) |
