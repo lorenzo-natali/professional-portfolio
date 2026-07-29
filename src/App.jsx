@@ -11,8 +11,10 @@ import {
   assistantCategories,
   assistantPrompts,
   publicAsset,
+  roleLenses,
   signalMap,
 } from "./portfolio/portfolioData.js";
+import { isOverviewLens } from "./portfolio/portfolioLens.js";
 import { PORTFOLIO_SECTION_IDS } from "./portfolio/sectionCatalog.js";
 import { useLensGlowActiveMarker } from "./portfolio/useLensGlowActiveMarker.js";
 import "./index.css";
@@ -455,6 +457,13 @@ function App({
   // Step 6: gate CSS lens-glow-clock to non-Overview Role Lens only.
   useLensGlowActiveMarker(selectedLens);
   const { activeSectionId, selectSection } = useActivePortfolioSection();
+  const activeLensLabel = isOverviewLens(selectedLens)
+    ? null
+    : (() => {
+        const lens = roleLenses.find((item) => item.name === selectedLens);
+        return lens ? lens.label ?? lens.name : null;
+      })();
+  const clearSelectedLens = () => setSelectedLens("Overview");
   const [expandedExperiences, setExpandedExperiences] = useState({});
   // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
   const [arOpen, setArOpen] = useState(() => launchBeyond());
@@ -527,6 +536,8 @@ function App({
       <PortfolioSectionNavigator
         activeSectionId={activeSectionId}
         onSectionSelect={selectSection}
+        activeLensLabel={activeLensLabel}
+        onClearLens={clearSelectedLens}
       />
 
       {BeyondView ? (

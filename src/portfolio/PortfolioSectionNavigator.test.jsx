@@ -16,6 +16,20 @@ const navigatorSource = readFileSync(
 );
 const appSource = readFileSync(path.join(portfolioDir, "..", "App.jsx"), "utf8");
 
+function openNavigator(props = {}) {
+  render(<PortfolioSectionNavigator activeSectionId="hero" {...props} />);
+  const trigger = screen.getByRole("button", { name: "Portfolio sections" });
+  fireEvent.click(trigger);
+  return trigger;
+}
+
+function getSectionNavButtons() {
+  const nav = screen.getByRole("navigation", { name: "Portfolio sections" });
+  return within(nav)
+    .getAllByRole("button")
+    .filter((button) => !/Clear .+ Role Lens/.test(button.getAttribute("aria-label") || ""));
+}
+
 describe("PortfolioSectionNavigator", () => {
   afterEach(() => {
     cleanup();
@@ -23,11 +37,9 @@ describe("PortfolioSectionNavigator", () => {
   });
 
   it("renders document sections in catalog order and omits Credentials", () => {
-    render(<PortfolioSectionNavigator activeSectionId="hero" />);
-    fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
+    openNavigator();
 
-    const nav = screen.getByRole("navigation", { name: "Portfolio sections" });
-    const items = within(nav).getAllByRole("button");
+    const items = getSectionNavButtons();
     const expected = getNavigatorSections();
 
     expect(items.map((item) => item.textContent.replace(/\s+/g, " ").trim())).toEqual(
@@ -90,14 +102,7 @@ describe("PortfolioSectionNavigator", () => {
       block: "start",
     });
 
-    render(
-      <PortfolioSectionNavigator
-        activeSectionId="hero"
-        onSectionSelect={onSectionSelect}
-      />
-    );
-    const trigger = screen.getByRole("button", { name: "Portfolio sections" });
-    fireEvent.click(trigger);
+    const trigger = openNavigator({ onSectionSelect });
 
     const hero = document.createElement("div");
     hero.id = "hero";
@@ -116,9 +121,7 @@ describe("PortfolioSectionNavigator", () => {
   });
 
   it("closes on Escape and returns focus to the trigger", () => {
-    render(<PortfolioSectionNavigator activeSectionId="hero" />);
-    const trigger = screen.getByRole("button", { name: "Portfolio sections" });
-    fireEvent.click(trigger);
+    const trigger = openNavigator();
     expect(trigger).toHaveAttribute("aria-expanded", "true");
 
     fireEvent.keyDown(document, { key: "Escape" });
@@ -127,28 +130,22 @@ describe("PortfolioSectionNavigator", () => {
   });
 
   it("keeps entries keyboard-operable as buttons with focus styles", () => {
-    render(<PortfolioSectionNavigator activeSectionId="hero" />);
-    fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
+    openNavigator();
 
     const overview = screen.getByRole("button", { name: /Overview/ });
     expect(overview.tagName).toBe("BUTTON");
     expect(overview.className).toMatch(/focus-visible:ring/);
   });
 
-  it("marks exactly one current section with aria-current and no Role Lens state", () => {
-    render(<PortfolioSectionNavigator activeSectionId="experience" />);
-    fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
+  it("marks exactly one current section with aria-current and no Role Lens relevance state", () => {
+    openNavigator({ activeSectionId: "experience" });
 
     const current = screen.getByRole("button", { name: /Experience/ });
     expect(current).toHaveAttribute("aria-current", "location");
     expect(current).toHaveAttribute("data-section-current", "true");
     expect(current.textContent).toMatch(/current section/i);
 
-    const others = within(
-      screen.getByRole("navigation", { name: "Portfolio sections" })
-    )
-      .getAllByRole("button")
-      .filter((button) => button !== current);
+    const others = getSectionNavButtons().filter((button) => button !== current);
     for (const button of others) {
       expect(button).not.toHaveAttribute("aria-current");
       expect(button).not.toHaveAttribute("data-section-current");
@@ -164,6 +161,7 @@ describe("PortfolioSectionNavigator", () => {
     expect(appSource).not.toMatch(/deriveMacroLensRelevance/);
     expect(appSource).not.toMatch(/macroLensRelevance/);
     expect(appSource).toMatch(/useActivePortfolioSection/);
+    expect(appSource).toMatch(/onClearLens=\{clearSelectedLens\}/);
     expect(navigatorSource).not.toMatch(/deriveMacroLensRelevance/);
     expect(navigatorSource).not.toMatch(/lensRelevance/);
     expect(navigatorSource).not.toMatch(/macroLensRelevance/);
@@ -172,6 +170,127 @@ describe("PortfolioSectionNavigator", () => {
     expect(navigatorSource).not.toMatch(/requestAnimationFrame/);
     expect(navigatorSource).not.toMatch(/addEventListener\(\s*["']scroll/);
     expect(navigatorSource).not.toMatch(/aria-live/);
+  });
+});
+
+describe("PortfolioSectionNavigator Role Lens filter control", () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("shows an inactive non-interactive filter status when no lens is active", () => {
+    const onSectionSelect = vi.fn();
+    const onClearLens = vi.fn();
+    openNavigator({ onSectionSelect, onClearLens });
+
+    const inactive = document.querySelector('[data-role-lens-filter="inactive"]');
+    expect(inactive).toBeTruthy();
+    expect(inactive.tagName).toBe("SPAN");
+    expect(screen.getByText("No Role Lens active")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /Clear .+ Role Lens/ })
+    ).toBeNull();
+    expect(document.querySelectorAll("[data-role-lens-filter]")).toHaveLength(1);
+
+    const roleLens = document.createElement("div");
+    roleLens.id = "role-lens";
+    roleLens.scrollIntoView = vi.fn();
+    document.body.appendChild(roleLens);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Role Lens$/ }));
+    expect(onSectionSelect).toHaveBeenCalledWith("role-lens");
+    expect(roleLens.scrollIntoView).toHaveBeenCalled();
+    expect(onClearLens).not.toHaveBeenCalled();
+
+    roleLens.remove();
+  });
+
+  it("clears the active lens from the filter without navigating or closing", () => {
+    const onSectionSelect = vi.fn();
+    const onClearLens = vi.fn();
+    const trigger = openNavigator({
+      activeSectionId: "role-lens",
+      activeLensLabel: "IT Audit",
+      onSectionSelect,
+      onClearLens,
+    });
+
+    const clearButton = screen.getByRole("button", {
+      name: "Clear IT Audit Role Lens",
+    });
+    expect(clearButton).toHaveAttribute("data-role-lens-filter", "active");
+    expect(document.querySelector('[data-role-lens-filter="inactive"]')).toBeNull();
+
+    const roleLensNav = screen.getByRole("button", { name: /^Role Lens/ });
+    expect(roleLensNav).toHaveAttribute("aria-current", "location");
+
+    fireEvent.click(clearButton);
+    expect(onClearLens).toHaveBeenCalledTimes(1);
+    expect(onSectionSelect).not.toHaveBeenCalled();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(roleLensNav).toHaveAttribute("aria-current", "location");
+  });
+
+  it("keeps Role Lens navigation closing the panel while active filter stays a sibling", () => {
+    const onSectionSelect = vi.fn();
+    const onClearLens = vi.fn();
+    const trigger = openNavigator({
+      activeLensLabel: "Financial Risk",
+      onSectionSelect,
+      onClearLens,
+    });
+
+    const roleLens = document.createElement("div");
+    roleLens.id = "role-lens";
+    roleLens.scrollIntoView = vi.fn();
+    document.body.appendChild(roleLens);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Role Lens$/ }));
+    expect(onSectionSelect).toHaveBeenCalledWith("role-lens");
+    expect(roleLens.scrollIntoView).toHaveBeenCalled();
+    expect(onClearLens).not.toHaveBeenCalled();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    roleLens.remove();
+  });
+
+  it("becomes inactive after reset and never shows relevance markers", () => {
+    const { rerender } = render(
+      <PortfolioSectionNavigator
+        activeSectionId="experience"
+        activeLensLabel="Technology Risk"
+        onClearLens={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
+
+    expect(
+      screen.getByRole("button", { name: "Clear Technology Risk Role Lens" })
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Experience/ })).toHaveAttribute(
+      "aria-current",
+      "location"
+    );
+
+    rerender(
+      <PortfolioSectionNavigator
+        activeSectionId="experience"
+        activeLensLabel={null}
+        onClearLens={() => {}}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Clear .+ Role Lens/ })
+    ).toBeNull();
+    expect(document.querySelector('[data-role-lens-filter="inactive"]')).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Experience/ })).toHaveAttribute(
+      "aria-current",
+      "location"
+    );
+    expect(document.querySelector("[data-macro-lens-relevant]")).toBeNull();
+    expect(document.querySelectorAll("[data-role-lens-filter]")).toHaveLength(1);
   });
 });
 

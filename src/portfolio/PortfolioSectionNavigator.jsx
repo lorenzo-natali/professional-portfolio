@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { List } from "lucide-react";
+import { Filter, List } from "lucide-react";
 import { getNavigatorSections } from "./sectionCatalog.js";
 
 export const PORTFOLIO_SECTION_NAVIGATOR_PANEL_ID =
@@ -45,23 +45,62 @@ export function scrollToPortfolioSection(scrollTargetId, options = {}) {
 }
 
 /**
+ * @param {{
+ *   isCurrent: boolean,
+ *   onNavigate: () => void,
+ *   children: import("react").ReactNode,
+ * }} props
+ */
+function SectionNavButton({ isCurrent, onNavigate, children }) {
+  return (
+    <button
+      type="button"
+      aria-current={isCurrent ? "location" : undefined}
+      data-section-current={isCurrent ? "true" : undefined}
+      className={`flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-2 text-left text-sm outline-none transition-[border-color,background-color,color] focus-visible:ring-2 focus-visible:ring-cyan-400/35 ${
+        isCurrent
+          ? "font-medium text-cyan-50"
+          : "text-slate-100"
+      }`}
+      onClick={onNavigate}
+    >
+      <span
+        aria-hidden="true"
+        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+          isCurrent ? "bg-cyan-300" : "bg-slate-600"
+        }`}
+      />
+      {children}
+      {isCurrent ? (
+        <span className="sr-only"> (current section)</span>
+      ) : null}
+    </button>
+  );
+}
+
+/**
  * Floating document table of contents.
- * Shows structure, current location, and jump targets only.
+ * Optional Role Lens filter status/reset on the Role Lens row only.
  *
  * @param {{
  *   activeSectionId?: string,
  *   onSectionSelect?: (sectionId: string) => void,
+ *   activeLensLabel?: string | null,
+ *   onClearLens?: () => void,
  * }} [props]
  */
 export default function PortfolioSectionNavigator({
   activeSectionId = "hero",
   onSectionSelect,
+  activeLensLabel = null,
+  onClearLens,
 } = {}) {
   const sections = getNavigatorSections();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef(/** @type {HTMLButtonElement | null} */ (null));
   const reactId = useId();
   const panelId = `${PORTFOLIO_SECTION_NAVIGATOR_PANEL_ID}-${reactId}`;
+  const hasActiveLens = Boolean(activeLensLabel);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -105,30 +144,61 @@ export default function PortfolioSectionNavigator({
         <ul className="flex flex-col gap-1">
           {sections.map((section) => {
             const isCurrent = activeSectionId === section.id;
+            const rowClass = `rounded-md border ${
+              isCurrent
+                ? "border-cyan-400/55 bg-cyan-400/10"
+                : "border-transparent hover:border-cyan-400/40 hover:bg-cyan-400/5"
+            }`;
+
+            if (section.id === "role-lens") {
+              return (
+                <li key={section.id} className={`flex items-center ${rowClass}`}>
+                  <SectionNavButton
+                    isCurrent={isCurrent}
+                    onNavigate={() => onSelectSection(section)}
+                  >
+                    <span>{section.label}</span>
+                  </SectionNavButton>
+                  {hasActiveLens ? (
+                    <button
+                      type="button"
+                      data-role-lens-filter="active"
+                      aria-label={`Clear ${activeLensLabel} Role Lens`}
+                      title={`Clear ${activeLensLabel} Role Lens`}
+                      className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-cyan-400/45 bg-cyan-400/10 text-cyan-200 outline-none transition-[border-color,background-color,color] hover:border-cyan-300/60 hover:bg-cyan-400/15 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+                      onClick={() => onClearLens?.()}
+                    >
+                      <Filter
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5"
+                        strokeWidth={1.75}
+                      />
+                    </button>
+                  ) : (
+                    <span
+                      data-role-lens-filter="inactive"
+                      className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center text-slate-600"
+                    >
+                      <Filter
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5"
+                        strokeWidth={1.75}
+                      />
+                      <span className="sr-only">No Role Lens active</span>
+                    </span>
+                  )}
+                </li>
+              );
+            }
+
             return (
-              <li key={section.id}>
-                <button
-                  type="button"
-                  aria-current={isCurrent ? "location" : undefined}
-                  data-section-current={isCurrent ? "true" : undefined}
-                  className={`flex min-h-11 w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm outline-none transition-[border-color,background-color,color] focus-visible:ring-2 focus-visible:ring-cyan-400/35 ${
-                    isCurrent
-                      ? "border-cyan-400/55 bg-cyan-400/10 font-medium text-cyan-50"
-                      : "border-transparent text-slate-100 hover:border-cyan-400/40 hover:bg-cyan-400/5 focus-visible:border-cyan-300/60"
-                  }`}
-                  onClick={() => onSelectSection(section)}
+              <li key={section.id} className={rowClass}>
+                <SectionNavButton
+                  isCurrent={isCurrent}
+                  onNavigate={() => onSelectSection(section)}
                 >
-                  <span
-                    aria-hidden="true"
-                    className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                      isCurrent ? "bg-cyan-300" : "bg-slate-600"
-                    }`}
-                  />
                   <span>{section.label}</span>
-                  {isCurrent ? (
-                    <span className="sr-only"> (current section)</span>
-                  ) : null}
-                </button>
+                </SectionNavButton>
               </li>
             );
           })}
