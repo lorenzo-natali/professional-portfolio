@@ -22,7 +22,7 @@ export default function ARGovernanceCard({ onLaunch }) {
     <button
       type="button"
       onClick={onLaunch}
-      aria-label="Beyond the CV"
+      aria-label="Beyond CV"
       className="ar-lens-button group relative flex w-full items-center justify-between rounded-full border border-cyan-400/75 bg-transparent px-5 py-3 text-cyan-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
       style={{
         boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
@@ -30,8 +30,8 @@ export default function ARGovernanceCard({ onLaunch }) {
     >
       <ArEntryIcon />
 
-      <span className="absolute inset-x-0 text-center text-[12px] font-medium uppercase tracking-[0.22em] text-cyan-300">
-        Beyond the CV
+      <span className="absolute inset-x-0 text-center text-[14px] font-medium uppercase tracking-[0.2em] text-cyan-300">
+        Beyond CV
       </span>
 
       <span

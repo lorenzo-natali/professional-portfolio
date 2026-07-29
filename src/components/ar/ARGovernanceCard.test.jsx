@@ -4,11 +4,11 @@ import userEvent from "@testing-library/user-event";
 import ARGovernanceCard from "./ARGovernanceCard";
 
 describe("ARGovernanceCard entry button", () => {
-  it("exposes Beyond the CV as the accessible name and launches on click", async () => {
+  it("exposes Beyond CV as the accessible name and launches on click", async () => {
     const onLaunch = vi.fn();
     render(<ARGovernanceCard onLaunch={onLaunch} />);
 
-    const button = screen.getByRole("button", { name: "Beyond the CV" });
+    const button = screen.getByRole("button", { name: "Beyond CV" });
     expect(button).toBeInTheDocument();
     expect(button).toHaveClass("ar-lens-button");
     expect(button.querySelector(".ar-reticle-anchor")).toHaveAttribute("aria-hidden", "true");
@@ -19,9 +19,12 @@ describe("ARGovernanceCard entry button", () => {
     expect(onLaunch).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the AR+ logo mark with no animation hooks", () => {
+  it("renders the AR+ logo mark with larger Beyond CV label and no animation hooks", () => {
     render(<ARGovernanceCard onLaunch={vi.fn()} />);
-    const button = screen.getByRole("button", { name: "Beyond the CV" });
+    const button = screen.getByRole("button", { name: "Beyond CV" });
+    const label = button.querySelector("span.absolute");
+    expect(label?.textContent).toBe("Beyond CV");
+    expect(label?.className).toMatch(/text-\[14px\]/);
     const mark = button.querySelector(".ar-reticle-mark");
     expect(mark).toBeTruthy();
     expect(mark.getAttribute("style") || "").toMatch(/mask-image/i);
