@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { roleLenses, lensSummaries } from "./portfolioData.js";
+import { roleLenses } from "./portfolioData.js";
 import { isOverviewLens, lensOptions } from "./portfolioLens.js";
 
 export default function RoleLens({ selectedLens, onSelectLens }) {
@@ -70,18 +70,16 @@ export default function RoleLens({ selectedLens, onSelectLens }) {
 
         <AnimatePresence mode="wait">
           {hasActiveLens && (
-            <motion.div
+            <motion.p
               key={lens.name}
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="py-2 text-sm text-slate-400"
+              className="py-2 text-sm font-medium text-cyan-100"
             >
-              <span className="font-medium text-cyan-100">{lens.label ?? lens.name} lens active</span>
-              <span className="mx-2 text-slate-600">·</span>
-              <span>{lensSummaries[lens.name]}</span>
-            </motion.div>
+              {lens.label ?? lens.name} lens active
+            </motion.p>
           )}
         </AnimatePresence>
       </div>
