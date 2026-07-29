@@ -5,6 +5,7 @@ import {
   resolveAppFeatures,
 } from "./diagnostics/appFeatures.js";
 import PortfolioCore from "./portfolio/PortfolioCore.jsx";
+import PortfolioSectionNavigator from "./portfolio/PortfolioSectionNavigator.jsx";
 import {
   assistantCategories,
   assistantPrompts,
@@ -520,6 +521,8 @@ function App({
         sidebarSlot={sidebarSlot}
         sectionModules={sectionModules}
       />
+
+      <PortfolioSectionNavigator />
 
       {BeyondView ? (
         <BeyondView open={arOpen} onClose={() => setArOpen(false)} />
