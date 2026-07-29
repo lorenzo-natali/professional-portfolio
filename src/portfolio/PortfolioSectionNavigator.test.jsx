@@ -47,9 +47,24 @@ describe("PortfolioSectionNavigator", () => {
         index === 0 ? `${section.label} (current section)` : section.label
       )
     );
-    expect(items).toHaveLength(7);
+    expect(items).toHaveLength(8);
     expect(screen.queryByRole("button", { name: "Credentials" })).toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "Professional Certifications Roadmap",
+      })
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Insights" })).toBeNull();
+
+    const labels = items.map((item) =>
+      item.textContent.replace(/\s*\(current section\)\s*/g, "").replace(/\s+/g, " ").trim()
+    );
+    expect(labels.indexOf("Professional Certifications Roadmap")).toBe(
+      labels.indexOf("Professional Capabilities") + 1
+    );
+    expect(labels.indexOf("Experience")).toBe(
+      labels.indexOf("Professional Certifications Roadmap") + 1
+    );
   });
 
   it("starts closed and wires aria-expanded / aria-controls", () => {
@@ -255,6 +270,39 @@ describe("PortfolioSectionNavigator Role Lens filter control", () => {
     roleLens.remove();
   });
 
+  it("navigates certifications to the existing credentials anchor", () => {
+    const onSectionSelect = vi.fn();
+    const trigger = openNavigator({ onSectionSelect });
+
+    const credentials = document.createElement("div");
+    credentials.id = "credentials";
+    credentials.scrollIntoView = vi.fn();
+    document.body.appendChild(credentials);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Professional Certifications Roadmap",
+      })
+    );
+    expect(onSectionSelect).toHaveBeenCalledWith("credentials");
+    expect(credentials.scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ block: "start" })
+    );
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+
+    credentials.remove();
+  });
+
+  it("can mark certifications as the current location", () => {
+    openNavigator({ activeSectionId: "credentials" });
+    const current = screen.getByRole("button", {
+      name: /Professional Certifications Roadmap/,
+    });
+    expect(current).toHaveAttribute("aria-current", "location");
+    expect(current).toHaveAttribute("data-section-current", "true");
+    expect(current.querySelector(".whitespace-normal")).toBeTruthy();
+  });
+
   it("becomes inactive after reset and never shows relevance markers", () => {
     const { rerender } = render(
       <PortfolioSectionNavigator
@@ -314,6 +362,7 @@ describe("prefersReducedMotion / scrollToPortfolioSection helpers", () => {
       "hero",
       "role-lens",
       "capabilities",
+      "credentials",
       "experience",
       "projects",
       "education",

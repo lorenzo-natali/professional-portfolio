@@ -66,11 +66,13 @@ function SectionNavButton({ isCurrent, onNavigate, children }) {
     >
       <span
         aria-hidden="true"
-        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+        className={`mt-0.5 inline-block h-1.5 w-1.5 shrink-0 self-start rounded-full ${
           isCurrent ? "bg-cyan-300" : "bg-slate-600"
         }`}
       />
-      {children}
+      <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
+        {children}
+      </span>
       {isCurrent ? (
         <span className="sr-only"> (current section)</span>
       ) : null}
@@ -157,7 +159,7 @@ export default function PortfolioSectionNavigator({
                     isCurrent={isCurrent}
                     onNavigate={() => onSelectSection(section)}
                   >
-                    <span>{section.label}</span>
+                    {section.label}
                   </SectionNavButton>
                   {hasActiveLens ? (
                     <button
@@ -197,7 +199,7 @@ export default function PortfolioSectionNavigator({
                   isCurrent={isCurrent}
                   onNavigate={() => onSelectSection(section)}
                 >
-                  <span>{section.label}</span>
+                  {section.label}
                 </SectionNavButton>
               </li>
             );

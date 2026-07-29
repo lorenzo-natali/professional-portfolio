@@ -129,10 +129,9 @@ describe("useActivePortfolioSection", () => {
       observers[0].targets.map((el) => el.getAttribute("data-portfolio-section"))
     ).toEqual(getNavigatorSections().map((section) => section.id));
     expect(
-      observers[0].targets.some(
-        (el) => el.getAttribute("data-portfolio-section") === "credentials"
-      )
-    ).toBe(false);
+      observers[0].targets.map((el) => el.getAttribute("data-portfolio-section"))
+    ).toContain("credentials");
+    expect(observers[0].targets).toHaveLength(8);
   });
 
   it("disconnects on unmount", () => {

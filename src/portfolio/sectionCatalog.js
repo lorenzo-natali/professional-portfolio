@@ -25,7 +25,6 @@ export const PORTFOLIO_SECTION_LABELS = Object.freeze({
 /**
  * Document table-of-contents entries for the section navigator.
  * Append future sections here (e.g. Insights) when they exist on the page.
- * Credentials remains on-page but is not a separate TOC destination.
  */
 export const NAVIGATOR_SECTIONS = Object.freeze([
   Object.freeze({
@@ -42,6 +41,11 @@ export const NAVIGATOR_SECTIONS = Object.freeze([
     id: "capabilities",
     label: "Professional Capabilities",
     scrollTargetId: "capabilities",
+  }),
+  Object.freeze({
+    id: "credentials",
+    label: "Professional Certifications Roadmap",
+    scrollTargetId: "credentials",
   }),
   Object.freeze({
     id: "experience",
