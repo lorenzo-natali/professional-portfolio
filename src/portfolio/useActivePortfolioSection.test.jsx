@@ -1,55 +1,54 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
-import { getVisibleMacroSections } from "./macroSectionRegistry.js";
+import { getNavigatorSections } from "./sectionCatalog.js";
 import {
-  DEFAULT_ACTIVE_MACRO_KEY,
-  MACRO_ACTIVE_OBSERVER_OPTIONS,
-  resolveActiveMacroKey,
-  useActiveMacroSection,
-} from "./useActiveMacroSection.js";
+  DEFAULT_ACTIVE_SECTION_ID,
+  SECTION_ACTIVE_OBSERVER_OPTIONS,
+  resolveActiveSectionId,
+  useActivePortfolioSection,
+} from "./useActivePortfolioSection.js";
 
-describe("resolveActiveMacroKey", () => {
-  const ordered = ["profile", "capabilities", "evidence"];
+describe("resolveActiveSectionId", () => {
+  const ordered = getNavigatorSections().map((section) => section.id);
 
-  it("forces Profile at the page top", () => {
+  it("forces Overview (hero) at the page top", () => {
     expect(
-      resolveActiveMacroKey(
+      resolveActiveSectionId(
         {
-          profile: { isIntersecting: false, ratio: 0, top: -100 },
-          capabilities: { isIntersecting: true, ratio: 0.8, top: 40 },
-          evidence: { isIntersecting: false, ratio: 0, top: 800 },
+          hero: { isIntersecting: false, ratio: 0, top: -100 },
+          "role-lens": { isIntersecting: true, ratio: 0.8, top: 40 },
+          capabilities: { isIntersecting: false, ratio: 0, top: 800 },
         },
-        "capabilities",
+        "role-lens",
         ordered,
         { scrollY: 0, viewportHeight: 800, documentHeight: 5000 }
       )
-    ).toBe("profile");
+    ).toBe("hero");
   });
 
-  it("keeps Evidence near the page bottom", () => {
+  it("keeps Risk Radar near the page bottom", () => {
     expect(
-      resolveActiveMacroKey(
+      resolveActiveSectionId(
         {
-          profile: { isIntersecting: false, ratio: 0, top: -2000 },
-          capabilities: { isIntersecting: true, ratio: 0.2, top: -100 },
-          evidence: { isIntersecting: true, ratio: 0.4, top: 200 },
+          education: { isIntersecting: true, ratio: 0.2, top: -100 },
+          "risk-radar": { isIntersecting: true, ratio: 0.4, top: 200 },
         },
-        "capabilities",
+        "education",
         ordered,
         { scrollY: 4200, viewportHeight: 800, documentHeight: 5000 }
       )
-    ).toBe("evidence");
+    ).toBe("risk-radar");
   });
 
-  it("selects the strongest intersecting macro and keeps only one active", () => {
+  it("selects the strongest intersecting section and keeps only one active", () => {
     expect(
-      resolveActiveMacroKey(
+      resolveActiveSectionId(
         {
-          profile: { isIntersecting: true, ratio: 0.1, top: -40 },
+          hero: { isIntersecting: true, ratio: 0.1, top: -40 },
           capabilities: { isIntersecting: true, ratio: 0.7, top: 80 },
-          evidence: { isIntersecting: false, ratio: 0, top: 900 },
+          experience: { isIntersecting: false, ratio: 0, top: 900 },
         },
-        "profile",
+        "hero",
         ordered,
         { scrollY: 400, viewportHeight: 800, documentHeight: 5000 }
       )
@@ -58,26 +57,25 @@ describe("resolveActiveMacroKey", () => {
 
   it("applies hysteresis to avoid avoidable boundary flicker", () => {
     expect(
-      resolveActiveMacroKey(
+      resolveActiveSectionId(
         {
-          profile: { isIntersecting: true, ratio: 0.45, top: -20 },
-          capabilities: { isIntersecting: true, ratio: 0.5, top: 120 },
-          evidence: { isIntersecting: false, ratio: 0, top: 900 },
+          hero: { isIntersecting: true, ratio: 0.45, top: -20 },
+          "role-lens": { isIntersecting: true, ratio: 0.5, top: 120 },
         },
-        "profile",
+        "hero",
         ordered,
         { scrollY: 300, viewportHeight: 800, documentHeight: 5000 }
       )
-    ).toBe("profile");
+    ).toBe("hero");
   });
 
-  it("keeps the current macro when nothing intersects", () => {
+  it("keeps the current section when nothing intersects", () => {
     expect(
-      resolveActiveMacroKey(
+      resolveActiveSectionId(
         {
-          profile: { isIntersecting: false, ratio: 0, top: -400 },
+          hero: { isIntersecting: false, ratio: 0, top: -400 },
           capabilities: { isIntersecting: false, ratio: 0, top: -100 },
-          evidence: { isIntersecting: false, ratio: 0, top: 900 },
+          experience: { isIntersecting: false, ratio: 0, top: 900 },
         },
         "capabilities",
         ordered,
@@ -87,17 +85,15 @@ describe("resolveActiveMacroKey", () => {
   });
 });
 
-describe("useActiveMacroSection", () => {
-  /** @type {Array<{ cb: Function, observe: Function, disconnect: Function, targets: Element[] }>} */
+describe("useActivePortfolioSection", () => {
+  /** @type {Array<{ cb: Function, observe: Function, disconnect: Function, targets: Element[], options: object }>} */
   let observers = [];
 
   beforeEach(() => {
     observers = [];
-    document.body.innerHTML = `
-      <div data-macro-section="profile"></div>
-      <div data-macro-section="capabilities"></div>
-      <div data-macro-section="evidence"></div>
-    `;
+    document.body.innerHTML = getNavigatorSections()
+      .map((section) => `<div data-portfolio-section="${section.id}"></div>`)
+      .join("");
 
     class MockIO {
       constructor(cb, options) {
@@ -122,31 +118,31 @@ describe("useActiveMacroSection", () => {
     vi.useRealTimers();
   });
 
-  it("starts on Profile and observes exactly the three visible macro roots", () => {
-    const { result } = renderHook(() => useActiveMacroSection());
-    expect(result.current.activeMacroKey).toBe(DEFAULT_ACTIVE_MACRO_KEY);
+  it("starts on Overview and observes exactly the navigator section roots", () => {
+    const { result } = renderHook(() => useActivePortfolioSection());
+    expect(result.current.activeSectionId).toBe(DEFAULT_ACTIVE_SECTION_ID);
     expect(observers).toHaveLength(1);
     expect(observers[0].options).toMatchObject({
-      rootMargin: MACRO_ACTIVE_OBSERVER_OPTIONS.rootMargin,
+      rootMargin: SECTION_ACTIVE_OBSERVER_OPTIONS.rootMargin,
     });
-    expect(observers[0].targets.map((el) => el.getAttribute("data-macro-section"))).toEqual(
-      getVisibleMacroSections().map((macro) => macro.key)
-    );
+    expect(
+      observers[0].targets.map((el) => el.getAttribute("data-portfolio-section"))
+    ).toEqual(getNavigatorSections().map((section) => section.id));
     expect(
       observers[0].targets.some(
-        (el) => el.getAttribute("data-macro-section") === "insights"
+        (el) => el.getAttribute("data-portfolio-section") === "credentials"
       )
     ).toBe(false);
   });
 
   it("disconnects on unmount", () => {
-    const { unmount } = renderHook(() => useActiveMacroSection());
+    const { unmount } = renderHook(() => useActivePortfolioSection());
     expect(observers[0].disconnect).not.toHaveBeenCalled();
     unmount();
     expect(observers[0].disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it("updates only when the resolved macro changes", () => {
+  it("updates only when the resolved section changes", () => {
     Object.defineProperty(window, "scrollY", { value: 400, configurable: true });
     Object.defineProperty(window, "innerHeight", { value: 800, configurable: true });
     Object.defineProperty(document.documentElement, "scrollHeight", {
@@ -154,16 +150,16 @@ describe("useActiveMacroSection", () => {
       configurable: true,
     });
 
-    const { result } = renderHook(() => useActiveMacroSection());
-    const profile = document.querySelector('[data-macro-section="profile"]');
+    const { result } = renderHook(() => useActivePortfolioSection());
+    const hero = document.querySelector('[data-portfolio-section="hero"]');
     const capabilities = document.querySelector(
-      '[data-macro-section="capabilities"]'
+      '[data-portfolio-section="capabilities"]'
     );
 
     act(() => {
       observers[0].cb([
         {
-          target: profile,
+          target: hero,
           isIntersecting: true,
           intersectionRatio: 0.2,
           boundingClientRect: { top: -10 },
@@ -176,12 +172,12 @@ describe("useActiveMacroSection", () => {
         },
       ]);
     });
-    expect(result.current.activeMacroKey).toBe("capabilities");
+    expect(result.current.activeSectionId).toBe("capabilities");
 
     act(() => {
       observers[0].cb([
         {
-          target: profile,
+          target: hero,
           isIntersecting: true,
           intersectionRatio: 0.2,
           boundingClientRect: { top: -10 },
@@ -194,7 +190,7 @@ describe("useActiveMacroSection", () => {
         },
       ]);
     });
-    expect(result.current.activeMacroKey).toBe("capabilities");
+    expect(result.current.activeSectionId).toBe("capabilities");
   });
 
   it("optimistically selects on navigate and unlocks after the one-shot settle", () => {
@@ -206,19 +202,20 @@ describe("useActiveMacroSection", () => {
       configurable: true,
     });
 
-    const { result } = renderHook(() => useActiveMacroSection());
+    const { result } = renderHook(() => useActivePortfolioSection());
 
     act(() => {
-      result.current.selectMacro("evidence");
+      result.current.selectSection("experience");
     });
-    expect(result.current.activeMacroKey).toBe("evidence");
+    expect(result.current.activeSectionId).toBe("experience");
 
-    const evidence = document.querySelector('[data-macro-section="evidence"]');
+    const experience = document.querySelector(
+      '[data-portfolio-section="experience"]'
+    );
     const capabilities = document.querySelector(
-      '[data-macro-section="capabilities"]'
+      '[data-portfolio-section="capabilities"]'
     );
 
-    // While locked, observer should not override the optimistic selection.
     act(() => {
       observers[0].cb([
         {
@@ -228,28 +225,28 @@ describe("useActiveMacroSection", () => {
           boundingClientRect: { top: 40 },
         },
         {
-          target: evidence,
+          target: experience,
           isIntersecting: false,
           intersectionRatio: 0,
           boundingClientRect: { top: 900 },
         },
       ]);
     });
-    expect(result.current.activeMacroKey).toBe("evidence");
+    expect(result.current.activeSectionId).toBe("experience");
 
-    // Unlock re-applies the last observed ratios without requiring a fresh IO tick.
     act(() => {
       vi.advanceTimersByTime(500);
     });
-    expect(result.current.activeMacroKey).toBe("capabilities");
+    expect(result.current.activeSectionId).toBe("capabilities");
   });
+
   it("fails safely when IntersectionObserver is unavailable", () => {
     vi.stubGlobal("IntersectionObserver", undefined);
-    const { result } = renderHook(() => useActiveMacroSection());
-    expect(result.current.activeMacroKey).toBe("profile");
+    const { result } = renderHook(() => useActivePortfolioSection());
+    expect(result.current.activeSectionId).toBe("hero");
     act(() => {
-      result.current.selectMacro("capabilities");
+      result.current.selectSection("projects");
     });
-    expect(result.current.activeMacroKey).toBe("capabilities");
+    expect(result.current.activeSectionId).toBe("projects");
   });
 });

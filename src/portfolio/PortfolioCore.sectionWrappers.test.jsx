@@ -24,53 +24,22 @@ const baseProps = {
   sectionModules: stubModules,
 };
 
-describe("PortfolioCore macro wrappers", () => {
+describe("PortfolioCore section wrappers", () => {
   afterEach(() => {
     cleanup();
   });
 
-  it("wraps contiguous sections without changing order or leaf markers", () => {
+  it("renders catalog sections in order without macro grouping wrappers", () => {
     const { container } = render(
       <PortfolioCore {...baseProps} enabledSections={[...PORTFOLIO_SECTION_IDS]} />
     );
 
-    const macros = [
-      ...container.querySelectorAll("[data-macro-section]"),
-    ].map((el) => el.getAttribute("data-macro-section"));
-    expect(macros).toEqual(["profile", "capabilities", "evidence"]);
+    expect(container.querySelectorAll("[data-macro-section]")).toHaveLength(0);
 
     const leaves = [
       ...container.querySelectorAll("[data-portfolio-section]"),
     ].map((el) => el.getAttribute("data-portfolio-section"));
     expect(leaves).toEqual([...PORTFOLIO_SECTION_IDS]);
-
-    const profile = container.querySelector('[data-macro-section="profile"]');
-    expect(
-      [...profile.querySelectorAll("[data-portfolio-section]")].map((el) =>
-        el.getAttribute("data-portfolio-section")
-      )
-    ).toEqual(["hero", "role-lens"]);
-
-    const capabilities = container.querySelector(
-      '[data-macro-section="capabilities"]'
-    );
-    expect(
-      [...capabilities.querySelectorAll("[data-portfolio-section]")].map((el) =>
-        el.getAttribute("data-portfolio-section")
-      )
-    ).toEqual(["capabilities", "credentials"]);
-
-    const evidence = container.querySelector('[data-macro-section="evidence"]');
-    expect(
-      [...evidence.querySelectorAll("[data-portfolio-section]")].map((el) =>
-        el.getAttribute("data-portfolio-section")
-      )
-    ).toEqual(["experience", "projects", "education", "risk-radar"]);
-
-    expect(container.querySelector('[data-macro-section="insights"]')).toBeNull();
-    expect(container.querySelectorAll("[data-portfolio-section]")).toHaveLength(
-      PORTFOLIO_SECTION_IDS.length
-    );
   });
 
   it("does not hide or filter sections for Overview", () => {
@@ -83,7 +52,7 @@ describe("PortfolioCore macro wrappers", () => {
     }
   });
 
-  it("omits macros with no mounted members under partial enables", () => {
+  it("renders only enabled sections under partial mounts", () => {
     const { container } = render(
       <PortfolioCore
         {...baseProps}
@@ -91,11 +60,6 @@ describe("PortfolioCore macro wrappers", () => {
       />
     );
 
-    expect(
-      [...container.querySelectorAll("[data-macro-section]")].map((el) =>
-        el.getAttribute("data-macro-section")
-      )
-    ).toEqual(["evidence"]);
     expect(
       [...container.querySelectorAll("[data-portfolio-section]")].map((el) =>
         el.getAttribute("data-portfolio-section")
@@ -108,7 +72,7 @@ describe("PortfolioCore macro wrappers", () => {
       <PortfolioCore {...baseProps} enabledSections={[...PORTFOLIO_SECTION_IDS]} />
     );
 
-    for (const el of container.querySelectorAll("[data-macro-section]")) {
+    for (const el of container.querySelectorAll("[data-portfolio-section]")) {
       expect(el.className).toBe("");
       expect(el.getAttribute("style")).toBeNull();
     }

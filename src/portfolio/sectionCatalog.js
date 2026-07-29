@@ -23,6 +23,56 @@ export const PORTFOLIO_SECTION_LABELS = Object.freeze({
 });
 
 /**
+ * Document table-of-contents entries for the section navigator.
+ * Append future sections here (e.g. Insights) when they exist on the page.
+ * Credentials remains on-page but is not a separate TOC destination.
+ */
+export const NAVIGATOR_SECTIONS = Object.freeze([
+  Object.freeze({
+    id: "hero",
+    label: "Overview",
+    scrollTargetId: "hero",
+  }),
+  Object.freeze({
+    id: "role-lens",
+    label: "Role Lens",
+    scrollTargetId: "role-lens",
+  }),
+  Object.freeze({
+    id: "capabilities",
+    label: "Professional Capabilities",
+    scrollTargetId: "capabilities",
+  }),
+  Object.freeze({
+    id: "experience",
+    label: "Experience",
+    scrollTargetId: "experience",
+  }),
+  Object.freeze({
+    id: "projects",
+    label: "Projects",
+    scrollTargetId: "projects",
+  }),
+  Object.freeze({
+    id: "education",
+    label: "Education",
+    scrollTargetId: "education",
+  }),
+  Object.freeze({
+    id: "risk-radar",
+    label: "Risk Radar",
+    scrollTargetId: "risk-radar",
+  }),
+]);
+
+/**
+ * @returns {readonly typeof NAVIGATOR_SECTIONS[number][]}
+ */
+export function getNavigatorSections() {
+  return NAVIGATOR_SECTIONS;
+}
+
+/**
  * SiteDiag bisection membership maps.
  * Parent wires modes; this catalog only defines which sections each half/quarter includes.
  */

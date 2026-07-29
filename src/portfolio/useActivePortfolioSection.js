@@ -1,42 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getVisibleMacroSections } from "./macroSectionRegistry.js";
+import { getNavigatorSections } from "./sectionCatalog.js";
 
-export const DEFAULT_ACTIVE_MACRO_KEY = "profile";
+export const DEFAULT_ACTIVE_SECTION_ID = "hero";
 
 /**
  * Top-biased sensing band: shrink bottom so the upper mid-viewport wins.
  * Multiple thresholds reduce sparse callback gaps without per-frame work.
  */
-export const MACRO_ACTIVE_OBSERVER_OPTIONS = Object.freeze({
+export const SECTION_ACTIVE_OBSERVER_OPTIONS = Object.freeze({
   root: null,
   rootMargin: "-12% 0px -58% 0px",
   threshold: Object.freeze([0, 0.05, 0.1, 0.25, 0.5, 0.75, 1]),
 });
 
-/** Keep current macro when it remains competitive (reduces boundary flicker). */
-export const MACRO_ACTIVE_HYSTERESIS = 0.18;
+/** Keep current section when it remains competitive (reduces boundary flicker). */
+export const SECTION_ACTIVE_HYSTERESIS = 0.18;
 
 /**
- * @typedef {{ isIntersecting: boolean, ratio: number, top: number }} MacroIntersectionState
+ * @typedef {{ isIntersecting: boolean, ratio: number, top: number }} SectionIntersectionState
  */
 
 /**
- * @param {Map<string, MacroIntersectionState> | Record<string, MacroIntersectionState>} states
- * @param {string} currentKey
- * @param {readonly string[]} orderedKeys
+ * @param {Map<string, SectionIntersectionState> | Record<string, SectionIntersectionState>} states
+ * @param {string} currentId
+ * @param {readonly string[]} orderedIds
  * @param {{ scrollY?: number, viewportHeight?: number, documentHeight?: number }} [viewport]
  * @returns {string}
  */
-export function resolveActiveMacroKey(
+export function resolveActiveSectionId(
   states,
-  currentKey,
-  orderedKeys,
+  currentId,
+  orderedIds,
   viewport = {}
 ) {
-  if (!orderedKeys.length) return DEFAULT_ACTIVE_MACRO_KEY;
+  if (!orderedIds.length) return DEFAULT_ACTIVE_SECTION_ID;
 
-  const first = orderedKeys[0];
-  const last = orderedKeys[orderedKeys.length - 1];
+  const first = orderedIds[0];
+  const last = orderedIds[orderedIds.length - 1];
   const scrollY = viewport.scrollY ?? 0;
   const viewportHeight = viewport.viewportHeight ?? 0;
   const documentHeight = viewport.documentHeight ?? 0;
@@ -50,50 +50,50 @@ export function resolveActiveMacroKey(
     return last;
   }
 
-  const getState = (key) => {
-    if (states instanceof Map) return states.get(key);
-    return states[key];
+  const getState = (id) => {
+    if (states instanceof Map) return states.get(id);
+    return states[id];
   };
 
-  const intersecting = orderedKeys.filter((key) => {
-    const state = getState(key);
+  const intersecting = orderedIds.filter((id) => {
+    const state = getState(id);
     return Boolean(state?.isIntersecting && (state.ratio ?? 0) > 0);
   });
 
   if (intersecting.length === 0) {
-    return orderedKeys.includes(currentKey) ? currentKey : first;
+    return orderedIds.includes(currentId) ? currentId : first;
   }
 
-  let bestKey = intersecting[0];
-  let bestRatio = getState(bestKey)?.ratio ?? 0;
-  let bestTop = getState(bestKey)?.top ?? Number.POSITIVE_INFINITY;
+  let bestId = intersecting[0];
+  let bestRatio = getState(bestId)?.ratio ?? 0;
+  let bestTop = getState(bestId)?.top ?? Number.POSITIVE_INFINITY;
 
   for (let i = 1; i < intersecting.length; i += 1) {
-    const key = intersecting[i];
-    const state = getState(key);
+    const id = intersecting[i];
+    const state = getState(id);
     const ratio = state?.ratio ?? 0;
     const top = state?.top ?? Number.POSITIVE_INFINITY;
     if (
       ratio > bestRatio + 0.001 ||
       (Math.abs(ratio - bestRatio) <= 0.001 && top < bestTop)
     ) {
-      bestKey = key;
+      bestId = id;
       bestRatio = ratio;
       bestTop = top;
     }
   }
 
-  if (bestKey === currentKey) return currentKey;
+  if (bestId === currentId) return currentId;
 
-  const currentState = getState(currentKey);
+  const currentState = getState(currentId);
   if (
     currentState?.isIntersecting &&
-    (currentState.ratio ?? 0) + MACRO_ACTIVE_HYSTERESIS >= bestRatio
+    (currentState.ratio ?? 0) + SECTION_ACTIVE_HYSTERESIS >= bestRatio
   ) {
-    return currentKey;
+    return currentId;
   }
 
-  return bestKey;
+  return bestId;
 }
 
 function readViewportMetrics() {
@@ -111,34 +111,36 @@ function readViewportMetrics() {
 }
 
 /**
- * Observe the three visible macro roots and expose the active macro key.
- * Optimistic selectMacro() coordinates programmatic navigator jumps.
+ * Observe document section roots listed in the navigator catalog.
+ * Optimistic selectSection() coordinates programmatic navigator jumps.
  *
  * @returns {{
- *   activeMacroKey: string,
- *   selectMacro: (macroKey: string) => void,
+ *   activeSectionId: string,
+ *   selectSection: (sectionId: string) => void,
  * }}
  */
-export function useActiveMacroSection() {
-  const [activeMacroKey, setActiveMacroKey] = useState(DEFAULT_ACTIVE_MACRO_KEY);
-  const activeRef = useRef(DEFAULT_ACTIVE_MACRO_KEY);
+export function useActivePortfolioSection() {
+  const [activeSectionId, setActiveSectionId] = useState(
+    DEFAULT_ACTIVE_SECTION_ID
+  );
+  const activeRef = useRef(DEFAULT_ACTIVE_SECTION_ID);
   const lockRef = useRef(false);
-  const orderedKeysRef = useRef(
-    /** @type {string[]} */ (getVisibleMacroSections().map((macro) => macro.key))
+  const orderedIdsRef = useRef(
+    /** @type {string[]} */ (getNavigatorSections().map((section) => section.id))
   );
   const ratiosRef = useRef(
-    /** @type {Map<string, MacroIntersectionState>} */ (new Map())
+    /** @type {Map<string, SectionIntersectionState>} */ (new Map())
   );
   const applyResolvedRef = useRef(() => {});
 
   useEffect(() => {
-    activeRef.current = activeMacroKey;
-  }, [activeMacroKey]);
+    activeRef.current = activeSectionId;
+  }, [activeSectionId]);
 
-  const selectMacro = useCallback((macroKey) => {
-    if (!macroKey) return;
-    activeRef.current = macroKey;
-    setActiveMacroKey(macroKey);
+  const selectSection = useCallback((sectionId) => {
+    if (!sectionId) return;
+    activeRef.current = sectionId;
+    setActiveSectionId(sectionId);
     lockRef.current = true;
 
     if (typeof window === "undefined") {
@@ -159,11 +161,9 @@ export function useActiveMacroSection() {
         timeoutId = null;
       }
       window.removeEventListener("scrollend", clearLock);
-      // Observer remains authority after settle; re-apply without waiting for a new entry.
       applyResolvedRef.current();
     };
 
-    // Prefer scrollend when available; one-shot ≤500ms fallback if it never fires.
     if ("onscrollend" in window) {
       window.addEventListener("scrollend", clearLock, { once: true });
     }
@@ -175,11 +175,11 @@ export function useActiveMacroSection() {
       return undefined;
     }
 
-    const orderedKeys = getVisibleMacroSections().map((macro) => macro.key);
-    orderedKeysRef.current = orderedKeys;
-    for (const key of orderedKeys) {
-      if (!ratiosRef.current.has(key)) {
-        ratiosRef.current.set(key, {
+    const orderedIds = getNavigatorSections().map((section) => section.id);
+    orderedIdsRef.current = orderedIds;
+    for (const id of orderedIds) {
+      if (!ratiosRef.current.has(id)) {
+        ratiosRef.current.set(id, {
           isIntersecting: false,
           ratio: 0,
           top: 0,
@@ -189,15 +189,15 @@ export function useActiveMacroSection() {
 
     const applyResolved = () => {
       if (lockRef.current) return;
-      const next = resolveActiveMacroKey(
+      const next = resolveActiveSectionId(
         ratiosRef.current,
         activeRef.current,
-        orderedKeysRef.current,
+        orderedIdsRef.current,
         readViewportMetrics()
       );
       if (next === activeRef.current) return;
       activeRef.current = next;
-      setActiveMacroKey(next);
+      setActiveSectionId(next);
     };
     applyResolvedRef.current = applyResolved;
 
@@ -207,8 +207,8 @@ export function useActiveMacroSection() {
       };
     }
 
-    const roots = orderedKeys
-      .map((key) => document.querySelector(`[data-macro-section="${key}"]`))
+    const roots = orderedIds
+      .map((id) => document.querySelector(`[data-portfolio-section="${id}"]`))
       .filter(Boolean);
 
     if (roots.length === 0) {
@@ -219,16 +219,16 @@ export function useActiveMacroSection() {
 
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        const key = entry.target.getAttribute("data-macro-section");
-        if (!key || !orderedKeys.includes(key)) continue;
-        ratiosRef.current.set(key, {
+        const id = entry.target.getAttribute("data-portfolio-section");
+        if (!id || !orderedIds.includes(id)) continue;
+        ratiosRef.current.set(id, {
           isIntersecting: Boolean(entry.isIntersecting),
           ratio: entry.intersectionRatio ?? 0,
           top: entry.boundingClientRect?.top ?? 0,
         });
       }
       applyResolved();
-    }, MACRO_ACTIVE_OBSERVER_OPTIONS);
+    }, SECTION_ACTIVE_OBSERVER_OPTIONS);
 
     for (const root of roots) {
       observer.observe(root);
@@ -242,5 +242,5 @@ export function useActiveMacroSection() {
     };
   }, []);
 
-  return { activeMacroKey, selectMacro };
+  return { activeSectionId, selectSection };
 }
