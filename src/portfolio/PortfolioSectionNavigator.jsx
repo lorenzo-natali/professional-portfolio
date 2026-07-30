@@ -137,11 +137,11 @@ export default function PortfolioSectionNavigator({
       <nav
         id={panelId}
         hidden={!open}
-        aria-label="Portfolio sections"
+        aria-label="Portfolio navigator"
         className="pointer-events-auto w-56 rounded-md border border-cyan-400/35 bg-slate-950 p-2 text-slate-100 shadow-none"
       >
         <p className="px-2 pb-1.5 pt-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-cyan-300/80">
-          Sections
+          Navigator
         </p>
         <ul className="flex flex-col gap-1">
           {sections.map((section) => {
@@ -167,7 +167,7 @@ export default function PortfolioSectionNavigator({
                       data-role-lens-filter="active"
                       aria-label={`Clear ${activeLensLabel} Role Lens`}
                       title={`Clear ${activeLensLabel} Role Lens`}
-                      className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-cyan-400/45 bg-cyan-400/10 text-cyan-200 outline-none transition-[border-color,background-color,color] hover:border-cyan-300/60 hover:bg-cyan-400/15 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+                      className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-cyan-200 outline-none transition-colors hover:text-cyan-100 focus-visible:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
                       onClick={() => onClearLens?.()}
                     >
                       <Filter
@@ -210,7 +210,7 @@ export default function PortfolioSectionNavigator({
       <button
         ref={triggerRef}
         type="button"
-        aria-label="Portfolio sections"
+        aria-label="Portfolio navigator"
         aria-expanded={open}
         aria-controls={panelId}
         className="pointer-events-auto inline-flex h-12 min-w-12 items-center justify-center gap-2.5 rounded-full border border-cyan-400/50 bg-slate-950 px-3 text-cyan-200 outline-none transition-[border-color] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35 sm:h-[3.125rem] sm:px-3.5"
@@ -218,7 +218,7 @@ export default function PortfolioSectionNavigator({
       >
         <List aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.75} />
         <span className="hidden text-sm font-medium tracking-wide sm:inline">
-          Sections
+          Navigator
         </span>
       </button>
     </div>

@@ -18,13 +18,13 @@ const appSource = readFileSync(path.join(portfolioDir, "..", "App.jsx"), "utf8")
 
 function openNavigator(props = {}) {
   render(<PortfolioSectionNavigator activeSectionId="hero" {...props} />);
-  const trigger = screen.getByRole("button", { name: "Portfolio sections" });
+  const trigger = screen.getByRole("button", { name: "Portfolio navigator" });
   fireEvent.click(trigger);
   return trigger;
 }
 
 function getSectionNavButtons() {
-  const nav = screen.getByRole("navigation", { name: "Portfolio sections" });
+  const nav = screen.getByRole("navigation", { name: "Portfolio navigator" });
   return within(nav)
     .getAllByRole("button")
     .filter((button) => !/Clear .+ Role Lens/.test(button.getAttribute("aria-label") || ""));
@@ -69,8 +69,9 @@ describe("PortfolioSectionNavigator", () => {
 
   it("starts closed and wires aria-expanded / aria-controls", () => {
     render(<PortfolioSectionNavigator />);
-    const trigger = screen.getByRole("button", { name: "Portfolio sections" });
+    const trigger = screen.getByRole("button", { name: "Portfolio navigator" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(within(trigger).getByText("Navigator")).toBeTruthy();
     expect(trigger).toHaveClass(
       "h-12",
       "min-w-12",
@@ -91,6 +92,10 @@ describe("PortfolioSectionNavigator", () => {
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(panel.hasAttribute("hidden")).toBe(false);
+    expect(
+      within(screen.getByRole("navigation", { name: "Portfolio navigator" }))
+        .getByText("Navigator")
+    ).toBeTruthy();
 
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -211,6 +216,7 @@ describe("PortfolioSectionNavigator Role Lens filter control", () => {
     const inactive = document.querySelector('[data-role-lens-filter="inactive"]');
     expect(inactive).toBeTruthy();
     expect(inactive.tagName).toBe("SPAN");
+    expect(inactive).toHaveClass("mr-1", "h-9", "w-9");
     expect(screen.getByText("No Role Lens active")).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: /Clear .+ Role Lens/ })
@@ -244,6 +250,19 @@ describe("PortfolioSectionNavigator Role Lens filter control", () => {
       name: "Clear IT Audit Role Lens",
     });
     expect(clearButton).toHaveAttribute("data-role-lens-filter", "active");
+    expect(clearButton).toHaveClass(
+      "mr-1",
+      "h-9",
+      "w-9",
+      "rounded-full",
+      "text-cyan-200",
+      "focus-visible:ring-2"
+    );
+    expect(clearButton).not.toHaveClass(
+      "border",
+      "rounded-md",
+      "bg-cyan-400/10"
+    );
     expect(document.querySelector('[data-role-lens-filter="inactive"]')).toBeNull();
 
     const roleLensNav = screen.getByRole("button", { name: /^Role Lens/ });
@@ -320,7 +339,7 @@ describe("PortfolioSectionNavigator Role Lens filter control", () => {
         onClearLens={() => {}}
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: "Portfolio sections" }));
+    fireEvent.click(screen.getByRole("button", { name: "Portfolio navigator" }));
 
     expect(
       screen.getByRole("button", { name: "Clear Technology Risk Role Lens" })
