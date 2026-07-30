@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const cadenceMock = vi.hoisted(() => ({
   shouldReduce: false,
@@ -74,5 +74,25 @@ describe("Step 4–5 RiskRadar integration", () => {
     expect(cadenceMock.startCalls).toHaveLength(1);
     unmount();
     expect(cadenceMock.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes the selected view and uses the Expertise section label", () => {
+    render(<RiskRadar />);
+
+    const riskMap = screen.getByRole("button", { name: "Risk Map" });
+    const profileCoverage = screen.getByRole("button", {
+      name: "Profile Coverage",
+    });
+    expect(riskMap).toHaveAttribute("aria-pressed", "true");
+    expect(profileCoverage).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("link", { name: "Expertise" })).toHaveAttribute(
+      "href",
+      "#capabilities"
+    );
+    expect(screen.queryByText("Professional Capabilities")).toBeNull();
+
+    fireEvent.click(profileCoverage);
+    expect(riskMap).toHaveAttribute("aria-pressed", "false");
+    expect(profileCoverage).toHaveAttribute("aria-pressed", "true");
   });
 });

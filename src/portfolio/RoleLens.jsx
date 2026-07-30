@@ -14,7 +14,7 @@ export default function RoleLens({ selectedLens, onSelectLens }) {
           <div className="relative flex flex-col gap-3 sm:gap-2.5">
             <div className="flex flex-col gap-1.5 sm:gap-1">
               <div className="min-w-0">
-                <p
+                <h2
                   className="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-300/80 sm:text-xs sm:tracking-[0.28em]"
                   aria-label="Role Lens"
                 >
@@ -28,7 +28,7 @@ export default function RoleLens({ selectedLens, onSelectLens }) {
                       {letter === " " ? "\u00A0" : letter}
                     </span>
                   ))}
-                </p>
+                </h2>
                 <p className="mt-1 text-sm font-medium leading-5 text-slate-400 sm:mt-0.5 sm:text-xs sm:leading-normal sm:text-sm">
                   Select a lens to highlight relevant sections across the portfolio.
                 </p>
@@ -42,6 +42,7 @@ export default function RoleLens({ selectedLens, onSelectLens }) {
                   <button
                     key={item.name}
                     type="button"
+                    aria-pressed={isActive}
                     onClick={() => onSelectLens(item.name)}
                     className={`shrink-0 rounded-md border px-3.5 py-2 text-sm font-medium transition sm:px-3 sm:py-1.5 ${
                       isActive

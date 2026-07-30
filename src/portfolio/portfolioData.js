@@ -330,7 +330,7 @@ export const radarDomains = [
     explanation:
       "Risk-based internal audit and assurance across internal controls, control design, audit documentation, working papers and governance structures — the connecting backbone of the profile.",
     signals: ["Risk-based internal audit", "Control testing & effectiveness", "Audit documentation & working papers", "Internal controls & governance review"],
-    sections: ["Experience", "Professional Capabilities"],
+    sections: ["Experience", "Expertise"],
   },
   {
     id: "radar-credit-risk",
@@ -342,7 +342,7 @@ export const radarDomains = [
     explanation:
       "Applied analysis and review of credit risk drivers, corporate and syndicated loan portfolios, IFRS 9 / ECL methodologies and PD/LGD risk parameters, and their impact on provisioning within regulated banking environments.",
     signals: ["Corporate credit & syndicated loans", "IFRS 9 / ECL", "PD & LGD risk parameters", "Financial covenants & credit-risk drivers"],
-    sections: ["Experience", "Professional Capabilities"],
+    sections: ["Experience", "Expertise"],
   },
   {
     id: "radar-regulatory-compliance-risk",
@@ -354,7 +354,7 @@ export const radarDomains = [
     explanation:
       "Direct assessment of prudential and supervisory frameworks (RAF, ICAAP, ILAAP, Pillar III), AML/KYC processes and FITD deposit-protection controls within a regulated banking environment, supported by framework knowledge of Basel III/IV and the CRD VI third-country branch regime.",
     signals: ["RAF, ICAAP, ILAAP, Pillar III", "AML / KYC processes", "FITD deposit-protection analysis", "Basel III/IV & CRD VI"],
-    sections: ["Experience", "Professional Capabilities"],
+    sections: ["Experience", "Expertise"],
   },
   {
     id: "radar-technology-ict-risk",
@@ -366,7 +366,7 @@ export const radarDomains = [
     explanation:
       "Direct exposure to IT governance, information security controls and access controls within technology-related control environments, with a developing focus on IT general controls (ITGC), ICT third-party risk and broader technology risk.",
     signals: ["IT governance & information security controls", "IT systems & access controls", "IT general controls (ITGC)", "ICT third-party risk"],
-    sections: ["Experience", "Professional Capabilities", "Credentials"],
+    sections: ["Experience", "Expertise", "Credentials"],
   },
   {
     id: "radar-information-security-governance",
@@ -378,7 +378,7 @@ export const radarDomains = [
     explanation:
       "Information security governance connecting security controls with audit and technology risk: professional exposure to information security controls, supported by framework knowledge of ISO/IEC 27001, NIST CSF and COBIT.",
     signals: ["Information security controls", "ISO/IEC 27001", "NIST CSF", "COBIT"],
-    sections: ["Professional Capabilities", "Experience"],
+    sections: ["Expertise", "Experience"],
   },
   {
     id: "radar-operational-resilience",
@@ -390,7 +390,7 @@ export const radarDomains = [
     explanation:
       "Direct professional exposure to digital operational resilience under DORA, including the BIA, BCP and DRP framework, risk dependencies, supporting controls and third-party/outsourcing dependencies.",
     signals: ["DORA", "BIA / BCP / DRP", "Risk dependencies & supporting controls", "Third-party / outsourcing dependencies"],
-    sections: ["Experience", "Professional Capabilities"],
+    sections: ["Experience", "Expertise"],
   },
   {
     id: "radar-ai-model-governance",
@@ -402,7 +402,7 @@ export const radarDomains = [
     explanation:
       "An emerging professional direction in AI governance — AI risk, auditability and traceability of AI-enabled workflows — supported by projects, hands-on experimentation and framework knowledge of the EU AI Act, NIST AI RMF and ISO/IEC 42001, rather than direct professional AI-governance experience.",
     signals: ["Cognitive Behavior Intelligence platform", "Local LLM/VLM experimentation", "EU AI Act, NIST AI RMF, ISO/IEC 42001", "Auditability & traceability"],
-    sections: ["Project Deck", "Credentials", "Professional Capabilities"],
+    sections: ["Project Deck", "Credentials", "Expertise"],
   },
 ];
 
@@ -423,7 +423,7 @@ export const profileCoverage = [
       "Bank of China — Internal Audit",
       "Prelios — accounting, NPL/UTP portfolios and financial reporting exposure",
     ],
-    sections: ["Experience", "Professional Capabilities"],
+    sections: ["Experience", "Expertise"],
   },
   {
     id: "coverage-regulatory",
@@ -439,7 +439,7 @@ export const profileCoverage = [
       "FITD deposit-protection analysis",
       "Basel III/IV and CRD VI framework knowledge",
     ],
-    sections: ["Experience", "Professional Capabilities"],
+    sections: ["Experience", "Expertise"],
   },
   {
     id: "coverage-frameworks",
@@ -456,7 +456,7 @@ export const profileCoverage = [
       "ISO/IEC 42001",
       "NIST AI RMF",
     ],
-    sections: ["Professional Capabilities", "Project Deck", "Credentials"],
+    sections: ["Expertise", "Project Deck", "Credentials"],
   },
   {
     id: "coverage-technical",
@@ -473,7 +473,7 @@ export const profileCoverage = [
       "AI agents and multi-model workflows",
       "Structured extraction and automation",
     ],
-    sections: ["Project Deck", "Professional Capabilities", "Experience"],
+    sections: ["Project Deck", "Expertise", "Experience"],
   },
   {
     id: "coverage-projects",
@@ -486,7 +486,7 @@ export const profileCoverage = [
       "Cognitive Behavior Intelligence — AI Governance Platform (Prototype)",
       "CodeIAK — Local AI Coding Agent (Advanced Iteration)",
     ],
-    sections: ["Project Deck", "Professional Capabilities"],
+    sections: ["Project Deck", "Expertise"],
   },
   {
     id: "coverage-certifications",
@@ -520,7 +520,7 @@ export const sectionAnchors = {
   Hero: "#hero",
   "Role Lens": "#role-lens",
   Experience: "#experience",
-  "Professional Capabilities": "#capabilities",
+  Expertise: "#capabilities",
   "Project Deck": "#projects",
   Credentials: "#credentials",
   Education: "#education",
@@ -973,4 +973,3 @@ export const assistantCategories = [
   "Professional Development",
   "Recruiter Concerns",
 ];
-

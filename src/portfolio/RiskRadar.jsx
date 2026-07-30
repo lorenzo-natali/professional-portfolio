@@ -73,6 +73,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                   <button
                     key={value}
                     type="button"
+                    aria-pressed={mapView === value}
                     onClick={() => setMapView(value)}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
                       mapView === value

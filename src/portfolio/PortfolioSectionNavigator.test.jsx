@@ -4,10 +4,11 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { getNavigatorSections } from "./sectionCatalog.js";
-import PortfolioSectionNavigator, {
+import PortfolioSectionNavigator from "./PortfolioSectionNavigator.jsx";
+import {
   prefersReducedMotion,
   scrollToPortfolioSection,
-} from "./PortfolioSectionNavigator.jsx";
+} from "./portfolioSectionNavigation.js";
 
 const portfolioDir = path.dirname(fileURLToPath(import.meta.url));
 const navigatorSource = readFileSync(

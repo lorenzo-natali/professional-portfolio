@@ -12,8 +12,30 @@ describe("RoleLens active status", () => {
 
   it("shows no active status in Overview", () => {
     render(<RoleLens selectedLens="Overview" onSelectLens={() => {}} />);
+    expect(screen.getByRole("heading", { level: 2, name: "Role Lens" })).toBeTruthy();
     expect(screen.queryByText(/lens active/i)).toBeNull();
     expect(screen.getByText("No lens selected")).toBeTruthy();
+  });
+
+  it("exposes the selected lens with aria-pressed", () => {
+    const { rerender } = render(
+      <RoleLens selectedLens="Overview" onSelectLens={() => {}} />
+    );
+
+    for (const lens of lensOptions) {
+      expect(
+        screen.getByRole("button", { name: lens.label ?? lens.name })
+      ).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      );
+    }
+
+    rerender(<RoleLens selectedLens="IT Audit" onSelectLens={() => {}} />);
+    expect(screen.getByRole("button", { name: "IT Audit" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
   });
 
   it.each(lensOptions.map((lens) => [lens.name, lens.label ?? lens.name]))(

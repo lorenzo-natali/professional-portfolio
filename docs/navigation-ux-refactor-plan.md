@@ -836,7 +836,7 @@ Do not begin implementation until the open decisions in §21 (except naming) are
 
 | Check | Value |
 |---|---|
-| Repository root | `/Users/lorenzonatali/Desktop/professional-portfolio` |
+| Repository root | `<repository-root>` |
 | Active branch | `feature/navigation-ux-refactor` |
 | Audit baseline HEAD | `157240652a23db2fb756244d6666de29590fa4da` |
 | Plan doc commit (initial) | `40b23c4` |
