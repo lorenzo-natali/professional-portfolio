@@ -139,48 +139,45 @@ function PortfolioAssistant() {
   return (
     <>
       <aside className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-5">
-        <div className="mb-5 flex items-center gap-4 border-b border-slate-800 pb-5 sm:mb-4 sm:gap-3 sm:pb-4">
+        <div className="mb-4 flex items-center gap-4 border-b border-slate-800 pb-4 sm:gap-3">
           <img
             src={publicAsset("profile.png")}
             alt="Lorenzo Natali"
             className="h-16 w-16 shrink-0 rounded-full border border-cyan-400/30 object-cover sm:h-11 sm:w-11"
           />
           <div>
-            <p className="text-base font-semibold text-slate-50 sm:text-sm">Portfolio Assistant</p>
+            <p className="text-base font-semibold leading-tight tracking-tight text-slate-50 sm:text-sm">Portfolio Assistant</p>
           </div>
         </div>
 
-        <p className="text-sm leading-6 text-slate-400 sm:text-xs sm:leading-5 sm:text-slate-500">
+        <p className="max-w-[30ch] text-sm font-medium leading-6 text-slate-400 sm:text-xs sm:leading-5 sm:text-slate-500">
           Guided answers on my background, projects and professional direction.
         </p>
 
-        <div className="mt-5 rounded-lg border border-slate-800 bg-slate-950/35 px-4 py-4 sm:mt-4 sm:px-3 sm:py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/75 sm:text-[11px] sm:tracking-[0.22em]">
+        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 px-4 py-3.5 sm:mt-3.5 sm:px-3 sm:py-3">
+          <p className="text-xs font-semibold uppercase leading-none tracking-[0.2em] text-cyan-300/75 sm:text-[11px] sm:tracking-[0.22em]">
             Example questions
           </p>
           {/* Fixed height sized for the longest showcase questions — avoids card resize on rotate. */}
-          <div className="mt-3 h-[6rem] overflow-hidden sm:mt-2 sm:h-[5rem]">
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={previewQuestion}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.32, ease: "easeOut" }}
-                className="text-sm leading-6 text-slate-200 sm:text-xs sm:leading-5 sm:text-slate-300"
-              >
-                {previewQuestion}
-              </motion.p>
-            </AnimatePresence>
+          <div className="mt-2.5 flex h-[6rem] items-start overflow-hidden sm:mt-2 sm:h-[5rem]">
+            <motion.p
+              key={previewQuestion}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32, ease: "easeOut" }}
+              className="text-sm font-medium leading-6 text-slate-200 sm:text-xs sm:leading-5 sm:text-slate-300"
+            >
+              {previewQuestion}
+            </motion.p>
           </div>
         </div>
 
         <button
           type="button"
           onClick={() => openAssistant()}
-          className="mt-6 w-full rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:mt-5 sm:py-3 sm:text-sm"
+          className="mt-5 w-full rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:py-3 sm:text-sm"
         >
-          Ask the assistant
+          Open Assistant
         </button>
       </aside>
 
