@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DEFAULT_APP_FEATURES,
@@ -122,6 +123,7 @@ function PortfolioAssistant() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [modalTop, setModalTop] = useState(0);
   const openButtonRef = useRef(null);
   const closeButtonRef = useRef(null);
   const questionRailRef = useRef(null);
@@ -138,6 +140,7 @@ function PortfolioAssistant() {
 
   const openAssistant = () => {
     restoreFocusOnCloseRef.current = false;
+    setModalTop(window.scrollY);
     setSelectedPrompt(null);
     setSelectedCategory(null);
     setIsDrawerOpen(true);
@@ -163,25 +166,6 @@ function PortfolioAssistant() {
   useEffect(() => {
     if (!isDrawerOpen) return undefined;
 
-    const body = document.body;
-    const root = document.documentElement;
-    const previousBodyOverflow = body.style.overflow;
-    const previousBodyPaddingRight = body.style.paddingRight;
-    const previousRootOverflow = root.style.overflow;
-    const rootWidth = root.clientWidth;
-    const scrollbarWidth = rootWidth > 0
-      ? Math.max(0, window.innerWidth - rootWidth)
-      : 0;
-
-    root.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-    if (scrollbarWidth > 0) {
-      const currentPaddingRight = Number.parseFloat(
-        window.getComputedStyle(body).paddingRight
-      ) || 0;
-      body.style.paddingRight = `${currentPaddingRight + scrollbarWidth}px`;
-    }
-
     closeButtonRef.current?.focus();
 
     const onKeyDown = (event) => {
@@ -193,9 +177,6 @@ function PortfolioAssistant() {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      root.style.overflow = previousRootOverflow;
-      body.style.overflow = previousBodyOverflow;
-      body.style.paddingRight = previousBodyPaddingRight;
     };
   }, [closeAssistant, isDrawerOpen]);
 
@@ -290,9 +271,11 @@ function PortfolioAssistant() {
         </button>
       </aside>
 
-      <AnimatePresence>
-        {isDrawerOpen && (
-          <>
+      {typeof document !== "undefined"
+        ? createPortal(
+            <AnimatePresence>
+              {isDrawerOpen && (
+                <>
             <motion.button
               type="button"
               aria-label="Close assistant overlay"
@@ -303,7 +286,9 @@ function PortfolioAssistant() {
               onClick={() => closeAssistant(true)}
             />
             <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center overscroll-none p-4 sm:p-6"
+              data-assistant-overlay="document"
+              className="absolute inset-x-0 z-50 flex justify-center p-4 sm:p-6"
+              style={{ top: modalTop }}
               initial={{ opacity: 0, y: 18, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
@@ -314,7 +299,7 @@ function PortfolioAssistant() {
                 aria-modal="true"
                 aria-labelledby="portfolio-assistant-modal-title"
                 aria-describedby="portfolio-assistant-modal-description"
-                className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                className="w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70"
               >
                 <div className="flex items-center justify-between gap-3 border-b border-slate-800 p-5">
                   <div className="flex min-w-0 items-center gap-3">
@@ -340,7 +325,7 @@ function PortfolioAssistant() {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
+                <div data-assistant-modal-content className="p-5 sm:p-6">
                   <p
                     id="assistant-topic-rail-label"
                     className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
@@ -453,9 +438,12 @@ function PortfolioAssistant() {
                 </div>
               </div>
             </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+                </>
+              )}
+            </AnimatePresence>,
+            document.body
+          )
+        : null}
     </>
   );
 }

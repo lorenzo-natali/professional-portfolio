@@ -61,9 +61,22 @@ describe("Portfolio Assistant guided modal", () => {
     expect(screen.queryByText("Suggested questions")).toBeNull();
     expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
     expect(screen.queryByText("Continue exploring")).toBeNull();
-    expect(document.body.style.overflow).toBe("hidden");
-    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("");
+    expect(document.documentElement.style.overflow).toBe("");
     expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+
+    const overlay = document.querySelector('[data-assistant-overlay="document"]');
+    const dialog = screen.getByRole("dialog");
+    const modalContent = dialog.querySelector("[data-assistant-modal-content]");
+    expect(overlay).toHaveClass("absolute");
+    expect(overlay).toHaveStyle({ top: `${window.scrollY}px` });
+    expect(overlay).not.toHaveClass("fixed", "overscroll-none");
+    expect(dialog).not.toHaveClass("max-h-[92vh]", "overflow-hidden");
+    expect(modalContent).not.toHaveClass(
+      "overflow-y-auto",
+      "overflow-y-scroll",
+      "overscroll-contain"
+    );
 
     const topicRail = screen.getByRole("group", { name: "Explore by topic" });
     expect(topicRail).toHaveAttribute("data-assistant-rail", "topic");
@@ -205,7 +218,7 @@ describe("Portfolio Assistant guided modal", () => {
     target.remove();
   });
 
-  it("restores scroll-lock styles when unmounted while open", () => {
+  it("leaves document scrolling styles untouched while open and on unmount", () => {
     document.documentElement.style.overflow = "auto";
     document.body.style.overflow = "scroll";
     document.body.style.paddingRight = "7px";
@@ -213,8 +226,9 @@ describe("Portfolio Assistant guided modal", () => {
     const { unmount } = renderAssistant();
     fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
 
-    expect(document.documentElement.style.overflow).toBe("hidden");
-    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.body.style.paddingRight).toBe("7px");
 
     unmount();
 
