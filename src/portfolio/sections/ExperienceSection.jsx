@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { experiences } from "../portfolioData.js";
 import { lensSurfaceClass } from "../portfolioLens.js";
 import { Section, SurfaceCard } from "../portfolioUi.jsx";
+import { PORTFOLIO_SECTION_TITLES } from "../sectionCatalog.js";
 
 export default function ExperienceSection({
   selectedLens = "Overview",
@@ -9,7 +10,7 @@ export default function ExperienceSection({
   toggleExperienceDetails,
 }) {
   return (
-      <Section id="experience" title="Professional Experience" className="bg-slate-950/80">
+      <Section id="experience" title={PORTFOLIO_SECTION_TITLES.experience} className="bg-slate-950/80">
         <div className="relative max-w-5xl">
           <div className="absolute bottom-0 left-3 top-2 w-px bg-slate-800 sm:left-4" />
           <div className="space-y-6">

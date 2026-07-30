@@ -10,17 +10,20 @@ export const PORTFOLIO_SECTION_IDS = Object.freeze([
   "risk-radar",
 ]);
 
-/** Human-readable labels for diagnostics / counters. */
-export const PORTFOLIO_SECTION_LABELS = Object.freeze({
-  hero: "Hero",
+/** Canonical visible titles for portfolio sections and diagnostics. */
+export const PORTFOLIO_SECTION_TITLES = Object.freeze({
+  hero: "Lorenzo Natali",
   "role-lens": "Role Lens",
-  capabilities: "Professional Capabilities",
-  credentials: "Credentials",
+  capabilities: "Expertise",
+  credentials: "Certifications",
   experience: "Experience",
   projects: "Projects",
   education: "Education",
-  "risk-radar": "Risk Radar",
+  "risk-radar": "Professional Snapshot",
 });
+
+/** Backwards-compatible diagnostic label export. */
+export const PORTFOLIO_SECTION_LABELS = PORTFOLIO_SECTION_TITLES;
 
 /**
  * Document table-of-contents entries for the section navigator.
@@ -34,37 +37,37 @@ export const NAVIGATOR_SECTIONS = Object.freeze([
   }),
   Object.freeze({
     id: "role-lens",
-    label: "Role Lens",
+    label: PORTFOLIO_SECTION_TITLES["role-lens"],
     scrollTargetId: "role-lens",
   }),
   Object.freeze({
     id: "capabilities",
-    label: "Professional Capabilities",
+    label: PORTFOLIO_SECTION_TITLES.capabilities,
     scrollTargetId: "capabilities",
   }),
   Object.freeze({
     id: "credentials",
-    label: "Professional Certifications Roadmap",
+    label: PORTFOLIO_SECTION_TITLES.credentials,
     scrollTargetId: "credentials",
   }),
   Object.freeze({
     id: "experience",
-    label: "Experience",
+    label: PORTFOLIO_SECTION_TITLES.experience,
     scrollTargetId: "experience",
   }),
   Object.freeze({
     id: "projects",
-    label: "Projects",
+    label: PORTFOLIO_SECTION_TITLES.projects,
     scrollTargetId: "projects",
   }),
   Object.freeze({
     id: "education",
-    label: "Education",
+    label: PORTFOLIO_SECTION_TITLES.education,
     scrollTargetId: "education",
   }),
   Object.freeze({
     id: "risk-radar",
-    label: "Risk Radar",
+    label: "Snapshot",
     scrollTargetId: "risk-radar",
   }),
 ]);
@@ -113,5 +116,5 @@ export function getSectionsForSiteDiagMode(mode) {
  * @returns {string}
  */
 export function getSectionLabel(id) {
-  return PORTFOLIO_SECTION_LABELS[id] ?? id;
+  return PORTFOLIO_SECTION_TITLES[id] ?? id;
 }

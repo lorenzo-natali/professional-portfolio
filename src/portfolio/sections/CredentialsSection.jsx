@@ -2,10 +2,11 @@ import { Award } from "lucide-react";
 import { additionalTraining, credentials } from "../portfolioData.js";
 import { lensSurfaceClass } from "../portfolioLens.js";
 import { Section, SurfaceCard } from "../portfolioUi.jsx";
+import { PORTFOLIO_SECTION_TITLES } from "../sectionCatalog.js";
 
 export default function CredentialsSection({ selectedLens = "Overview" }) {
   return (
-      <Section id="credentials" title="Professional Certifications Roadmap" className="bg-slate-950/80">
+      <Section id="credentials" title={PORTFOLIO_SECTION_TITLES.credentials} className="bg-slate-950/80">
         <div className="credentials-rail -mx-4 -mt-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-2 sm:px-2">
           {credentials.map((credential) => (
             <SurfaceCard

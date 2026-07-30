@@ -2,10 +2,11 @@ import { motion } from "framer-motion";
 import { expertise } from "../portfolioData.js";
 import { isLensRelevant, lensSurfaceClass } from "../portfolioLens.js";
 import { Section, SurfaceCard } from "../portfolioUi.jsx";
+import { PORTFOLIO_SECTION_TITLES } from "../sectionCatalog.js";
 
 export default function CapabilitiesSection({ selectedLens = "Overview" }) {
   return (
-    <Section id="capabilities" title="Professional Capabilities">
+    <Section id="capabilities" title={PORTFOLIO_SECTION_TITLES.capabilities}>
       <div className="grid gap-5 sm:grid-cols-2 lg:gap-6">
         {expertise.map((item) => {
           const Icon = item.icon;

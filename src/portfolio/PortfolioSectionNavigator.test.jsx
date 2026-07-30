@@ -51,7 +51,7 @@ describe("PortfolioSectionNavigator", () => {
     expect(screen.queryByRole("button", { name: "Credentials" })).toBeNull();
     expect(
       screen.getByRole("button", {
-        name: "Professional Certifications Roadmap",
+        name: "Certifications",
       })
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Insights" })).toBeNull();
@@ -59,11 +59,11 @@ describe("PortfolioSectionNavigator", () => {
     const labels = items.map((item) =>
       item.textContent.replace(/\s*\(current section\)\s*/g, "").replace(/\s+/g, " ").trim()
     );
-    expect(labels.indexOf("Professional Certifications Roadmap")).toBe(
-      labels.indexOf("Professional Capabilities") + 1
+    expect(labels.indexOf("Certifications")).toBe(
+      labels.indexOf("Expertise") + 1
     );
     expect(labels.indexOf("Experience")).toBe(
-      labels.indexOf("Professional Certifications Roadmap") + 1
+      labels.indexOf("Certifications") + 1
     );
   });
 
@@ -281,7 +281,7 @@ describe("PortfolioSectionNavigator Role Lens filter control", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Professional Certifications Roadmap",
+        name: "Certifications",
       })
     );
     expect(onSectionSelect).toHaveBeenCalledWith("credentials");
@@ -296,7 +296,7 @@ describe("PortfolioSectionNavigator Role Lens filter control", () => {
   it("can mark certifications as the current location", () => {
     openNavigator({ activeSectionId: "credentials" });
     const current = screen.getByRole("button", {
-      name: /Professional Certifications Roadmap/,
+      name: /Certifications/,
     });
     expect(current).toHaveAttribute("aria-current", "location");
     expect(current).toHaveAttribute("data-section-current", "true");

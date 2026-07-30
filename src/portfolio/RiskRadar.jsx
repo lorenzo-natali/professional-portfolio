@@ -14,6 +14,7 @@ import {
 } from "./portfolioLens.js";
 import ProfileRadarChart from "./ProfileRadarChart.jsx";
 import { SurfaceCard } from "./portfolioUi.jsx";
+import { PORTFOLIO_SECTION_TITLES } from "./sectionCatalog.js";
 import {
   getRadarSweepPeriodMs,
   shouldReduceRadarSweepCadence,
@@ -44,7 +45,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
       <div className="mx-auto w-full max-w-6xl">
         <div className="mb-7 max-w-3xl">
           <h2 className="text-2xl font-semibold tracking-tight !text-slate-50 sm:text-3xl">
-            Professional Risk & Evidence Map.
+            {PORTFOLIO_SECTION_TITLES["risk-radar"]}
           </h2>
           <p className="mt-4 leading-7 text-slate-300">
             Explore the risk domains shaping my profile and the evidence supporting its development.
