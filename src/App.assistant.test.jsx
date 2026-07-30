@@ -65,6 +65,16 @@ describe("Portfolio Assistant guided modal", () => {
     expect(document.documentElement.style.overflow).toBe("hidden");
     expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
 
+    const topicRail = screen.getByRole("group", { name: "Explore by topic" });
+    expect(topicRail).toHaveAttribute("data-assistant-rail", "topic");
+    expect(topicRail).toHaveClass("overflow-x-auto");
+    for (const category of assistantCategories) {
+      expect(screen.getByRole("button", { name: category })).toHaveAttribute(
+        "data-assistant-card-variant",
+        "topic"
+      );
+    }
+
     const firstCategory = assistantCategories[0];
     const firstCategoryPrompts = assistantPrompts.filter((prompt) =>
       prompt.categories.includes(firstCategory)
@@ -74,12 +84,24 @@ describe("Portfolio Assistant guided modal", () => {
     expect(
       screen.getByRole("button", { name: firstCategory })
     ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: firstCategory })).toHaveClass(
+      "border-violet-300/50",
+      "bg-violet-400/10"
+    );
     expect(screen.getByText("Suggested questions")).toBeTruthy();
+    const questionRail = screen.getByRole("group", {
+      name: "Suggested questions",
+    });
+    expect(questionRail).toHaveAttribute("data-assistant-rail", "question");
+    expect(questionRail).toHaveClass("overflow-x-auto");
     expect(screen.queryByText("Continue exploring")).toBeNull();
     for (const prompt of firstCategoryPrompts) {
       expect(
         screen.getByRole("button", { name: prompt.question })
       ).toHaveAttribute("aria-pressed", "false");
+      expect(
+        screen.getByRole("button", { name: prompt.question })
+      ).toHaveAttribute("data-assistant-card-variant", "question");
     }
 
     const firstPrompt = firstCategoryPrompts[0];
@@ -87,6 +109,9 @@ describe("Portfolio Assistant guided modal", () => {
       screen.getByRole("button", { name: firstPrompt.question })
     );
     await waitFor(() => expectGuidedAnswer(firstPrompt));
+    expect(
+      screen.getByRole("button", { name: firstPrompt.question })
+    ).toHaveClass("border-cyan-300/50", "bg-cyan-400/10");
     expect(screen.getByText("Continue exploring")).toBeTruthy();
     expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
 

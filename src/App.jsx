@@ -67,6 +67,56 @@ function highlightSignalTarget(target) {
   }, 1800);
 }
 
+const assistantSelectionCardVariants = {
+  topic: {
+    layout: "min-h-[3.75rem] min-w-[12rem] max-w-[15rem] px-3 py-2.5",
+    selected: "border-violet-300/50 bg-violet-400/10 text-violet-50",
+    idle:
+      "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-violet-300/35 hover:text-slate-100",
+    focus: "focus-visible:ring-violet-400/35",
+  },
+  question: {
+    layout: "min-w-[13rem] max-w-[16rem] px-3 py-2.5 sm:min-w-[15rem]",
+    selected:
+      "border-cyan-300/50 bg-cyan-400/10 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]",
+    idle:
+      "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-cyan-300/30 hover:text-slate-100",
+    focus: "focus-visible:ring-cyan-400/35",
+  },
+};
+
+function AssistantSelectionRail({ labelledBy, railRef, variant, children }) {
+  return (
+    <div
+      ref={railRef}
+      role="group"
+      aria-labelledby={labelledBy}
+      data-assistant-rail={variant}
+      className="assistant-selection-rail flex gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-2"
+    >
+      {children}
+    </div>
+  );
+}
+
+function AssistantSelectionCard({ variant, selected, onClick, children }) {
+  const styles = assistantSelectionCardVariants[variant];
+
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      data-assistant-card-variant={variant}
+      onClick={onClick}
+      className={`shrink-0 rounded-lg border text-left text-xs font-medium leading-5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${styles.layout} ${styles.focus} ${
+        selected ? styles.selected : styles.idle
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function PortfolioAssistant() {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -291,62 +341,68 @@ function PortfolioAssistant() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  <p
+                    id="assistant-topic-rail-label"
+                    className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
+                  >
                     Explore by topic
                   </p>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {assistantCategories.map((category) => {
-                      const isActive = category === selectedCategory;
-                      return (
-                        <button
-                          key={category}
-                          type="button"
-                          aria-pressed={isActive}
-                          onClick={() => {
-                            if (category === selectedCategory) return;
-                            setSelectedCategory(category);
-                            setSelectedPrompt(null);
-                            if (questionRailRef.current) questionRailRef.current.scrollLeft = 0;
-                          }}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                            isActive
-                              ? "border-cyan-300/45 bg-cyan-400/10 text-cyan-50"
-                              : "border-slate-700 bg-slate-900/45 text-slate-400 hover:border-violet-300/30 hover:text-slate-100"
-                          }`}
-                        >
-                          {category}
-                        </button>
-                      );
-                    })}
+                  <div className="mt-3">
+                    <AssistantSelectionRail
+                      labelledBy="assistant-topic-rail-label"
+                      variant="topic"
+                    >
+                      {assistantCategories.map((category) => {
+                        const isActive = category === selectedCategory;
+                        return (
+                          <AssistantSelectionCard
+                            key={category}
+                            variant="topic"
+                            selected={isActive}
+                            onClick={() => {
+                              if (category === selectedCategory) return;
+                              setSelectedCategory(category);
+                              setSelectedPrompt(null);
+                              if (questionRailRef.current) {
+                                questionRailRef.current.scrollLeft = 0;
+                              }
+                            }}
+                          >
+                            {category}
+                          </AssistantSelectionCard>
+                        );
+                      })}
+                    </AssistantSelectionRail>
                   </div>
 
                   {selectedCategory ? (
                     <div className="mt-6">
-                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Suggested questions</p>
-                      <div
-                        ref={questionRailRef}
-                        className="assistant-question-rail flex gap-2 overflow-x-auto pb-2"
+                      <p
+                        id="assistant-question-rail-label"
+                        className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
+                      >
+                        Suggested questions
+                      </p>
+                      <AssistantSelectionRail
+                        labelledBy="assistant-question-rail-label"
+                        railRef={questionRailRef}
+                        variant="question"
                       >
                         {categoryPrompts.map((prompt) => {
                           const isActive = prompt.question === selectedPrompt?.question;
                           return (
-                            <button
+                            <AssistantSelectionCard
                               key={prompt.question}
-                              type="button"
-                              aria-pressed={isActive}
+                              variant="question"
+                              selected={isActive}
                               onClick={() => setSelectedPrompt(prompt)}
-                              className={`min-w-[13rem] max-w-[16rem] shrink-0 rounded-lg border px-3 py-2.5 text-left text-xs leading-5 transition sm:min-w-[15rem] ${
-                                isActive
-                                  ? "border-cyan-300/50 bg-cyan-400/10 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
-                                  : "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-violet-300/30 hover:text-slate-100"
-                              }`}
                             >
                               {prompt.question}
-                            </button>
+                            </AssistantSelectionCard>
                           );
                         })}
-                      </div>
+                      </AssistantSelectionRail>
                     </div>
                   ) : null}
 
