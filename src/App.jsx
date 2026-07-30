@@ -123,10 +123,10 @@ function PortfolioAssistant() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [previewIndex, setPreviewIndex] = useState(0);
-  const [modalTop, setModalTop] = useState(0);
   const openButtonRef = useRef(null);
   const closeButtonRef = useRef(null);
   const questionRailRef = useRef(null);
+  const savedScrollYRef = useRef(0);
   const restoreFocusOnCloseRef = useRef(false);
   const previewQuestion = assistantPrompts[previewIndex % assistantPrompts.length].question;
 
@@ -140,7 +140,7 @@ function PortfolioAssistant() {
 
   const openAssistant = () => {
     restoreFocusOnCloseRef.current = false;
-    setModalTop(window.scrollY);
+    savedScrollYRef.current = window.scrollY;
     setSelectedPrompt(null);
     setSelectedCategory(null);
     setIsDrawerOpen(true);
@@ -166,6 +166,16 @@ function PortfolioAssistant() {
   useEffect(() => {
     if (!isDrawerOpen) return undefined;
 
+    const body = document.body;
+    const savedScrollY = savedScrollYRef.current;
+    const previousBodyPosition = body.style.position;
+    const previousBodyTop = body.style.top;
+    const previousBodyWidth = body.style.width;
+
+    body.style.position = "fixed";
+    body.style.top = `-${savedScrollY}px`;
+    body.style.width = "100%";
+
     closeButtonRef.current?.focus();
 
     const onKeyDown = (event) => {
@@ -177,6 +187,10 @@ function PortfolioAssistant() {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      body.style.position = previousBodyPosition;
+      body.style.top = previousBodyTop;
+      body.style.width = previousBodyWidth;
+      window.scrollTo(0, savedScrollY);
     };
   }, [closeAssistant, isDrawerOpen]);
 
@@ -275,32 +289,27 @@ function PortfolioAssistant() {
         ? createPortal(
             <AnimatePresence>
               {isDrawerOpen && (
-                <>
-            <motion.button
-              type="button"
-              aria-label="Close assistant overlay"
-              className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => closeAssistant(true)}
-            />
-            <motion.div
-              data-assistant-overlay="document"
-              className="absolute inset-x-0 z-50 flex justify-center p-4 sm:p-6"
-              style={{ top: modalTop }}
-              initial={{ opacity: 0, y: 18, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-            >
-              <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="portfolio-assistant-modal-title"
-                aria-describedby="portfolio-assistant-modal-description"
-                className="w-full max-w-4xl rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70"
-              >
+                <motion.div
+                  data-assistant-overlay="scroll"
+                  className="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-slate-950/75 backdrop-blur-sm"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => closeAssistant(true)}
+                >
+                  <div className="flex min-h-full justify-center p-4 sm:p-6">
+                    <motion.div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="portfolio-assistant-modal-title"
+                      aria-describedby="portfolio-assistant-modal-description"
+                      className="w-full max-w-4xl self-start rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                      initial={{ y: 18, scale: 0.98 }}
+                      animate={{ y: 0, scale: 1 }}
+                      exit={{ y: 18, scale: 0.98 }}
+                      transition={{ duration: 0.28, ease: "easeOut" }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                 <div className="flex items-center justify-between gap-3 border-b border-slate-800 p-5">
                   <div className="flex min-w-0 items-center gap-3">
                     <img
@@ -436,9 +445,9 @@ function PortfolioAssistant() {
                     </div>
                   ) : null}
                 </div>
-              </div>
-            </motion.div>
-                </>
+                    </motion.div>
+                  </div>
+                </motion.div>
               )}
             </AnimatePresence>,
             document.body

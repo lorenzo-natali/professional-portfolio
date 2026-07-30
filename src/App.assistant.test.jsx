@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
   fireEvent,
@@ -38,15 +38,23 @@ function expectGuidedAnswer(prompt) {
 }
 
 describe("Portfolio Assistant guided modal", () => {
+  beforeEach(() => {
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  });
+
   afterEach(() => {
     cleanup();
     document.documentElement.style.overflow = "";
     document.body.style.overflow = "";
     document.body.style.paddingRight = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
     vi.restoreAllMocks();
   });
 
   it("progressively reveals topics, questions, and the selected answer", async () => {
+    vi.spyOn(window, "scrollY", "get").mockReturnValue(480);
     renderAssistant();
 
     const openButton = screen.getByRole("button", { name: "Open Assistant" });
@@ -61,17 +69,25 @@ describe("Portfolio Assistant guided modal", () => {
     expect(screen.queryByText("Suggested questions")).toBeNull();
     expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
     expect(screen.queryByText("Continue exploring")).toBeNull();
-    expect(document.body.style.overflow).toBe("");
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.body.style.top).toBe("-480px");
+    expect(document.body.style.width).toBe("100%");
     expect(document.documentElement.style.overflow).toBe("");
     expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
 
-    const overlay = document.querySelector('[data-assistant-overlay="document"]');
+    const overlay = document.querySelector('[data-assistant-overlay="scroll"]');
     const dialog = screen.getByRole("dialog");
     const modalContent = dialog.querySelector("[data-assistant-modal-content]");
-    expect(overlay).toHaveClass("absolute");
-    expect(overlay).toHaveStyle({ top: `${window.scrollY}px` });
-    expect(overlay).not.toHaveClass("fixed", "overscroll-none");
-    expect(dialog).not.toHaveClass("max-h-[92vh]", "overflow-hidden");
+    expect(overlay).toHaveClass("fixed", "inset-0", "overflow-y-auto");
+    expect(overlay).not.toHaveClass("absolute");
+    expect(overlay.scrollTop).toBe(0);
+    expect(dialog.parentElement).toHaveClass("min-h-full");
+    expect(dialog).not.toHaveClass(
+      "max-h-[92vh]",
+      "overflow-hidden",
+      "overflow-y-auto",
+      "overflow-y-scroll"
+    );
     expect(modalContent).not.toHaveClass(
       "overflow-y-auto",
       "overflow-y-scroll",
@@ -161,8 +177,11 @@ describe("Portfolio Assistant guided modal", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
     });
-    expect(document.body.style.overflow).toBe("");
+    expect(document.body.style.position).toBe("");
+    expect(document.body.style.top).toBe("");
+    expect(document.body.style.width).toBe("");
     expect(document.documentElement.style.overflow).toBe("");
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 480);
     expect(openButton).toHaveFocus();
 
     fireEvent.click(openButton);
@@ -213,15 +232,23 @@ describe("Portfolio Assistant guided modal", () => {
     });
     expect(warn).not.toHaveBeenCalled();
     expect(document.body.style.overflow).toBe("");
+    expect(document.body.style.position).toBe("");
+    expect(document.body.style.top).toBe("");
+    expect(document.body.style.width).toBe("");
     expect(document.documentElement.style.overflow).toBe("");
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
 
     target.remove();
   });
 
-  it("leaves document scrolling styles untouched while open and on unmount", () => {
+  it("freezes the body and restores its styles and scroll position on unmount", () => {
+    vi.spyOn(window, "scrollY", "get").mockReturnValue(240);
     document.documentElement.style.overflow = "auto";
     document.body.style.overflow = "scroll";
     document.body.style.paddingRight = "7px";
+    document.body.style.position = "relative";
+    document.body.style.top = "3px";
+    document.body.style.width = "75%";
 
     const { unmount } = renderAssistant();
     fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
@@ -229,11 +256,18 @@ describe("Portfolio Assistant guided modal", () => {
     expect(document.documentElement.style.overflow).toBe("auto");
     expect(document.body.style.overflow).toBe("scroll");
     expect(document.body.style.paddingRight).toBe("7px");
+    expect(document.body.style.position).toBe("fixed");
+    expect(document.body.style.top).toBe("-240px");
+    expect(document.body.style.width).toBe("100%");
 
     unmount();
 
     expect(document.documentElement.style.overflow).toBe("auto");
     expect(document.body.style.overflow).toBe("scroll");
     expect(document.body.style.paddingRight).toBe("7px");
+    expect(document.body.style.position).toBe("relative");
+    expect(document.body.style.top).toBe("3px");
+    expect(document.body.style.width).toBe("75%");
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 240);
   });
 });
