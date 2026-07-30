@@ -138,7 +138,7 @@ export default function PortfolioSectionNavigator({
         id={panelId}
         hidden={!open}
         aria-label="Portfolio navigator"
-        className="pointer-events-auto w-56 rounded-md border border-cyan-400/35 bg-slate-950 p-2 text-slate-100 shadow-none"
+        className="pointer-events-auto max-h-[calc(100dvh-5.75rem)] w-56 overflow-y-auto overscroll-y-contain rounded-md border border-cyan-400/35 bg-slate-950 p-2 text-slate-100 shadow-none"
       >
         <p className="px-2 pb-1.5 pt-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-cyan-300/80">
           Navigator

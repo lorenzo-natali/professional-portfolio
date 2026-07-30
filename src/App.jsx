@@ -125,6 +125,7 @@ function PortfolioAssistant() {
   const [previewIndex, setPreviewIndex] = useState(0);
   const openButtonRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const dialogRef = useRef(null);
   const questionRailRef = useRef(null);
   const savedScrollYRef = useRef(0);
   const restoreFocusOnCloseRef = useRef(false);
@@ -171,17 +172,70 @@ function PortfolioAssistant() {
     const previousBodyPosition = body.style.position;
     const previousBodyTop = body.style.top;
     const previousBodyWidth = body.style.width;
+    const applicationRoot = openButtonRef.current?.closest("main") ?? null;
+    const supportsInert = Boolean(applicationRoot && "inert" in applicationRoot);
+    const previousApplicationInert = supportsInert
+      ? applicationRoot.inert
+      : false;
+    const previousApplicationInertAttribute =
+      applicationRoot?.getAttribute("inert");
+    const previousApplicationAriaHidden = applicationRoot?.getAttribute(
+      "aria-hidden"
+    );
 
     body.style.position = "fixed";
     body.style.top = `-${savedScrollY}px`;
     body.style.width = "100%";
 
+    if (applicationRoot) {
+      applicationRoot.setAttribute("inert", "");
+      if (supportsInert) {
+        applicationRoot.inert = true;
+      } else {
+        applicationRoot.setAttribute("aria-hidden", "true");
+      }
+    }
+
     closeButtonRef.current?.focus();
 
     const onKeyDown = (event) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closeAssistant(true);
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeAssistant(true);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+
+      const focusableElements = Array.from(
+        dialog.querySelectorAll(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter(
+        (element) =>
+          element.getAttribute("aria-hidden") !== "true" &&
+          element.getAttribute("tabindex") !== "-1"
+      );
+      const firstFocusable = focusableElements[0];
+      const lastFocusable = focusableElements[focusableElements.length - 1];
+      if (!firstFocusable || !lastFocusable) return;
+
+      const activeElement = document.activeElement;
+      if (
+        event.shiftKey &&
+        (activeElement === firstFocusable || !dialog.contains(activeElement))
+      ) {
+        event.preventDefault();
+        lastFocusable.focus();
+      } else if (
+        !event.shiftKey &&
+        (activeElement === lastFocusable || !dialog.contains(activeElement))
+      ) {
+        event.preventDefault();
+        firstFocusable.focus();
+      }
     };
     document.addEventListener("keydown", onKeyDown);
 
@@ -190,6 +244,26 @@ function PortfolioAssistant() {
       body.style.position = previousBodyPosition;
       body.style.top = previousBodyTop;
       body.style.width = previousBodyWidth;
+      if (applicationRoot) {
+        if (supportsInert) {
+          applicationRoot.inert = previousApplicationInert;
+        }
+        if (previousApplicationInertAttribute == null) {
+          applicationRoot.removeAttribute("inert");
+        } else {
+          applicationRoot.setAttribute("inert", previousApplicationInertAttribute);
+        }
+        if (!supportsInert) {
+          if (previousApplicationAriaHidden == null) {
+            applicationRoot.removeAttribute("aria-hidden");
+          } else {
+            applicationRoot.setAttribute(
+              "aria-hidden",
+              previousApplicationAriaHidden
+            );
+          }
+        }
+      }
       window.scrollTo(0, savedScrollY);
     };
   }, [closeAssistant, isDrawerOpen]);
@@ -299,6 +373,7 @@ function PortfolioAssistant() {
                 >
                   <div className="flex min-h-full justify-center p-4 sm:p-6">
                     <motion.div
+                      ref={dialogRef}
                       role="dialog"
                       aria-modal="true"
                       aria-labelledby="portfolio-assistant-modal-title"

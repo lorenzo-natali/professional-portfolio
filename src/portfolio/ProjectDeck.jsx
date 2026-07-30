@@ -6,6 +6,21 @@ import { projects } from "./portfolioData.js";
 import { lensSurfaceClass } from "./portfolioLens.js";
 import { ProjectStageIndicator, SurfaceCard } from "./portfolioUi.jsx";
 
+const slideVariants = {
+  enter: (direction) => ({
+    opacity: 0,
+    x: direction > 0 ? 80 : -80,
+  }),
+  center: {
+    opacity: 1,
+    x: 0,
+  },
+  exit: (direction) => ({
+    opacity: 0,
+    x: direction > 0 ? -80 : 80,
+  }),
+};
+
 export default function ProjectDeck({ selectedLens = "Overview" }) {
   const [activeProject, setActiveProject] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -74,11 +89,12 @@ export default function ProjectDeck({ selectedLens = "Overview" }) {
       <div className="relative min-h-[330px] overflow-hidden p-5 sm:min-h-[300px] sm:p-7">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
-            key={project.title}
+            key={project.id}
             custom={direction}
-            initial={{ opacity: 0, x: direction > 0 ? 80 : -80 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction > 0 ? -80 : 80 }}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
             transition={{ duration: 0.35, ease: "easeOut" }}
             className="relative"
           >

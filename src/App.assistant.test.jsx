@@ -270,4 +270,55 @@ describe("Portfolio Assistant guided modal", () => {
     expect(document.body.style.width).toBe("75%");
     expect(window.scrollTo).toHaveBeenCalledWith(0, 240);
   });
+
+  it("contains focus, makes the application inert, and restores both on close", () => {
+    renderAssistant();
+    const applicationRoot = document.querySelector("main");
+    Object.defineProperty(applicationRoot, "inert", {
+      configurable: true,
+      value: false,
+      writable: true,
+    });
+
+    const openButton = screen.getByRole("button", { name: "Open Assistant" });
+    fireEvent.click(openButton);
+
+    expect(applicationRoot.inert).toBe(true);
+    expect(applicationRoot).toHaveAttribute("inert");
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    const lastTopicButton = screen.getByRole("button", {
+      name: assistantCategories[assistantCategories.length - 1],
+    });
+
+    lastTopicButton.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(closeButton).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(lastTopicButton).toHaveFocus();
+
+    fireEvent.click(closeButton);
+    expect(applicationRoot.inert).toBe(false);
+    expect(applicationRoot).not.toHaveAttribute("inert");
+    expect(openButton).toHaveFocus();
+  });
+
+  it("uses aria-hidden as the inert fallback and cleans it up on Escape", async () => {
+    renderAssistant();
+    const applicationRoot = document.querySelector("main");
+    expect("inert" in applicationRoot).toBe(false);
+
+    const openButton = screen.getByRole("button", { name: "Open Assistant" });
+    fireEvent.click(openButton);
+    expect(applicationRoot).toHaveAttribute("inert");
+    expect(applicationRoot).toHaveAttribute("aria-hidden", "true");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+    expect(applicationRoot).not.toHaveAttribute("inert");
+    expect(applicationRoot).not.toHaveAttribute("aria-hidden");
+    expect(openButton).toHaveFocus();
+  });
 });

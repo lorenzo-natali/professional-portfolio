@@ -88,6 +88,13 @@ describe("PortfolioSectionNavigator", () => {
     expect(panel).toBeTruthy();
     expect(panel.hasAttribute("hidden")).toBe(true);
     expect(panel.getAttribute("aria-modal")).toBeNull();
+    expect(panel).toHaveClass(
+      "max-h-[calc(100dvh-5.75rem)]",
+      "overflow-y-auto",
+      "overscroll-y-contain",
+      "w-56"
+    );
+    expect(panel).not.toHaveClass("overflow-y-scroll");
 
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
