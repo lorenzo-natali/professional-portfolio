@@ -18,7 +18,7 @@ function HeroHarness({ sidebarSlot }) {
 }
 
 function renderAssistant() {
-  render(
+  return render(
     <App
       features={{
         assistant: true,
@@ -40,13 +40,17 @@ function expectGuidedAnswer(prompt) {
 describe("Portfolio Assistant guided modal", () => {
   afterEach(() => {
     cleanup();
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    document.body.style.paddingRight = "";
     vi.restoreAllMocks();
   });
 
-  it("opens and closes with the approved guided-flow hierarchy", async () => {
+  it("progressively reveals topics, questions, and the selected answer", async () => {
     renderAssistant();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
+    const openButton = screen.getByRole("button", { name: "Open Assistant" });
+    fireEvent.click(openButton);
 
     expect(
       screen.getByText(
@@ -54,20 +58,82 @@ describe("Portfolio Assistant guided modal", () => {
       )
     ).toBeTruthy();
     expect(screen.getByText("Explore by topic")).toBeTruthy();
+    expect(screen.queryByText("Suggested questions")).toBeNull();
+    expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
+    expect(screen.queryByText("Continue exploring")).toBeNull();
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+
+    const firstCategory = assistantCategories[0];
+    const firstCategoryPrompts = assistantPrompts.filter((prompt) =>
+      prompt.categories.includes(firstCategory)
+    );
+    fireEvent.click(screen.getByRole("button", { name: firstCategory }));
+
+    expect(
+      screen.getByRole("button", { name: firstCategory })
+    ).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Suggested questions")).toBeTruthy();
-    expect(screen.getByText("Guided answer")).toBeTruthy();
+    expect(screen.queryByText("Continue exploring")).toBeNull();
+    for (const prompt of firstCategoryPrompts) {
+      expect(
+        screen.getByRole("button", { name: prompt.question })
+      ).toHaveAttribute("aria-pressed", "false");
+    }
+
+    const firstPrompt = firstCategoryPrompts[0];
+    fireEvent.click(
+      screen.getByRole("button", { name: firstPrompt.question })
+    );
+    await waitFor(() => expectGuidedAnswer(firstPrompt));
     expect(screen.getByText("Continue exploring")).toBeTruthy();
+    expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
 
-    const initialPrompt = assistantPrompts[0];
-    expectGuidedAnswer(initialPrompt);
+    const nextPrompt = firstCategoryPrompts[1];
+    fireEvent.click(
+      screen.getByRole("button", { name: nextPrompt.question })
+    );
+    await waitFor(() => expectGuidedAnswer(nextPrompt));
+    expect(
+      screen.getByRole("button", { name: firstCategory })
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: nextPrompt.question })
+    ).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    const secondCategory = assistantCategories[1];
+    const secondCategoryPrompts = assistantPrompts.filter((prompt) =>
+      prompt.categories.includes(secondCategory)
+    );
+    fireEvent.click(screen.getByRole("button", { name: secondCategory }));
+
+    expect(screen.queryByRole("heading", { name: nextPrompt.question })).toBeNull();
+    expect(screen.queryByText("Continue exploring")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: firstPrompt.question })
+    ).toBeNull();
+    for (const prompt of secondCategoryPrompts) {
+      expect(
+        screen.getByRole("button", { name: prompt.question })
+      ).toHaveAttribute("aria-pressed", "false");
+    }
+
+    fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
     });
+    expect(document.body.style.overflow).toBe("");
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(openButton).toHaveFocus();
+
+    fireEvent.click(openButton);
+    expect(screen.getByText("Explore by topic")).toBeTruthy();
+    expect(screen.queryByText("Suggested questions")).toBeNull();
+    expect(screen.queryByText("Continue exploring")).toBeNull();
   });
 
-  it("keeps topic, question, answer, and related-link behaviour intact", async () => {
+  it("closes through a related link and restores document scrolling", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     renderAssistant();
     fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
@@ -79,15 +145,12 @@ describe("Portfolio Assistant guided modal", () => {
     expect(categoryPrompts.length).toBeGreaterThan(1);
 
     fireEvent.click(screen.getByRole("button", { name: category }));
-    await waitFor(() => expectGuidedAnswer(categoryPrompts[0]));
-
-    const nextPrompt = categoryPrompts[1];
     fireEvent.click(
-      screen.getByRole("button", { name: nextPrompt.question })
+      screen.getByRole("button", { name: categoryPrompts[1].question })
     );
-    await waitFor(() => expectGuidedAnswer(nextPrompt));
+    await waitFor(() => expectGuidedAnswer(categoryPrompts[1]));
 
-    const relatedSignal = nextPrompt.signalIds
+    const relatedSignal = categoryPrompts[1].signalIds
       .map((id) => ({ id, ...signalMap[id] }))
       .find((signal) => signal.target && signal.target.type !== "project");
     expect(relatedSignal).toBeTruthy();
@@ -111,7 +174,27 @@ describe("Portfolio Assistant guided modal", () => {
       });
     });
     expect(warn).not.toHaveBeenCalled();
+    expect(document.body.style.overflow).toBe("");
+    expect(document.documentElement.style.overflow).toBe("");
 
     target.remove();
+  });
+
+  it("restores scroll-lock styles when unmounted while open", () => {
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    document.body.style.paddingRight = "7px";
+
+    const { unmount } = renderAssistant();
+    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    unmount();
+
+    expect(document.documentElement.style.overflow).toBe("auto");
+    expect(document.body.style.overflow).toBe("scroll");
+    expect(document.body.style.paddingRight).toBe("7px");
   });
 });

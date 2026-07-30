@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   DEFAULT_APP_FEATURES,
@@ -68,11 +68,14 @@ function highlightSignalTarget(target) {
 }
 
 function PortfolioAssistant() {
-  const [selectedPrompt, setSelectedPrompt] = useState(assistantPrompts[0]);
+  const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(assistantPrompts[0].categories[0]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
   const [previewIndex, setPreviewIndex] = useState(0);
+  const openButtonRef = useRef(null);
+  const closeButtonRef = useRef(null);
   const questionRailRef = useRef(null);
+  const restoreFocusOnCloseRef = useRef(false);
   const previewQuestion = assistantPrompts[previewIndex % assistantPrompts.length].question;
 
   useEffect(() => {
@@ -83,13 +86,68 @@ function PortfolioAssistant() {
     return () => window.clearInterval(previewTimer);
   }, []);
 
-  const openAssistant = (prompt = assistantPrompts[0]) => {
-    setSelectedPrompt(prompt);
-    setSelectedCategory(prompt.categories[0]);
+  const openAssistant = () => {
+    restoreFocusOnCloseRef.current = false;
+    setSelectedPrompt(null);
+    setSelectedCategory(null);
     setIsDrawerOpen(true);
   };
 
-  const categoryPrompts = assistantPrompts.filter((prompt) => prompt.categories.includes(selectedCategory));
+  const closeAssistant = useCallback((restoreFocus = true) => {
+    restoreFocusOnCloseRef.current = restoreFocus;
+    setIsDrawerOpen(false);
+  }, []);
+
+  const categoryPrompts = selectedCategory
+    ? assistantPrompts.filter((prompt) =>
+        prompt.categories.includes(selectedCategory)
+      )
+    : [];
+
+  useEffect(() => {
+    if (isDrawerOpen || !restoreFocusOnCloseRef.current) return;
+    restoreFocusOnCloseRef.current = false;
+    openButtonRef.current?.focus();
+  }, [isDrawerOpen]);
+
+  useEffect(() => {
+    if (!isDrawerOpen) return undefined;
+
+    const body = document.body;
+    const root = document.documentElement;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyPaddingRight = body.style.paddingRight;
+    const previousRootOverflow = root.style.overflow;
+    const rootWidth = root.clientWidth;
+    const scrollbarWidth = rootWidth > 0
+      ? Math.max(0, window.innerWidth - rootWidth)
+      : 0;
+
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      const currentPaddingRight = Number.parseFloat(
+        window.getComputedStyle(body).paddingRight
+      ) || 0;
+      body.style.paddingRight = `${currentPaddingRight + scrollbarWidth}px`;
+    }
+
+    closeButtonRef.current?.focus();
+
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeAssistant(true);
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      root.style.overflow = previousRootOverflow;
+      body.style.overflow = previousBodyOverflow;
+      body.style.paddingRight = previousBodyPaddingRight;
+    };
+  }, [closeAssistant, isDrawerOpen]);
 
   const handleAssistantSignalClick = (event, signal) => {
     event.preventDefault();
@@ -100,7 +158,7 @@ function PortfolioAssistant() {
       return;
     }
 
-    setIsDrawerOpen(false);
+    closeAssistant(false);
 
     const scrollToTarget = () => {
       const element = getSignalTargetElement(signal);
@@ -173,6 +231,7 @@ function PortfolioAssistant() {
         </div>
 
         <button
+          ref={openButtonRef}
           type="button"
           onClick={() => openAssistant()}
           className="mt-5 w-full rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:py-3 sm:text-sm"
@@ -191,16 +250,22 @@ function PortfolioAssistant() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsDrawerOpen(false)}
+              onClick={() => closeAssistant(true)}
             />
             <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+              className="fixed inset-0 z-50 flex items-center justify-center overscroll-none p-4 sm:p-6"
               initial={{ opacity: 0, y: 18, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
               transition={{ duration: 0.28, ease: "easeOut" }}
             >
-              <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="portfolio-assistant-modal-title"
+                aria-describedby="portfolio-assistant-modal-description"
+                className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70"
+              >
                 <div className="flex items-center justify-between gap-3 border-b border-slate-800 p-5">
                   <div className="flex min-w-0 items-center gap-3">
                     <img
@@ -209,22 +274,23 @@ function PortfolioAssistant() {
                       className="h-11 w-11 rounded-full border border-cyan-400/30 object-cover"
                     />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-50">Portfolio Assistant</p>
-                      <p className="mt-1 max-w-xl text-xs leading-4 text-slate-500 sm:leading-5">
+                      <p id="portfolio-assistant-modal-title" className="text-sm font-semibold text-slate-50">Portfolio Assistant</p>
+                      <p id="portfolio-assistant-modal-description" className="mt-1 max-w-xl text-xs leading-4 text-slate-500 sm:leading-5">
                         Explore my experience through curated questions and guided answers.
                       </p>
                     </div>
                   </div>
                   <button
+                    ref={closeButtonRef}
                     type="button"
-                    onClick={() => setIsDrawerOpen(false)}
+                    onClick={() => closeAssistant(true)}
                     className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100"
                   >
                     Close
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-5 sm:p-6">
+                <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                     Explore by topic
                   </p>
@@ -236,10 +302,11 @@ function PortfolioAssistant() {
                         <button
                           key={category}
                           type="button"
+                          aria-pressed={isActive}
                           onClick={() => {
+                            if (category === selectedCategory) return;
                             setSelectedCategory(category);
-                            const nextPrompt = assistantPrompts.find((prompt) => prompt.categories.includes(category));
-                            if (nextPrompt) setSelectedPrompt(nextPrompt);
+                            setSelectedPrompt(null);
                             if (questionRailRef.current) questionRailRef.current.scrollLeft = 0;
                           }}
                           className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
@@ -254,79 +321,79 @@ function PortfolioAssistant() {
                     })}
                   </div>
 
-                  <div className="mt-6">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Suggested questions</p>
-                    <div
-                      ref={questionRailRef}
-                      className="assistant-question-rail flex gap-2 overflow-x-auto pb-2"
-                    >
-                      {categoryPrompts.map((prompt) => {
-                        const isActive = prompt.question === selectedPrompt.question;
-                        return (
-                          <button
-                            key={prompt.question}
-                            type="button"
-                            onClick={() => setSelectedPrompt(prompt)}
-                            className={`min-w-[13rem] max-w-[16rem] shrink-0 rounded-lg border px-3 py-2.5 text-left text-xs leading-5 transition sm:min-w-[15rem] ${
-                              isActive
-                                ? "border-cyan-300/50 bg-cyan-400/10 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
-                                : "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-violet-300/30 hover:text-slate-100"
-                            }`}
-                          >
-                            {prompt.question}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="mt-5 rounded-xl border border-slate-800/80 bg-slate-900/25 p-5 sm:p-6">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={selectedPrompt.question}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.25, ease: "easeOut" }}
-                        className=""
+                  {selectedCategory ? (
+                    <div className="mt-6">
+                      <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Suggested questions</p>
+                      <div
+                        ref={questionRailRef}
+                        className="assistant-question-rail flex gap-2 overflow-x-auto pb-2"
                       >
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300/70">
-                          Guided answer
-                        </p>
+                        {categoryPrompts.map((prompt) => {
+                          const isActive = prompt.question === selectedPrompt?.question;
+                          return (
+                            <button
+                              key={prompt.question}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => setSelectedPrompt(prompt)}
+                              className={`min-w-[13rem] max-w-[16rem] shrink-0 rounded-lg border px-3 py-2.5 text-left text-xs leading-5 transition sm:min-w-[15rem] ${
+                                isActive
+                                  ? "border-cyan-300/50 bg-cyan-400/10 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
+                                  : "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-violet-300/30 hover:text-slate-100"
+                              }`}
+                            >
+                              {prompt.question}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
 
-                        <h2 className="mt-3 break-words text-base font-semibold leading-6 text-slate-100 sm:text-lg sm:leading-7">
-                          {selectedPrompt.question}
-                        </h2>
+                  {selectedPrompt ? (
+                    <div className="mt-5 rounded-xl border border-slate-800/80 bg-slate-900/25 p-5 sm:p-6">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={selectedPrompt.question}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.25, ease: "easeOut" }}
+                        >
+                          <h2 className="break-words text-base font-semibold leading-6 text-slate-100 sm:text-lg sm:leading-7">
+                            {selectedPrompt.question}
+                          </h2>
 
-                        <div className="mt-4">
-                          <p className="max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-                            {selectedPrompt.answer}
-                          </p>
-                        </div>
-
-                        <div className="mt-5 border-t border-slate-800/70 pt-4">
-                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Continue exploring</p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-2">
-                            {getAssistantSignals(selectedPrompt).map((signal) => (
-                              <a
-                                key={signal.id}
-                                href={signal.href ?? "#"}
-                                aria-disabled={signal.missing ? "true" : undefined}
-                                onClick={(event) => handleAssistantSignalClick(event, signal)}
-                                className={`text-xs font-medium underline underline-offset-4 transition ${
-                                  signal.missing
-                                    ? "cursor-not-allowed text-slate-600 decoration-slate-700"
-                                    : "text-cyan-200/80 decoration-cyan-400/25 hover:text-cyan-100 hover:decoration-cyan-300/60"
-                                }`}
-                              >
-                                {signal.label}
-                              </a>
-                            ))}
+                          <div className="mt-4">
+                            <p className="max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                              {selectedPrompt.answer}
+                            </p>
                           </div>
-                        </div>
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
+
+                          <div className="mt-5 border-t border-slate-800/70 pt-4">
+                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Continue exploring</p>
+                            <div className="flex flex-wrap gap-x-3 gap-y-2">
+                              {getAssistantSignals(selectedPrompt).map((signal) => (
+                                <a
+                                  key={signal.id}
+                                  href={signal.href ?? "#"}
+                                  aria-disabled={signal.missing ? "true" : undefined}
+                                  onClick={(event) => handleAssistantSignalClick(event, signal)}
+                                  className={`text-xs font-medium underline underline-offset-4 transition ${
+                                    signal.missing
+                                      ? "cursor-not-allowed text-slate-600 decoration-slate-700"
+                                      : "text-cyan-200/80 decoration-cyan-400/25 hover:text-cyan-100 hover:decoration-cyan-300/60"
+                                  }`}
+                                >
+                                  {signal.label}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        </motion.div>
+                      </AnimatePresence>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </motion.div>
