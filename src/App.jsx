@@ -201,32 +201,35 @@ function PortfolioAssistant() {
               transition={{ duration: 0.28, ease: "easeOut" }}
             >
               <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70">
-                <div className="flex items-center justify-between border-b border-slate-800 p-5">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-800 p-5">
+                  <div className="flex min-w-0 items-center gap-3">
                     <img
                       src={publicAsset("profile.png")}
                       alt="Lorenzo Natali"
                       className="h-11 w-11 rounded-full border border-cyan-400/30 object-cover"
                     />
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-50">Portfolio Assistant</p>
+                      <p className="mt-1 max-w-xl text-xs leading-4 text-slate-500 sm:leading-5">
+                        Explore my experience through curated questions and guided answers.
+                      </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsDrawerOpen(false)}
-                    className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100"
+                    className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100"
                   >
                     Close
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-                  <p className="text-xs leading-5 text-slate-500">
-                    Guided answers on my background, projects and professional direction.
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Explore by topic
                   </p>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {assistantCategories.map((category) => {
                       const isActive = category === selectedCategory;
                       return (
@@ -252,7 +255,7 @@ function PortfolioAssistant() {
                   </div>
 
                   <div className="mt-6">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Question rail</p>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Suggested questions</p>
                     <div
                       ref={questionRailRef}
                       className="assistant-question-rail flex gap-2 overflow-x-auto pb-2"
@@ -287,18 +290,22 @@ function PortfolioAssistant() {
                         transition={{ duration: 0.25, ease: "easeOut" }}
                         className=""
                       >
-                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/70">
-                          {selectedPrompt.question}
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-300/70">
+                          Guided answer
                         </p>
 
-                        <div className="pt-10">
+                        <h2 className="mt-3 break-words text-base font-semibold leading-6 text-slate-100 sm:text-lg sm:leading-7">
+                          {selectedPrompt.question}
+                        </h2>
+
+                        <div className="mt-4">
                           <p className="max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
                             {selectedPrompt.answer}
                           </p>
                         </div>
 
                         <div className="mt-5 border-t border-slate-800/70 pt-4">
-                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Explore in the portfolio</p>
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Continue exploring</p>
                           <div className="flex flex-wrap gap-x-3 gap-y-2">
                             {getAssistantSignals(selectedPrompt).map((signal) => (
                               <a
