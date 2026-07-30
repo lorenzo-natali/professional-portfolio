@@ -213,11 +213,11 @@ export default function PortfolioSectionNavigator({
         aria-label="Portfolio sections"
         aria-expanded={open}
         aria-controls={panelId}
-        className="pointer-events-auto inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-cyan-400/50 bg-slate-950 px-3 text-cyan-200 outline-none transition-[border-color] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+        className="pointer-events-auto inline-flex h-12 min-w-12 items-center justify-center gap-2.5 rounded-full border border-cyan-400/50 bg-slate-950 px-3 text-cyan-200 outline-none transition-[border-color] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35 sm:h-[3.125rem] sm:px-3.5"
         onClick={() => setOpen((current) => !current)}
       >
-        <List aria-hidden="true" className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-        <span className="hidden text-xs font-medium tracking-wide sm:inline">
+        <List aria-hidden="true" className="h-5 w-5 shrink-0" strokeWidth={1.75} />
+        <span className="hidden text-sm font-medium tracking-wide sm:inline">
           Sections
         </span>
       </button>

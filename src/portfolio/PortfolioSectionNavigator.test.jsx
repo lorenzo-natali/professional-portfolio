@@ -71,6 +71,15 @@ describe("PortfolioSectionNavigator", () => {
     render(<PortfolioSectionNavigator />);
     const trigger = screen.getByRole("button", { name: "Portfolio sections" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveClass(
+      "h-12",
+      "min-w-12",
+      "gap-2.5",
+      "sm:h-[3.125rem]",
+      "sm:px-3.5"
+    );
+    expect(trigger.querySelector("svg")).toHaveClass("h-5", "w-5");
+    expect(trigger.querySelector("span")).toHaveClass("text-sm");
 
     const panelId = trigger.getAttribute("aria-controls");
     expect(panelId).toBeTruthy();
