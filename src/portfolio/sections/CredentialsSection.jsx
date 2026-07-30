@@ -45,23 +45,23 @@ export default function CredentialsSection({ selectedLens = "Overview" }) {
           ))}
         </div>
         <div className="mt-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">{additionalTraining.label}</p>
-          <div className="attestation-rail mt-3 flex gap-4 overflow-x-auto pb-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-50">{additionalTraining.label}</p>
+          <div className="attestation-rail mt-2 flex gap-4 overflow-x-auto pb-3 pt-1">
             {additionalTraining.items.map((item) => (
               <div
                 key={item.id}
                 data-role-lens-id={item.id}
-                className="attestation-card group relative min-w-[20rem] snap-start overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900/25 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur transition hover:border-slate-700 hover:bg-slate-900/75 sm:min-w-[23rem] lg:min-w-[24rem]"
+                className="attestation-card group relative min-w-[20rem] snap-start overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900/55 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur transition hover:-translate-y-1 hover:border-slate-700 hover:bg-slate-900/75 hover:shadow-xl hover:shadow-slate-950/30 sm:min-w-[23rem] lg:min-w-[24rem]"
               >
-                <h3 className="font-medium leading-6 text-slate-300">{item.title}</h3>
-                <p className="mt-1.5 text-xs leading-5 text-cyan-200/55">{item.subtitle}</p>
-                <p className="mt-3 text-sm leading-6 text-slate-500">{item.description}</p>
+                <h3 className="font-medium leading-6 text-slate-50">{item.title}</h3>
+                <p className="mt-1.5 text-xs leading-5 text-cyan-200/80">{item.subtitle}</p>
+                <p className="mt-3 text-sm leading-6 text-slate-300">{item.description}</p>
                 {item.attestation?.url ? (
                   <a
                     href={item.attestation.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex text-xs text-slate-500 underline decoration-slate-700/80 underline-offset-2 transition hover:text-cyan-200/70 hover:decoration-cyan-400/35"
+                    className="mt-3 inline-flex text-xs text-slate-300 underline decoration-slate-700/80 underline-offset-2 transition hover:text-cyan-200/70 hover:decoration-cyan-400/35"
                   >
                     {item.attestation.label}
                   </a>

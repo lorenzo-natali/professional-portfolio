@@ -28,7 +28,7 @@ function SectionNavButton({ isCurrent, onNavigate, children }) {
     >
       <span
         aria-hidden="true"
-        className={`mt-0.5 inline-block h-1.5 w-1.5 shrink-0 self-start rounded-full ${
+        className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
           isCurrent ? "bg-cyan-300" : "bg-slate-600"
         }`}
       />

@@ -36,9 +36,7 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
               transition={{ duration: 0.8 }}
               className="mt-5 text-xl font-medium !text-slate-300 sm:text-2xl"
             >
-              Banking Risk &amp; Controls | Technology &amp; Information Security Governance |
-              <br />
-              AI Governance
+              Banking Risk &amp; Controls | Technology &amp; Information Security Governance | AI Governance
             </motion.h2>
 
             <div className="h-12" aria-hidden="true" />
