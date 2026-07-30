@@ -1,10 +1,14 @@
 import { Award } from "lucide-react";
 import { additionalTraining, credentials } from "../portfolioData.js";
-import { lensSurfaceClass } from "../portfolioLens.js";
+import { isOverviewLens, lensSurfaceClass } from "../portfolioLens.js";
 import { Section, SurfaceCard } from "../portfolioUi.jsx";
 import { PORTFOLIO_SECTION_TITLES } from "../sectionCatalog.js";
 
 export default function CredentialsSection({ selectedLens = "Overview" }) {
+  const additionalTrainingLensClass = isOverviewLens(selectedLens)
+    ? ""
+    : "opacity-55";
+
   return (
       <Section id="credentials" title={PORTFOLIO_SECTION_TITLES.credentials} className="bg-slate-950/80">
         <div className="credentials-rail -mx-4 -mt-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-2 sm:px-2">
@@ -44,7 +48,10 @@ export default function CredentialsSection({ selectedLens = "Overview" }) {
             </SurfaceCard>
           ))}
         </div>
-        <div className="mt-6">
+        <div
+          data-additional-training-subsection
+          className={`mt-6 ${additionalTrainingLensClass}`}
+        >
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-50">{additionalTraining.label}</p>
           <div className="attestation-rail mt-2 flex gap-4 overflow-x-auto pb-3 pt-1">
             {additionalTraining.items.map((item) => (
