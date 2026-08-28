@@ -52,9 +52,71 @@ describe("ExperienceSection bounded viewport", () => {
   it("renders Banca Profilo first as the newest experience", () => {
     render(<ExperienceHarness />);
     const headings = screen.getAllByRole("heading", { level: 3 });
-    expect(headings[0].textContent).toBe("IT Auditor");
+    expect(headings[0].textContent).toBe("IT Audit Specialist");
     expect(screen.getByText("Banca Profilo · Milan")).toBeTruthy();
     expect(screen.getByText("September 2026 – Present")).toBeTruthy();
+  });
+
+  it("renders upcoming experiences without unpublished responsibility copy", () => {
+    const profilo = experiences.find((exp) => exp.id === "experience-banca-profilo");
+    expect(profilo.upcoming).toBe(true);
+    expect(profilo.intro).toBeUndefined();
+    expect(profilo.points).toBeUndefined();
+    expect(profilo.details).toBeUndefined();
+
+    const { container } = render(<ExperienceHarness />);
+    const article = container.querySelector(
+      '[data-role-lens-id="experience-banca-profilo"]'
+    );
+    expect(within(article).getByText(profilo.upcomingNote)).toBeTruthy();
+    expect(
+      within(article).getByRole("link", { name: profilo.reference.label })
+    ).toBeTruthy();
+    expect(within(article).queryByText("Summary")).toBeNull();
+    expect(within(article).queryByText("Details")).toBeNull();
+    expect(
+      within(article).queryByRole("button", { name: "View details" })
+    ).toBeNull();
+    expect(article.textContent).not.toMatch(/Tinaba|risk-based internal audits/i);
+  });
+
+  it("keeps optional intro visible for non-upcoming experiences when expanded", async () => {
+    const withIntro = experiences.find((exp) => exp.intro && !exp.upcoming);
+    if (!withIntro) {
+      // No non-upcoming intro in current data; TopLife uses note instead.
+      const withNote = experiences.find((exp) => exp.note && !exp.upcoming);
+      expect(withNote?.note).toBeTruthy();
+      const { container } = render(<ExperienceHarness />);
+      const article = container.querySelector(
+        `[data-role-lens-id="${withNote.id}"]`
+      );
+      expect(within(article).getByText(withNote.note)).toBeTruthy();
+      return;
+    }
+
+    const { container } = render(<ExperienceHarness />);
+    const article = container.querySelector(
+      `[data-role-lens-id="${withIntro.id}"]`
+    );
+    expect(within(article).getByText(withIntro.intro)).toBeTruthy();
+  });
+
+  it("renders an optional external reference on upcoming cards", () => {
+    const profilo = experiences.find((exp) => exp.id === "experience-banca-profilo");
+    const { container } = render(<ExperienceHarness />);
+    const article = container.querySelector(
+      '[data-role-lens-id="experience-banca-profilo"]'
+    );
+    const note = within(article).getByText(profilo.upcomingNote);
+    const link = within(article).getByRole("link", {
+      name: profilo.reference.label,
+    });
+    expect(link).toHaveAttribute("href", profilo.reference.href);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(
+      note.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it("renders a single bounded experience list viewport with all roles", () => {
@@ -94,7 +156,10 @@ describe("ExperienceSection bounded viewport", () => {
   it("keeps accordion expansion inside the viewport and preserves all roles in the DOM", async () => {
     const { container } = render(<ExperienceHarness />);
     const expandable = experiences.filter(
-      (exp) => Array.isArray(exp.details) && exp.details.length > 0
+      (exp) =>
+        !exp.upcoming &&
+        Array.isArray(exp.details) &&
+        exp.details.length > 0
     );
     expect(expandable.length).toBeGreaterThanOrEqual(2);
 
@@ -148,7 +213,10 @@ describe("ExperienceSection bounded viewport", () => {
   it("exposes accessibility state for expand and collapse controls", () => {
     const { container } = render(<ExperienceHarness />);
     const first = experiences.find(
-      (exp) => Array.isArray(exp.details) && exp.details.length > 0
+      (exp) =>
+        !exp.upcoming &&
+        Array.isArray(exp.details) &&
+        exp.details.length > 0
     );
     const article = container.querySelector(`[data-role-lens-id="${first.id}"]`);
 

@@ -37,11 +37,15 @@ export default function ExperienceSection({
             />
             <div className="space-y-6">
               {experiences.map((exp) => {
+                const isUpcoming = Boolean(exp.upcoming);
                 const hasDetails =
-                  Array.isArray(exp.details) && exp.details.length > 0;
+                  !isUpcoming &&
+                  Array.isArray(exp.details) &&
+                  exp.details.length > 0;
                 const isExpanded =
                   hasDetails && Boolean(expandedExperiences[exp.id]);
                 const detailsId = `${exp.id}-details`;
+                const summaryPoints = Array.isArray(exp.points) ? exp.points : [];
 
                 return (
                   <motion.article
@@ -67,104 +71,135 @@ export default function ExperienceSection({
                           <p className="mt-1 text-sm text-slate-400">
                             {exp.company}
                           </p>
-                          {exp.note ? (
-                            <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
-                              {exp.note}
-                            </p>
-                          ) : null}
                         </div>
                       </div>
 
-                      <AnimatePresence initial={false} mode="wait">
-                        {!isExpanded ? (
-                          <motion.ul
-                            key="summary"
-                            initial={
-                              reducedMotion ? false : { opacity: 0, height: 0 }
-                            }
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={
-                              reducedMotion
-                                ? undefined
-                                : { opacity: 0, height: 0 }
-                            }
-                            transition={expandTransition}
-                            className="mt-4 space-y-2 overflow-hidden text-sm leading-6 text-slate-300 sm:text-base"
-                          >
-                            {hasDetails ? (
-                              <li className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300/60">
-                                Summary
-                              </li>
-                            ) : null}
-                            {exp.points.map((point) => (
-                              <li key={point} className="flex gap-3">
-                                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/70" />
-                                <span>{point}</span>
-                              </li>
-                            ))}
-                          </motion.ul>
-                        ) : null}
-                      </AnimatePresence>
+                      {isUpcoming && exp.upcomingNote ? (
+                        <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-base">
+                          {exp.upcomingNote}
+                        </p>
+                      ) : null}
 
-                      {hasDetails ? (
-                        <div className="mt-5 border-t border-slate-800/80 pt-4">
-                          {!isExpanded ? (
-                            <button
-                              type="button"
-                              onClick={() => toggleExperienceDetails(exp.id)}
-                              aria-expanded={false}
-                              aria-controls={detailsId}
-                              className="inline-flex min-h-11 items-center text-sm font-medium text-cyan-200/85 transition hover:text-cyan-100"
-                            >
-                              View details
-                            </button>
+                      {!isUpcoming && (exp.note || exp.intro) ? (
+                        <div className="mt-3 space-y-3">
+                          {exp.note ? (
+                            <p className="text-sm leading-6 text-slate-300 sm:text-base">
+                              {exp.note}
+                            </p>
                           ) : null}
+                          {exp.intro ? (
+                            <p className="text-sm leading-6 text-slate-300 sm:text-base">
+                              {exp.intro}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
 
-                          <AnimatePresence initial={false}>
-                            {isExpanded ? (
-                              <motion.div
-                                key="details"
-                                id={detailsId}
+                      {exp.reference?.href && exp.reference?.label ? (
+                        <a
+                          href={exp.reference.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-4 inline-flex text-xs text-cyan-200/70 underline decoration-cyan-400/25 underline-offset-2 transition hover:text-cyan-100 hover:decoration-cyan-300/50"
+                        >
+                          {exp.reference.label}
+                        </a>
+                      ) : null}
+
+                      {!isUpcoming ? (
+                        <>
+                          <AnimatePresence initial={false} mode="wait">
+                            {!isExpanded ? (
+                              <motion.ul
+                                key="summary"
                                 initial={
-                                  reducedMotion
-                                    ? false
-                                    : { opacity: 0, height: 0, y: -6 }
+                                  reducedMotion ? false : { opacity: 0, height: 0 }
                                 }
-                                animate={{ opacity: 1, height: "auto", y: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
                                 exit={
                                   reducedMotion
                                     ? undefined
-                                    : { opacity: 0, height: 0, y: -6 }
+                                    : { opacity: 0, height: 0 }
                                 }
-                                transition={detailsTransition}
-                                className="overflow-hidden"
+                                transition={expandTransition}
+                                className="mt-4 space-y-2 overflow-hidden text-sm leading-6 text-slate-300 sm:text-base"
                               >
-                                <ul className="space-y-2.5 text-sm leading-6 text-slate-300 sm:text-base">
+                                {hasDetails ? (
                                   <li className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300/60">
-                                    Details
+                                    Summary
                                   </li>
-                                  {exp.details.map((detail) => (
-                                    <li key={detail} className="flex gap-3">
-                                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/70" />
-                                      <span>{detail}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    toggleExperienceDetails(exp.id)
-                                  }
-                                  aria-expanded={true}
-                                  aria-controls={detailsId}
-                                  className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-cyan-200/85 transition hover:text-cyan-100"
-                                >
-                                  Show less
-                                </button>
-                              </motion.div>
+                                ) : null}
+                                {summaryPoints.map((point) => (
+                                  <li key={point} className="flex gap-3">
+                                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/70" />
+                                    <span>{point}</span>
+                                  </li>
+                                ))}
+                              </motion.ul>
                             ) : null}
                           </AnimatePresence>
-                        </div>
+
+                          {hasDetails ? (
+                            <div className="mt-5 border-t border-slate-800/80 pt-4">
+                              {!isExpanded ? (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleExperienceDetails(exp.id)}
+                                  aria-expanded={false}
+                                  aria-controls={detailsId}
+                                  className="inline-flex min-h-11 items-center text-sm font-medium text-cyan-200/85 transition hover:text-cyan-100"
+                                >
+                                  View details
+                                </button>
+                              ) : null}
+
+                              <AnimatePresence initial={false}>
+                                {isExpanded ? (
+                                  <motion.div
+                                    key="details"
+                                    id={detailsId}
+                                    initial={
+                                      reducedMotion
+                                        ? false
+                                        : { opacity: 0, height: 0, y: -6 }
+                                    }
+                                    animate={{ opacity: 1, height: "auto", y: 0 }}
+                                    exit={
+                                      reducedMotion
+                                        ? undefined
+                                        : { opacity: 0, height: 0, y: -6 }
+                                    }
+                                    transition={detailsTransition}
+                                    className="overflow-hidden"
+                                  >
+                                    <ul className="space-y-2.5 text-sm leading-6 text-slate-300 sm:text-base">
+                                      <li className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-300/60">
+                                        Details
+                                      </li>
+                                      {exp.details.map((detail) => (
+                                        <li key={detail} className="flex gap-3">
+                                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-300/70" />
+                                          <span>{detail}</span>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        toggleExperienceDetails(exp.id)
+                                      }
+                                      aria-expanded={true}
+                                      aria-controls={detailsId}
+                                      className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-cyan-200/85 transition hover:text-cyan-100"
+                                    >
+                                      Show less
+                                    </button>
+                                  </motion.div>
+                                ) : null}
+                              </AnimatePresence>
+                            </div>
+                          ) : null}
+                        </>
                       ) : null}
                     </SurfaceCard>
                   </motion.article>

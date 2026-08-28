@@ -51,24 +51,22 @@ export const expertise = [
 export const experiences = [
   {
     id: "experience-banca-profilo",
-    role: "IT Auditor",
+    role: "IT Audit Specialist",
     company: "Banca Profilo · Milan",
     period: "September 2026 – Present",
-    points: [
-      "IT audit activities focused on technology, governance and internal control processes within the banking environment.",
-      "Supporting risk-based assessments of IT processes, controls and regulatory requirements.",
-    ],
-    details: [
-      "Review of IT governance and control frameworks.",
-      "Assessment of technology-related risks and internal controls.",
-      "Support to audit planning, evidence analysis and reporting.",
-    ],
+    upcoming: true,
+    upcomingNote:
+      "I am joining Banca Profilo at the outset of its 2026–2028 Industrial Plan, during a significant transformation of its business and technology model, with a focus on Internal Audit, control environment and technology governance.",
+    reference: {
+      label: "2026–2028 Industrial Plan ↗",
+      href: "https://www.bancaprofilo.it/wp-content/uploads/2026/02/BP_Piano-Industriale_26-28_esteso.pdf",
+    },
   },
   {
     id: "experience-boc",
     role: "Internal Auditor",
     company: "Bank of China – Milan Branch · 中国银行米兰分行",
-    period: "Oct 2025 – Present",
+    period: "Oct 2025 – Sep 2026",
     points: [
       "Assessing IT governance, information security controls, DORA and operational resilience across BIA, BCP and DRP frameworks.",
       "Analyzing corporate credit, syndicated loans, credit risk and IFRS 9/ECL methodologies.",
@@ -681,7 +679,7 @@ export const signalMap = {
   "cap-information-security": { label: "Information Security Governance", href: "#capabilities", target: { type: "capability", id: "capability-information-security" } },
   "cap-ai-governance": { label: "AI Governance", href: "#capabilities", target: { type: "capability", id: "capability-ai-governance" } },
   "exp-boc": { label: "Bank of China — Internal Audit", href: "#experience", target: { type: "experience", id: "experience-boc" } },
-  "exp-banca-profilo": { label: "Banca Profilo — IT Auditor", href: "#experience", target: { type: "experience", id: "experience-banca-profilo" } },
+  "exp-banca-profilo": { label: "Banca Profilo — IT Audit Specialist", href: "#experience", target: { type: "experience", id: "experience-banca-profilo" } },
   "project-cbi": { label: "Cognitive Behavior Intelligence", href: "#projects", target: { type: "project", id: "project-ai-audit-workflow" } },
   "project-codeiak": { label: "CodeIAK", href: "#projects", target: { type: "project", id: "project-codeiak" } },
   "cred-cisa": { label: "CISA (In Progress)", href: "#credentials", target: { type: "credential", id: "credential-cisa" } },
