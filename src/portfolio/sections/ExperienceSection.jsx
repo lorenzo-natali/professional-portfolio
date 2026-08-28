@@ -75,13 +75,13 @@ export default function ExperienceSection({
                       </div>
 
                       {isUpcoming && exp.upcomingNote ? (
-                        <p className="mt-3 text-sm leading-6 text-slate-300 sm:text-base">
+                        <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
                           {exp.upcomingNote}
                         </p>
                       ) : null}
 
                       {!isUpcoming && (exp.note || exp.intro) ? (
-                        <div className="mt-3 space-y-3">
+                        <div className="mt-4 space-y-3">
                           {exp.note ? (
                             <p className="text-sm leading-6 text-slate-300 sm:text-base">
                               {exp.note}
