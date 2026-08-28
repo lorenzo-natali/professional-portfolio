@@ -228,6 +228,7 @@ describe("Snapshot Journey integration", () => {
         screen.getByRole("heading", { level: 3, name: journeyMilestones[0].title })
       ).toBeTruthy();
     });
+    expect(screen.getByRole("button", { name: "Older year" })).toBeTruthy();
     expect(screen.getByText(journeyMilestones[0].explanation)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Older year" }));

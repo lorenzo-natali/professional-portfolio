@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { journeyMilestones, formatJourneyPeriod } from "./journeyData.js";
+import { JOURNEY_ENABLED } from "./journeyFeatureGate.js";
 import JourneyTimeline from "./JourneyTimeline.jsx";
 import { radarDomains, sectionAnchors } from "./portfolioData.js";
 import {
@@ -21,6 +22,17 @@ const journeyPanelTone = {
   dot: "bg-cyan-300",
   link: "text-cyan-100 hover:text-cyan-50",
 };
+
+function JourneyComingSoon() {
+  return (
+    <div className="mx-auto flex min-h-[min(22rem,70vw)] w-full max-w-[500px] flex-col items-center justify-center px-4 text-center">
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/90">
+        Coming Soon
+      </p>
+      <p className="mt-3 text-sm text-slate-400">Career timeline in progress</p>
+    </div>
+  );
+}
 
 export default function RiskRadar({ selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
@@ -187,11 +199,16 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: "easeOut" }}
                 >
-                  <JourneyTimeline
-                    milestones={journeyMilestones}
-                    activeIndex={activeJourneyIndex}
-                    onSelect={setActiveJourneyIndex}
-                  />
+                  {/* TEMPORARY GATE: remove JOURNEY_ENABLED branch when Journey is ready (see journeyFeatureGate.js). */}
+                  {JOURNEY_ENABLED ? (
+                    <JourneyTimeline
+                      milestones={journeyMilestones}
+                      activeIndex={activeJourneyIndex}
+                      onSelect={setActiveJourneyIndex}
+                    />
+                  ) : (
+                    <JourneyComingSoon />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -242,7 +259,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                     </div>
                   </div>
                 </motion.div>
-              ) : (
+              ) : JOURNEY_ENABLED ? (
                 <motion.div
                   key={`journey-${selectedMilestone.id}`}
                   initial={{ opacity: 0, x: 24 }}
@@ -297,6 +314,21 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                       ))}
                     </div>
                   </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="journey-coming-soon"
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/90">
+                    Coming Soon
+                  </p>
+                  <p className="mt-4 text-sm leading-6 text-slate-400">
+                    Career timeline in progress
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
