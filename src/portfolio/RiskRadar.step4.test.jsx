@@ -80,19 +80,17 @@ describe("Step 4–5 RiskRadar integration", () => {
     render(<RiskRadar />);
 
     const riskMap = screen.getByRole("button", { name: "Risk Map" });
-    const profileCoverage = screen.getByRole("button", {
-      name: "Profile Coverage",
-    });
+    const journey = screen.getByRole("button", { name: "Journey" });
     expect(riskMap).toHaveAttribute("aria-pressed", "true");
-    expect(profileCoverage).toHaveAttribute("aria-pressed", "false");
+    expect(journey).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("link", { name: "Expertise" })).toHaveAttribute(
       "href",
       "#capabilities"
     );
     expect(screen.queryByText("Professional Capabilities")).toBeNull();
 
-    fireEvent.click(profileCoverage);
+    fireEvent.click(journey);
     expect(riskMap).toHaveAttribute("aria-pressed", "false");
-    expect(profileCoverage).toHaveAttribute("aria-pressed", "true");
+    expect(journey).toHaveAttribute("aria-pressed", "true");
   });
 });

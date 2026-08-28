@@ -53,27 +53,3 @@ export function getRadarTone(maturity) {
     link: "text-amber-100 hover:text-amber-50",
   };
 }
-
-export function getCoverageTone(band) {
-  if (band === "STRONG") {
-    return {
-      badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-100",
-      dot: "bg-cyan-300",
-      link: "text-cyan-100 hover:text-cyan-50",
-    };
-  }
-
-  if (band === "DEVELOPING") {
-    return {
-      badge: "border-violet-400/25 bg-violet-400/10 text-violet-100",
-      dot: "bg-violet-300",
-      link: "text-violet-100 hover:text-violet-50",
-    };
-  }
-
-  return {
-    badge: "border-amber-400/25 bg-amber-400/10 text-amber-100",
-    dot: "bg-amber-300",
-    link: "text-amber-100 hover:text-amber-50",
-  };
-}

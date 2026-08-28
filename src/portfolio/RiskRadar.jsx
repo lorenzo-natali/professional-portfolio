@@ -1,18 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { journeyMilestones, formatJourneyPeriod } from "./journeyData.js";
+import JourneyTimeline from "./JourneyTimeline.jsx";
+import { radarDomains, sectionAnchors } from "./portfolioData.js";
 import {
-  coverageBandText,
-  profileCoverage,
-  radarDomains,
-  sectionAnchors,
-} from "./portfolioData.js";
-import {
-  getCoverageTone,
   getRadarTone,
   isLensRelevant,
   isOverviewLens,
 } from "./portfolioLens.js";
-import ProfileRadarChart from "./ProfileRadarChart.jsx";
 import { SurfaceCard } from "./portfolioUi.jsx";
 import { PORTFOLIO_SECTION_TITLES } from "./sectionCatalog.js";
 import {
@@ -21,18 +16,25 @@ import {
   startCappedRadarSweep,
 } from "./radarSweepCadence.js";
 
+const journeyPanelTone = {
+  badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-100",
+  dot: "bg-cyan-300",
+  link: "text-cyan-100 hover:text-cyan-50",
+};
+
 export default function RiskRadar({ selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
   const [mapView, setMapView] = useState("risk-map");
-  const [activeCoverageId, setActiveCoverageId] = useState(profileCoverage[0].id);
+  const [activeJourneyIndex, setActiveJourneyIndex] = useState(0);
   const sweepRef = useRef(null);
   const selectedDomain = radarDomains[activeDomain];
   const selectedTone = getRadarTone(selectedDomain.maturity);
-  const selectedCoverage = profileCoverage.find((axis) => axis.id === activeCoverageId) ?? profileCoverage[0];
-  const selectedCoverageTone = getCoverageTone(selectedCoverage.band);
+  const selectedMilestone =
+    journeyMilestones[activeJourneyIndex] ?? journeyMilestones[0];
 
   // Step 4: mobile/iOS only — cap sweep compositor updates to ~30 FPS via one rAF loop.
   // Desktop keeps CSS @keyframes unchanged (effect no-ops when shouldReduce is false).
+  // Journey tab unmounts the sweep node and skips this effect entirely.
   useEffect(() => {
     if (mapView !== "risk-map") return undefined;
     const element = sweepRef.current;
@@ -48,7 +50,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
             {PORTFOLIO_SECTION_TITLES["risk-radar"]}
           </h2>
           <p className="mt-4 leading-7 text-slate-300">
-            Explore the risk domains shaping my profile and the evidence supporting its development.
+            Explore the domains shaping my professional profile and the journey behind its development.
           </p>
           {mapView === "risk-map" && (
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
@@ -68,7 +70,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
               <div className="inline-flex rounded-lg border border-slate-800 bg-slate-950/45 p-1">
                 {[
                   ["risk-map", "Risk Map"],
-                  ["profile-radar", "Profile Coverage"],
+                  ["journey", "Journey"],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -179,13 +181,17 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                 </motion.div>
               ) : (
                 <motion.div
-                  key="profile-radar"
+                  key="journey"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: "easeOut" }}
                 >
-                  <ProfileRadarChart activeId={activeCoverageId} onSelect={setActiveCoverageId} />
+                  <JourneyTimeline
+                    milestones={journeyMilestones}
+                    activeIndex={activeJourneyIndex}
+                    onSelect={setActiveJourneyIndex}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -238,42 +244,55 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                 </motion.div>
               ) : (
                 <motion.div
-                  key={`coverage-${selectedCoverage.id}`}
+                  key={`journey-${selectedMilestone.id}`}
                   initial={{ opacity: 0, x: 24 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 >
                   <div className="border-b border-slate-800 pb-5">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${selectedCoverageTone.badge}`}>
-                      {coverageBandText[selectedCoverage.band]}
+                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${journeyPanelTone.badge}`}>
+                      {selectedMilestone.type}
                     </span>
-                    <h3 className="mt-4 text-2xl font-semibold text-slate-50">{selectedCoverage.label}</h3>
-                    <p className="mt-2 text-sm font-medium text-slate-400">Evidence coverage</p>
-                    <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">{selectedCoverage.definition}</p>
+                    <h3 className="mt-4 text-2xl font-semibold text-slate-50">
+                      {selectedMilestone.title}
+                    </h3>
+                    {selectedMilestone.subtitle ? (
+                      <p className="mt-2 text-sm font-medium text-slate-300">
+                        {selectedMilestone.subtitle}
+                      </p>
+                    ) : null}
+                    <p className="mt-2 text-sm font-medium text-slate-400">
+                      {formatJourneyPeriod(selectedMilestone)}
+                    </p>
+                    <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
+                      {selectedMilestone.explanation}
+                    </p>
                   </div>
 
-                  <div className="mt-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Evidence Base</p>
-                    <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
-                      {selectedCoverage.evidenceBase.map((item) => (
-                        <li key={item} className="flex gap-3">
-                          <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${selectedCoverageTone.dot}`} />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  {selectedMilestone.highlights?.length ? (
+                    <div className="mt-6">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Highlights</p>
+                      <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
+                        {selectedMilestone.highlights.map((item) => (
+                          <li key={item} className="flex gap-3">
+                            <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${journeyPanelTone.dot}`} />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
 
                   <div className="mt-6 border-t border-slate-800 pt-4">
-                    <p className="text-sm text-slate-400">Explore supporting evidence:</p>
+                    <p className="text-sm text-slate-400">Related portfolio sections:</p>
                     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                      {selectedCoverage.sections.map((section, index) => (
+                      {selectedMilestone.sections.map((section, index) => (
                         <span key={section} className="inline-flex items-center gap-2">
-                          <a href={sectionAnchors[section]} className={`font-medium transition ${selectedCoverageTone.link}`}>
+                          <a href={sectionAnchors[section]} className={`font-medium transition ${journeyPanelTone.link}`}>
                             {section}
                           </a>
-                          {index < selectedCoverage.sections.length - 1 && <span className="text-slate-600">·</span>}
+                          {index < selectedMilestone.sections.length - 1 && <span className="text-slate-600">·</span>}
                         </span>
                       ))}
                     </div>

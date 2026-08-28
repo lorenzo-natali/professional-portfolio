@@ -127,7 +127,7 @@ export const PORTFOLIO_RUNTIME_OWNERS = Object.freeze([
     cleanup: "n/a",
     suspectedRisk: "none",
     owner: "—",
-    notes: "WebGL only under AR / arDiag; ProfileRadarChart is SVG/DOM",
+    notes: "WebGL only under AR / arDiag; Journey timeline is plain DOM/CSS + finite Framer year enter/exit",
   },
   {
     subsystem: "Autoplay video/audio (homepage)",

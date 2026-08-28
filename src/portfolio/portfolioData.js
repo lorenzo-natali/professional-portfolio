@@ -297,6 +297,7 @@ export const stackStreams = [
       "ISO/IEC 27001",
       "NIST CSF",
       "DORA",
+      "NIS2",
       "Operational Resilience",
       "ICT Third-Party Risk",
       "Business Impact Analysis",
@@ -418,116 +419,6 @@ export const radarDomains = [
     sections: ["Project Deck", "Credentials", "Expertise"],
   },
 ];
-
-// Profile Coverage answers "how strongly is the profile supported by evidence?"
-// (kept conceptually separate from the Risk Radar's professional-domain view).
-// Each dimension carries a qualitative evidence-coverage band (STRONG / DEVELOPING /
-// EMERGING) describing the strength and breadth of supporting portfolio evidence —
-// NOT a proficiency, skill or completion score.
-export const profileCoverage = [
-  {
-    id: "coverage-experience",
-    label: "Professional Experience",
-    shortLabel: ["Professional", "Experience"],
-    band: "DEVELOPING",
-    definition:
-      "Professional experience supporting the profile across internal audit, banking risk, financial services and control-oriented environments.",
-    evidenceBase: [
-      "Bank of China — Internal Audit",
-      "Prelios — accounting, NPL/UTP portfolios and financial reporting exposure",
-    ],
-    sections: ["Experience", "Expertise"],
-  },
-  {
-    id: "coverage-regulatory",
-    label: "Regulatory & Supervisory Knowledge",
-    shortLabel: ["Regulatory &", "Supervisory"],
-    band: "STRONG",
-    definition:
-      "Evidence of banking regulatory, prudential and supervisory knowledge developed through direct audit exposure and structured learning.",
-    evidenceBase: [
-      "RAF, ICAAP, ILAAP and Pillar III",
-      "AML / KYC processes",
-      "IFRS 9 / ECL",
-      "FITD deposit-protection analysis",
-      "Basel III/IV and CRD VI framework knowledge",
-    ],
-    sections: ["Experience", "Expertise"],
-  },
-  {
-    id: "coverage-frameworks",
-    label: "Tech, Security & AI Frameworks",
-    shortLabel: ["Tech, Security", "& AI"],
-    band: "DEVELOPING",
-    definition:
-      "Growing knowledge of technology, information-security and AI governance frameworks supporting the profile's expansion beyond traditional banking audit.",
-    evidenceBase: [
-      "COBIT and ITGC concepts",
-      "ISO/IEC 27001 and NIST CSF",
-      "DORA",
-      "EU AI Act",
-      "ISO/IEC 42001",
-      "NIST AI RMF",
-    ],
-    sections: ["Expertise", "Project Deck", "Credentials"],
-  },
-  {
-    id: "coverage-technical",
-    label: "Technical & Data Capability",
-    shortLabel: ["Technical &", "Data"],
-    band: "DEVELOPING",
-    definition:
-      "Hands-on technical and data capabilities used to understand, analyze and build control-oriented systems and workflows.",
-    evidenceBase: [
-      "Python and pandas",
-      "SQL and data analysis",
-      "SAP and HFM/Oracle exposure",
-      "Local LLM/VLM experimentation",
-      "AI agents and multi-model workflows",
-      "Structured extraction and automation",
-    ],
-    sections: ["Project Deck", "Expertise", "Experience"],
-  },
-  {
-    id: "coverage-projects",
-    label: "Projects & Applied Work",
-    shortLabel: ["Projects &", "Applied Work"],
-    band: "DEVELOPING",
-    definition:
-      "Applied, self-directed projects translating AI, governance and technical concepts into working systems and prototypes.",
-    evidenceBase: [
-      "Cognitive Behavior Intelligence — AI Governance Platform (Prototype)",
-      "CodeIAK — Local AI Coding Agent (Advanced Iteration)",
-    ],
-    sections: ["Project Deck", "Expertise"],
-  },
-  {
-    id: "coverage-certifications",
-    label: "Certifications & Roadmap",
-    shortLabel: ["Certifications", "& Roadmap"],
-    band: "EMERGING",
-    definition:
-      "A structured certification and professional-development path supporting progression across IT audit, technology risk, AI risk and financial risk.",
-    evidenceBase: [
-      "CISA — in progress",
-      "CRISC — planned",
-      "AAIR — planned",
-      "FRM — longer-term roadmap",
-      "Continuing-education attestations",
-    ],
-    sections: ["Credentials"],
-  },
-];
-
-// Radar magnitudes are discrete visualization values derived from qualitative
-// evidence-coverage bands; they are not proficiency scores.
-export const coverageBandMagnitude = { STRONG: 3, DEVELOPING: 2, EMERGING: 1.5 };
-export const coverageBandMax = 3;
-export const coverageBandText = {
-  STRONG: "Strong evidence",
-  DEVELOPING: "Developing evidence",
-  EMERGING: "Emerging evidence",
-};
 
 export const sectionAnchors = {
   Hero: "#hero",
