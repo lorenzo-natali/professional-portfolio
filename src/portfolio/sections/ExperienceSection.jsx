@@ -71,29 +71,24 @@ export default function ExperienceSection({
                           <p className="mt-1 text-sm text-slate-400">
                             {exp.company}
                           </p>
-                        </div>
-                      </div>
-
-                      {isUpcoming && exp.upcomingNote ? (
-                        <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
-                          {exp.upcomingNote}
-                        </p>
-                      ) : null}
-
-                      {!isUpcoming && (exp.note || exp.intro) ? (
-                        <div className="mt-4 space-y-3">
-                          {exp.note ? (
-                            <p className="text-sm leading-6 text-slate-300 sm:text-base">
+                          {/* pt-* not mt-*: index.css `p { margin: 0 }` overrides Tailwind mt-* on paragraphs. */}
+                          {isUpcoming && exp.upcomingNote ? (
+                            <p className="pt-4 text-sm leading-6 text-slate-300 sm:text-base">
+                              {exp.upcomingNote}
+                            </p>
+                          ) : null}
+                          {!isUpcoming && exp.note ? (
+                            <p className="pt-4 text-sm leading-6 text-slate-300 sm:text-base">
                               {exp.note}
                             </p>
                           ) : null}
-                          {exp.intro ? (
-                            <p className="text-sm leading-6 text-slate-300 sm:text-base">
+                          {!isUpcoming && exp.intro ? (
+                            <p className="pt-4 text-sm leading-6 text-slate-300 sm:text-base">
                               {exp.intro}
                             </p>
                           ) : null}
                         </div>
-                      ) : null}
+                      </div>
 
                       {exp.reference?.href && exp.reference?.label ? (
                         <a
