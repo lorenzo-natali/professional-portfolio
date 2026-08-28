@@ -298,6 +298,8 @@ export const stackStreams = [
       "NIST CSF",
       "DORA",
       "NIS2",
+      "EBA ICT & Security Risk",
+      "EBA Outsourcing Guidelines",
       "Operational Resilience",
       "ICT Third-Party Risk",
       "Business Impact Analysis",
