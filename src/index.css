@@ -107,6 +107,66 @@ code {
   display: none;
 }
 
+/* Experience timeline: bounded inner scroll so more roles do not grow the page. */
+.experience-list-viewport {
+  max-height: min(36rem, 68dvh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.28) transparent;
+  /* Offset content hover inset so the section footprint / first-card rest position stay put. */
+  margin-top: -0.25rem;
+  /* Restrained bottom fade signals more content without redesigning the section. */
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(100% - 1.5rem),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 calc(100% - 1.5rem),
+    transparent 100%
+  );
+}
+
+.experience-list-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.experience-list-viewport::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.28);
+}
+
+.experience-list-content {
+  /* Room for SurfaceCard hover:-translate-y-1 so the first card top border is not clipped. */
+  padding-top: 0.25rem;
+  padding-bottom: 0.75rem;
+}
+
+@media (max-width: 639px) {
+  .experience-list-viewport {
+    max-height: min(32rem, 62dvh);
+  }
+}
+
+@supports not (height: 1dvh) {
+  .experience-list-viewport {
+    max-height: min(36rem, 68vh);
+  }
+
+  @media (max-width: 639px) {
+    .experience-list-viewport {
+      max-height: min(32rem, 62vh);
+    }
+  }
+}
+
 .assistant-signal-target {
   animation: assistant-signal-flash 1.8s ease-out 1;
 }

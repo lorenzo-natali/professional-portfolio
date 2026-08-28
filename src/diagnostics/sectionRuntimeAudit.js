@@ -60,13 +60,14 @@ export const PORTFOLIO_SECTION_RUNTIME_AUDIT = Object.freeze([
   },
   {
     section: "experience",
-    files: "sections/ExperienceSection.jsx",
+    files: "sections/ExperienceSection.jsx, index.css (.experience-list-viewport)",
     continuousRuntime:
-      "Framer whileInView entrance (once); expand/collapse AnimatePresence on click only",
-    compositorHeavyCss: "SurfaceCard backdrop-blur/shadows; timeline cyan glows",
+      "Framer whileInView entrance (once); accordion expand/collapse AnimatePresence on click only",
+    compositorHeavyCss:
+      "SurfaceCard backdrop-blur/shadows; timeline cyan glows; bounded overflow-y + static bottom mask",
     observers:
-      "Framer viewport observer equivalent for whileInView (IntersectionObserver internally)",
-    cleanup: "Framer unmount; expand state local",
+      "Framer viewport observer equivalent for whileInView (IntersectionObserver internally); no dedicated scroll listener",
+    cleanup: "Framer unmount; accordion expand state in App",
     risk: "low",
   },
   {

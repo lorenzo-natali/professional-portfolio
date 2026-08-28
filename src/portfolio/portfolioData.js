@@ -50,6 +50,21 @@ export const expertise = [
 
 export const experiences = [
   {
+    id: "experience-banca-profilo",
+    role: "IT Auditor",
+    company: "Banca Profilo · Milan",
+    period: "September 2026 – Present",
+    points: [
+      "IT audit activities focused on technology, governance and internal control processes within the banking environment.",
+      "Supporting risk-based assessments of IT processes, controls and regulatory requirements.",
+    ],
+    details: [
+      "Review of IT governance and control frameworks.",
+      "Assessment of technology-related risks and internal controls.",
+      "Support to audit planning, evidence analysis and reporting.",
+    ],
+  },
+  {
     id: "experience-boc",
     role: "Internal Auditor",
     company: "Bank of China – Milan Branch · 中国银行米兰分行",
@@ -613,7 +628,7 @@ export const lensRelevance = {
   "IT Audit": {
     capabilities: ["capability-audit-control", "capability-technology-risk"],
     credentials: ["credential-cisa", "credential-crisc"],
-    experiences: ["experience-boc"],
+    experiences: ["experience-banca-profilo", "experience-boc"],
     projects: [],
     radar: ["radar-control-audit-risk", "radar-technology-ict-risk", "radar-operational-resilience"],
     education: [],
@@ -622,7 +637,7 @@ export const lensRelevance = {
   "Technology Risk": {
     capabilities: ["capability-technology-risk", "capability-information-security"],
     credentials: ["credential-cisa", "credential-crisc"],
-    experiences: ["experience-boc"],
+    experiences: ["experience-banca-profilo", "experience-boc"],
     projects: [],
     radar: ["radar-technology-ict-risk", "radar-operational-resilience", "radar-information-security-governance"],
     education: [],
@@ -631,7 +646,7 @@ export const lensRelevance = {
   "Information Security Governance": {
     capabilities: ["capability-information-security", "capability-technology-risk"],
     credentials: ["credential-cisa", "credential-crisc"],
-    experiences: ["experience-boc"],
+    experiences: ["experience-banca-profilo", "experience-boc"],
     projects: [],
     radar: ["radar-information-security-governance", "radar-technology-ict-risk", "radar-operational-resilience"],
     education: [],
@@ -666,6 +681,7 @@ export const signalMap = {
   "cap-information-security": { label: "Information Security Governance", href: "#capabilities", target: { type: "capability", id: "capability-information-security" } },
   "cap-ai-governance": { label: "AI Governance", href: "#capabilities", target: { type: "capability", id: "capability-ai-governance" } },
   "exp-boc": { label: "Bank of China — Internal Audit", href: "#experience", target: { type: "experience", id: "experience-boc" } },
+  "exp-banca-profilo": { label: "Banca Profilo — IT Auditor", href: "#experience", target: { type: "experience", id: "experience-banca-profilo" } },
   "project-cbi": { label: "Cognitive Behavior Intelligence", href: "#projects", target: { type: "project", id: "project-ai-audit-workflow" } },
   "project-codeiak": { label: "CodeIAK", href: "#projects", target: { type: "project", id: "project-codeiak" } },
   "cred-cisa": { label: "CISA (In Progress)", href: "#credentials", target: { type: "credential", id: "credential-cisa" } },

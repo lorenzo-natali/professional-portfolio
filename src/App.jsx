@@ -699,11 +699,12 @@ function App({
     }
   }, [features.intro, showIntro]);
 
+  // Accordion: only one experience details panel open at a time.
   const toggleExperienceDetails = (experienceId) => {
-    setExpandedExperiences((current) => ({
-      ...current,
-      [experienceId]: !current[experienceId],
-    }));
+    setExpandedExperiences((current) => {
+      if (current[experienceId]) return {};
+      return { [experienceId]: true };
+    });
   };
 
   const sidebarSlot = (
