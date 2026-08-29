@@ -65,7 +65,7 @@ export const experiences = [
   {
     id: "experience-boc",
     role: "Internal Auditor",
-    company: "Bank of China – Milan Branch · 中国银行米兰分行",
+    company: "Bank of China · Milan · 中国银行米兰分行",
     period: "Oct 2025 – Sep 2026",
     points: [
       "Assessing IT governance, information security controls, DORA and operational resilience across BIA, BCP and DRP frameworks.",
@@ -86,7 +86,7 @@ export const experiences = [
   {
     id: "experience-prelios",
     role: "Accounting & Administration Intern",
-    company: "Prelios – Financial Service",
+    company: "Prelios Financial Servicing · Milan",
     period: "May 2025 – Oct 2025",
     points: [
       "Managed accounting and reporting processes for NPL/UTP portfolios.",
@@ -103,7 +103,7 @@ export const experiences = [
   {
     id: "experience-toplife",
     role: "Front Office Concierge & CRM",
-    company: "TopLife Concierge",
+    company: "TopLife Concierge · Milan",
     period: "Jul 2020 – Jul 2025",
     note: "Part-time weekend position held while completing university studies.",
     points: [
