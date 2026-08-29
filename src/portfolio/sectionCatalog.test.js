@@ -26,7 +26,7 @@ describe("sectionCatalog titles and navigation", () => {
       "Experience",
       "Projects",
       "Education",
-      "Professional Snapshot",
+      "Professional Overview",
     ]);
   });
 
@@ -34,14 +34,14 @@ describe("sectionCatalog titles and navigation", () => {
     const sections = getNavigatorSections();
 
     expect(sections.map(({ label }) => label)).toEqual([
-      "Overview",
+      "Home",
       "Role Lens",
       "Expertise",
       "Certifications",
       "Experience",
       "Projects",
       "Education",
-      "Snapshot",
+      "Overview",
     ]);
     expect(sections.map(({ id }) => id)).toEqual(PORTFOLIO_SECTION_IDS);
     expect(sections.map(({ scrollTargetId }) => scrollTargetId)).toEqual(

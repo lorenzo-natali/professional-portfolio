@@ -146,7 +146,7 @@ describe("PortfolioSectionNavigator", () => {
     hero.scrollIntoView = vi.fn();
     document.body.appendChild(hero);
 
-    fireEvent.click(screen.getByRole("button", { name: /Overview/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Home/ }));
     expect(onSectionSelect).toHaveBeenCalledWith("hero");
     expect(hero.scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ block: "start" })
@@ -169,9 +169,27 @@ describe("PortfolioSectionNavigator", () => {
   it("keeps entries keyboard-operable as buttons with focus styles", () => {
     openNavigator();
 
-    const overview = screen.getByRole("button", { name: /Overview/ });
+    const overview = screen.getByRole("button", { name: /^Overview/ });
     expect(overview.tagName).toBe("BUTTON");
     expect(overview.className).toMatch(/focus-visible:ring/);
+  });
+
+  it("navigates Overview to the Professional Overview section (risk-radar)", () => {
+    const onSectionSelect = vi.fn();
+    openNavigator({ onSectionSelect });
+
+    const target = document.createElement("div");
+    target.id = "risk-radar";
+    target.scrollIntoView = vi.fn();
+    document.body.appendChild(target);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Overview/ }));
+    expect(onSectionSelect).toHaveBeenCalledWith("risk-radar");
+    expect(target.scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ block: "start" })
+    );
+
+    target.remove();
   });
 
   it("marks exactly one current section with aria-current and no Role Lens relevance state", () => {

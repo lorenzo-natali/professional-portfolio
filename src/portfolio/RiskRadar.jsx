@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { User } from "lucide-react";
 import { journeyMilestones, formatJourneyPeriod } from "./journeyData.js";
-import { JOURNEY_ENABLED } from "./journeyFeatureGate.js";
 import JourneyTimeline from "./JourneyTimeline.jsx";
 import { radarDomains, sectionAnchors } from "./portfolioData.js";
 import {
@@ -18,21 +18,8 @@ import {
 } from "./radarSweepCadence.js";
 
 const journeyPanelTone = {
-  badge: "border-cyan-400/25 bg-cyan-400/10 text-cyan-100",
   dot: "bg-cyan-300",
-  link: "text-cyan-100 hover:text-cyan-50",
 };
-
-function JourneyComingSoon() {
-  return (
-    <div className="mx-auto flex min-h-[min(22rem,70vw)] w-full max-w-[500px] flex-col items-center justify-center px-4 text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/90">
-        Coming Soon
-      </p>
-      <p className="mt-3 text-sm text-slate-400">Career timeline in progress</p>
-    </div>
-  );
-}
 
 export default function RiskRadar({ selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
@@ -62,7 +49,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
             {PORTFOLIO_SECTION_TITLES["risk-radar"]}
           </h2>
           <p className="mt-4 leading-7 text-slate-300">
-            Explore the domains shaping my professional profile and the journey behind its development.
+            An interactive view of my professional path, risk exposure and evolving areas of expertise.
           </p>
           {mapView === "risk-map" && (
             <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
@@ -81,8 +68,8 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div className="inline-flex rounded-lg border border-slate-800 bg-slate-950/45 p-1">
                 {[
-                  ["risk-map", "Risk Map"],
-                  ["journey", "Journey"],
+                  ["risk-map", "Risk Exposure"],
+                  ["journey", "Career Timeline"],
                 ].map(([value, label]) => (
                   <button
                     key={value}
@@ -138,20 +125,35 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                     })}
                   </svg>
 
-                  <div className="absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-cyan-300/35 bg-slate-950/90 px-3 text-center text-[11px] font-semibold leading-4 text-slate-100 shadow-[0_0_34px_rgba(34,211,238,0.18)] sm:h-24 sm:w-24 sm:text-xs">
-                    My Profile
+                  <div
+                    className="absolute inset-[38%] z-10 flex items-center justify-center rounded-full border border-cyan-300/35 bg-slate-950/90 text-slate-100 shadow-[0_0_34px_rgba(34,211,238,0.18)]"
+                    role="img"
+                    aria-label="My Profile"
+                  >
+                    <User
+                      className="h-[46%] w-[46%] text-slate-100"
+                      fill="currentColor"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      aria-hidden="true"
+                    />
                   </div>
 
                   {radarDomains.map((domain, index) => {
                     const isActive = index === activeDomain;
                     const isRelevant = isLensRelevant(selectedLens, "radar", domain.id);
-                    const isDimmed = !isOverviewLens(selectedLens) && !isRelevant;
+                    const showLensRelevance =
+                      !isOverviewLens(selectedLens) && isRelevant;
+                    // Dim unrelated domains only; never dim the selected exploration target.
+                    const isDimmed =
+                      !isOverviewLens(selectedLens) && !isRelevant && !isActive;
                     const tone = getRadarTone(domain.maturity);
                     return (
                       <button
                         key={domain.title}
                         type="button"
                         data-role-lens-id={domain.id}
+                        aria-pressed={isActive}
                         onClick={() => setActiveDomain(index)}
                         className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center transition-opacity ${
                           isDimmed ? "opacity-60" : "opacity-100"
@@ -160,9 +162,19 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                       >
                         <span
                           className={`relative flex h-4 w-4 items-center justify-center rounded-full border transition ${
-                            isActive ? tone.activeDot : "border-slate-500 bg-slate-800 group-hover:border-cyan-300/60"
-                          } ${!isActive && isRelevant && !isOverviewLens(selectedLens) ? "role-lens-radar-node border-cyan-200 bg-cyan-300" : ""}`}
+                            isActive
+                              ? tone.activeDot
+                              : showLensRelevance
+                                ? "border-cyan-300/55 bg-slate-800 group-hover:border-cyan-300/70"
+                                : "border-slate-500 bg-slate-800 group-hover:border-cyan-300/60"
+                          }`}
                         >
+                          {showLensRelevance ? (
+                            <span
+                              aria-hidden="true"
+                              className="role-lens-radar-node pointer-events-none absolute inset-0 rounded-full"
+                            />
+                          ) : null}
                           {isActive && (
                             <>
                               <motion.span
@@ -182,7 +194,11 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                         </span>
                         <span
                           className={`max-w-[92px] text-[10px] font-medium leading-4 transition [text-shadow:0_1px_8px_rgba(2,6,23,0.92)] sm:max-w-[130px] sm:text-xs ${
-                            isActive || (isRelevant && !isOverviewLens(selectedLens)) ? "text-slate-50" : "text-slate-400 group-hover:text-slate-200"
+                            isActive
+                              ? "text-slate-50"
+                              : showLensRelevance
+                                ? "text-slate-200"
+                                : "text-slate-400 group-hover:text-slate-200"
                           }`}
                         >
                           {domain.title}
@@ -199,22 +215,21 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: "easeOut" }}
                 >
-                  {/* TEMPORARY GATE: remove JOURNEY_ENABLED branch when Journey is ready (see journeyFeatureGate.js). */}
-                  {JOURNEY_ENABLED ? (
-                    <JourneyTimeline
-                      milestones={journeyMilestones}
-                      activeIndex={activeJourneyIndex}
-                      onSelect={setActiveJourneyIndex}
-                    />
-                  ) : (
-                    <JourneyComingSoon />
-                  )}
+                  <JourneyTimeline
+                    milestones={journeyMilestones}
+                    activeIndex={activeJourneyIndex}
+                    onSelect={setActiveJourneyIndex}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
 
-          <SurfaceCard className="min-h-[380px] p-5 sm:p-6">
+          <SurfaceCard
+            className={`p-5 sm:p-6 ${
+              mapView === "journey" ? "min-h-0 sm:min-h-[380px]" : "min-h-[380px]"
+            }`}
+          >
             <AnimatePresence mode="wait">
               {mapView === "risk-map" ? (
                 <motion.div
@@ -259,7 +274,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                     </div>
                   </div>
                 </motion.div>
-              ) : JOURNEY_ENABLED ? (
+              ) : (
                 <motion.div
                   key={`journey-${selectedMilestone.id}`}
                   initial={{ opacity: 0, x: 24 }}
@@ -267,68 +282,69 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                   exit={{ opacity: 0, x: -24 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
                 >
-                  <div className="border-b border-slate-800 pb-5">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${journeyPanelTone.badge}`}>
-                      {selectedMilestone.type}
-                    </span>
-                    <h3 className="mt-4 text-2xl font-semibold text-slate-50">
-                      {selectedMilestone.title}
-                    </h3>
-                    {selectedMilestone.subtitle ? (
-                      <p className="mt-2 text-sm font-medium text-slate-300">
-                        {selectedMilestone.subtitle}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-sm font-medium text-slate-400">
-                      {formatJourneyPeriod(selectedMilestone)}
-                    </p>
-                    <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
-                      {selectedMilestone.explanation}
-                    </p>
-                  </div>
-
-                  {selectedMilestone.highlights?.length ? (
-                    <div className="mt-6">
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Highlights</p>
-                      <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
-                        {selectedMilestone.highlights.map((item) => (
-                          <li key={item} className="flex gap-3">
-                            <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${journeyPanelTone.dot}`} />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {selectedMilestone.narrativeHeading ? (
+                    <div className="flex flex-col gap-5">
+                      <h3 className="text-2xl font-semibold text-slate-50">
+                        {selectedMilestone.narrativeHeading}
+                      </h3>
+                      {selectedMilestone.narrativeBody ||
+                      selectedMilestone.narrativeContext ||
+                      selectedMilestone.narrativeDetail ? (
+                        <div>
+                          {selectedMilestone.narrativeBody ? (
+                            <p className="text-sm leading-6 text-slate-300 sm:text-base">
+                              {selectedMilestone.narrativeBody}
+                            </p>
+                          ) : null}
+                          {selectedMilestone.narrativeContext ? (
+                            <p className="mt-4 text-xs leading-5 text-slate-500 sm:text-sm">
+                              {selectedMilestone.narrativeContext}
+                            </p>
+                          ) : null}
+                          {selectedMilestone.narrativeDetail ? (
+                            <p className="mt-2 text-[11px] leading-5 text-slate-600 sm:text-xs">
+                              {selectedMilestone.narrativeDetail}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
+                  ) : (
+                    <>
+                      <div>
+                        <h3 className="text-2xl font-semibold text-slate-50">
+                          {selectedMilestone.title}
+                        </h3>
+                        {selectedMilestone.subtitle ? (
+                          <p className="mt-2 text-sm font-medium text-slate-300">
+                            {selectedMilestone.subtitle}
+                          </p>
+                        ) : null}
+                        <p className="mt-2 text-sm font-medium text-slate-400">
+                          {formatJourneyPeriod(selectedMilestone)}
+                        </p>
+                        {selectedMilestone.explanation ? (
+                          <p className="mt-4 text-sm leading-6 text-slate-300 sm:text-base">
+                            {selectedMilestone.explanation}
+                          </p>
+                        ) : null}
+                      </div>
 
-                  <div className="mt-6 border-t border-slate-800 pt-4">
-                    <p className="text-sm text-slate-400">Related portfolio sections:</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                      {selectedMilestone.sections.map((section, index) => (
-                        <span key={section} className="inline-flex items-center gap-2">
-                          <a href={sectionAnchors[section]} className={`font-medium transition ${journeyPanelTone.link}`}>
-                            {section}
-                          </a>
-                          {index < selectedMilestone.sections.length - 1 && <span className="text-slate-600">·</span>}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="journey-coming-soon"
-                  initial={{ opacity: 0, x: 24 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -24 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                >
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300/90">
-                    Coming Soon
-                  </p>
-                  <p className="mt-4 text-sm leading-6 text-slate-400">
-                    Career timeline in progress
-                  </p>
+                      {selectedMilestone.highlights?.length ? (
+                        <div className="mt-6">
+                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Highlights</p>
+                          <ul className="mt-3 space-y-2.5 text-sm text-slate-300">
+                            {selectedMilestone.highlights.map((item) => (
+                              <li key={item} className="flex gap-3">
+                                <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${journeyPanelTone.dot}`} />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

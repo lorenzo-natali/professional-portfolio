@@ -9,6 +9,44 @@ import {
 } from "./journeyData.js";
 import { prefersReducedMotion } from "./portfolioSectionNavigation.js";
 
+const YEAR_LABEL_CLASS =
+  "text-center text-[1.65rem] font-semibold leading-none tracking-tight text-cyan-100 sm:text-[1.85rem]";
+
+function parsePeriodYears(periodKey) {
+  const parts = String(periodKey).split("–");
+  if (parts.length === 2 && parts[0] && parts[1]) {
+    return { start: parts[0], end: parts[1] };
+  }
+  return null;
+}
+
+function JourneyYearLabel({ periodKey }) {
+  const range = parsePeriodYears(periodKey);
+
+  if (!range) {
+    return (
+      <p className={`mt-1 ${YEAR_LABEL_CLASS}`} aria-live="polite">
+        {periodKey}
+      </p>
+    );
+  }
+
+  return (
+    <div
+      className="mt-1 flex flex-col items-center"
+      aria-live="polite"
+      aria-label={`${range.start}–${range.end}`}
+    >
+      <span className={YEAR_LABEL_CLASS}>{range.start}</span>
+      <span
+        aria-hidden="true"
+        className="my-1 h-3 w-px bg-slate-500/70"
+      />
+      <span className={YEAR_LABEL_CLASS}>{range.end}</span>
+    </div>
+  );
+}
+
 /**
  * Year-chapter Journey timeline (newest years first).
  * Interaction-only: finite fade/translate on year change; no idle loops.
@@ -62,34 +100,29 @@ export default function JourneyTimeline({
     <div
       className="relative mx-auto flex w-full max-w-[500px] flex-col overflow-x-hidden"
       role="group"
-      aria-label="Professional journey timeline"
+      aria-label="Career timeline"
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
       <div className="flex min-h-[min(22rem,70vw)] items-stretch gap-3 sm:gap-4">
         {/* Year chapter + year navigation — vertically centered as a block */}
-        <div className="flex w-[4.25rem] shrink-0 flex-col items-center justify-center self-stretch sm:w-[4.75rem]">
+        <div className="flex w-[4.75rem] shrink-0 flex-col items-center justify-center self-stretch sm:w-[5.5rem]">
           <button
             type="button"
             aria-label="Newer year"
             disabled={yearIndex <= 0}
             onClick={() => goYear(-1)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-sm text-slate-500 transition enabled:hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-25"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-md text-sm text-slate-500 transition enabled:hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-25"
           >
             ↑
           </button>
-          <p
-            className="mt-1 text-center text-[1.65rem] font-semibold leading-none tracking-tight text-cyan-100 sm:text-[1.85rem]"
-            aria-live="polite"
-          >
-            {activeYear}
-          </p>
+          <JourneyYearLabel periodKey={activeYear} />
           <button
             type="button"
             aria-label="Older year"
             disabled={yearIndex >= years.length - 1}
             onClick={() => goYear(1)}
-            className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-md text-sm text-slate-500 transition enabled:hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-25"
+            className="mt-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-sm text-slate-500 transition enabled:hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-25"
           >
             ↓
           </button>

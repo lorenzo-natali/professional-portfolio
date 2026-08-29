@@ -79,8 +79,8 @@ describe("Step 4–5 RiskRadar integration", () => {
   it("exposes the selected view and uses the Expertise section label", () => {
     render(<RiskRadar />);
 
-    const riskMap = screen.getByRole("button", { name: "Risk Map" });
-    const journey = screen.getByRole("button", { name: "Journey" });
+    const riskMap = screen.getByRole("button", { name: "Risk Exposure" });
+    const journey = screen.getByRole("button", { name: "Career Timeline" });
     expect(riskMap).toHaveAttribute("aria-pressed", "true");
     expect(journey).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("link", { name: "Expertise" })).toHaveAttribute(

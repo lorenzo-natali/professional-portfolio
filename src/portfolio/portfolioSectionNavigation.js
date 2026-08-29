@@ -35,3 +35,42 @@ export function scrollToPortfolioSection(scrollTargetId, options = {}) {
   });
   return true;
 }
+
+/**
+ * Scroll to a portfolio entity marked with data-role-lens-id and apply the
+ * same temporary highlight used by Portfolio Assistant signals.
+ * Falls back to a section id when the entity is not mounted.
+ *
+ * @param {string} entityId
+ * @param {{
+ *   fallbackSectionId?: string,
+ *   reducedMotion?: boolean,
+ *   highlightMs?: number,
+ * }} [options]
+ * @returns {boolean}
+ */
+export function navigateToPortfolioEntity(entityId, options = {}) {
+  if (!entityId || typeof document === "undefined") return false;
+
+  const element = document.querySelector(`[data-role-lens-id="${entityId}"]`);
+  if (!element || typeof element.scrollIntoView !== "function") {
+    return options.fallbackSectionId
+      ? scrollToPortfolioSection(options.fallbackSectionId, {
+          reducedMotion: options.reducedMotion,
+        })
+      : false;
+  }
+
+  const reducedMotion = options.reducedMotion ?? prefersReducedMotion();
+  element.scrollIntoView({
+    behavior: reducedMotion ? "auto" : "smooth",
+    block: "center",
+  });
+
+  element.classList.add("assistant-signal-target");
+  window.setTimeout(() => {
+    element.classList.remove("assistant-signal-target");
+  }, options.highlightMs ?? 1800);
+
+  return true;
+}

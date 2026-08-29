@@ -19,7 +19,7 @@ export const PORTFOLIO_SECTION_TITLES = Object.freeze({
   experience: "Experience",
   projects: "Projects",
   education: "Education",
-  "risk-radar": "Professional Snapshot",
+  "risk-radar": "Professional Overview",
 });
 
 /** Backwards-compatible diagnostic label export. */
@@ -32,7 +32,8 @@ export const PORTFOLIO_SECTION_LABELS = PORTFOLIO_SECTION_TITLES;
 export const NAVIGATOR_SECTIONS = Object.freeze([
   Object.freeze({
     id: "hero",
-    label: "Overview",
+    // Distinct from Professional Overview ("Overview") — hero is page top, not the Snapshot section.
+    label: "Home",
     scrollTargetId: "hero",
   }),
   Object.freeze({
@@ -67,7 +68,7 @@ export const NAVIGATOR_SECTIONS = Object.freeze([
   }),
   Object.freeze({
     id: "risk-radar",
-    label: "Snapshot",
+    label: "Overview",
     scrollTargetId: "risk-radar",
   }),
 ]);

@@ -217,9 +217,10 @@ html[data-lens-glow-active="true"] body {
 }
 
 .role-lens-radar-node {
+  /* Halo only — keep subordinate to selected dual pulse rings. */
   box-shadow:
-    0 0 0 calc(8px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.26 - 0.14 * var(--lens-glow, 0))),
-    0 0 calc(22px + 12px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.28 + 0.14 * var(--lens-glow, 0)));
+    0 0 0 calc(5px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.22 - 0.1 * var(--lens-glow, 0))),
+    0 0 calc(14px + 8px * var(--lens-glow, 0)) rgba(34 211 238 / calc(0.2 + 0.1 * var(--lens-glow, 0)));
 }
 
 .role-lens-reset-active {
@@ -792,7 +793,10 @@ html[data-lens-glow-active="true"] body {
   }
 
   .role-lens-radar-node {
-    box-shadow: none;
+    /* Static relevance ring when glow animation is disabled. */
+    box-shadow:
+      0 0 0 2px rgba(34, 211, 238, 0.4),
+      0 0 12px rgba(34, 211, 238, 0.18);
   }
 
   .role-lens-reset-active {
