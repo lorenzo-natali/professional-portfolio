@@ -96,6 +96,9 @@ export default function JourneyTimeline({
         exit: { opacity: 0, y: yearDirection >= 0 ? -10 : 10 },
       };
 
+  const canGoNewer = yearIndex > 0;
+  const canGoOlder = yearIndex < years.length - 1;
+
   return (
     <div
       className="relative mx-auto flex w-full max-w-[500px] flex-col overflow-x-hidden"
@@ -110,22 +113,26 @@ export default function JourneyTimeline({
           <button
             type="button"
             aria-label="Newer year"
-            disabled={yearIndex <= 0}
+            disabled={!canGoNewer}
             onClick={() => goYear(-1)}
             className="inline-flex h-11 w-11 items-center justify-center rounded-md text-sm text-slate-500 transition enabled:hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-25"
           >
             ↑
           </button>
           <JourneyYearLabel periodKey={activeYear} />
-          <button
-            type="button"
-            aria-label="Older year"
-            disabled={yearIndex >= years.length - 1}
-            onClick={() => goYear(1)}
-            className="mt-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-sm text-slate-500 transition enabled:hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-25"
-          >
-            ↓
-          </button>
+          {canGoOlder ? (
+            <button
+              type="button"
+              aria-label="Older year"
+              onClick={() => goYear(1)}
+              className="mt-1 inline-flex h-11 w-11 items-center justify-center rounded-md text-sm text-slate-500 transition hover:text-cyan-200"
+            >
+              ↓
+            </button>
+          ) : (
+            // Keep year position stable at the oldest chapter (no dimmed ghost arrow).
+            <div className="mt-1 h-11 w-11" aria-hidden="true" />
+          )}
         </div>
 
         {/* Milestone group — vertically centered; even distribution within the year */}

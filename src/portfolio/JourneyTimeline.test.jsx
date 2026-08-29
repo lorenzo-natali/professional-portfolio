@@ -155,7 +155,8 @@ describe("JourneyTimeline", () => {
       />
     );
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Older year" })).toBeDisabled();
+      expect(screen.getByText("2012")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Older year" })).toBeNull();
     });
     fireEvent.click(screen.getByRole("button", { name: "Newer year" }));
     expect(onSelect).toHaveBeenLastCalledWith(
