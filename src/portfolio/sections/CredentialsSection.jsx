@@ -11,7 +11,8 @@ export default function CredentialsSection({ selectedLens = "Overview" }) {
 
   return (
       <Section id="credentials" title={PORTFOLIO_SECTION_TITLES.credentials} className="bg-slate-950/80">
-        <div className="credentials-rail -mx-4 -mt-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-2 sm:px-2">
+        <div className="credentials-rail role-lens-highlight-rail -mx-5 overflow-x-auto sm:-mx-8 lg:-mx-10">
+          <div className="flex w-max snap-x snap-mandatory gap-4">
           {credentials.map((credential) => (
             <SurfaceCard
               data-role-lens-id={credential.id}
@@ -47,6 +48,7 @@ export default function CredentialsSection({ selectedLens = "Overview" }) {
               )}
             </SurfaceCard>
           ))}
+          </div>
         </div>
         <div
           data-additional-training-subsection

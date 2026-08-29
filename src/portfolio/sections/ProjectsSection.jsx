@@ -5,7 +5,9 @@ import { PORTFOLIO_SECTION_TITLES } from "../sectionCatalog.js";
 export default function ProjectsSection({ selectedLens = "Overview" }) {
   return (
     <Section id="projects" title={PORTFOLIO_SECTION_TITLES.projects}>
-      <ProjectDeck selectedLens={selectedLens} />
+      <div className="p-3 sm:p-4">
+        <ProjectDeck selectedLens={selectedLens} />
+      </div>
     </Section>
   );
 }

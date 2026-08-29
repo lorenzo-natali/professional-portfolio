@@ -14,7 +14,7 @@ export default function CapabilitiesSection({ selectedLens = "Overview" }) {
             <motion.div
               key={item.title}
               data-role-lens-id={item.id}
-              className="group p-1"
+              className="group p-3"
               whileHover={isLensRelevant(selectedLens, "capabilities", item.id) ? { y: -5, scale: 1.01 } : { y: -3 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >

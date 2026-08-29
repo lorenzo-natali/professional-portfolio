@@ -97,4 +97,34 @@ describe("CredentialsSection additional training Role Lens state", () => {
     expect(links[0]).toHaveFocus();
     expect(screen.getByText(additionalTraining.label)).toBeTruthy();
   });
+
+  it("keeps Role Lens glow room without shifting cards off the content column", async () => {
+    const { container } = render(<CredentialsSection selectedLens="IT Audit" />);
+    const rail = container.querySelector(".credentials-rail");
+
+    expect(rail).toBeTruthy();
+    expect(rail).toHaveClass("overflow-x-auto");
+    expect(rail).toHaveClass("role-lens-highlight-rail");
+    // Bleed matches Section padding so cards align with attestation / titles.
+    expect(rail.className).toMatch(/-mx-5/);
+    expect(rail.className).toMatch(/sm:-mx-8/);
+    expect(rail.className).toMatch(/lg:-mx-10/);
+
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const css = readFileSync(resolve("src/index.css"), "utf8");
+    expect(css).toMatch(
+      /\.role-lens-highlight-rail\s*\{[^}]*padding-inline:\s*1\.25rem/s
+    );
+    expect(css).toMatch(
+      /\.role-lens-highlight-rail\s*\{[^}]*scroll-padding-inline:\s*1\.25rem/s
+    );
+
+    const cisa = container.querySelector('[data-role-lens-id="credential-cisa"]');
+    const attestation = container.querySelector(".attestation-rail");
+    expect(cisa).toBeTruthy();
+    expect(cisa.className).toMatch(/role-lens-highlight-cyan/);
+    expect(rail.contains(cisa)).toBe(true);
+    expect(attestation).toBeTruthy();
+  });
 });

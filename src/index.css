@@ -107,6 +107,33 @@ code {
   display: none;
 }
 
+/*
+ * Role Lens card glows are box-shadows; overflow-x clips them at the scrollport edge.
+ * Match Section horizontal padding with equal -mx / padding-inline so:
+ * - cards stay on the content column (aligned with sibling rails like attestation);
+ * - glow can paint into the padding band inside the clip edge;
+ * - scroll-padding keeps snap-start from pulling the first card flush to the clip.
+ */
+.role-lens-highlight-rail {
+  padding-block: 1.25rem 1.5rem;
+  padding-inline: 1.25rem;
+  scroll-padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .role-lens-highlight-rail {
+    padding-inline: 2rem;
+    scroll-padding-inline: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .role-lens-highlight-rail {
+    padding-inline: 2.5rem;
+    scroll-padding-inline: 2.5rem;
+  }
+}
+
 /* Experience timeline: bounded inner scroll so more roles do not grow the page. */
 .experience-list-viewport {
   max-height: min(36rem, 68dvh);
@@ -117,8 +144,8 @@ code {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: rgba(34, 211, 238, 0.28) transparent;
-  /* Offset content hover inset so the section footprint / first-card rest position stay put. */
-  margin-top: -0.25rem;
+  /* Offset content inset so the section footprint / first-card rest position stay put. */
+  margin-top: -1.25rem;
   /* Restrained bottom fade signals more content without redesigning the section. */
   mask-image: linear-gradient(
     to bottom,
@@ -144,9 +171,10 @@ code {
 }
 
 .experience-list-content {
-  /* Room for SurfaceCard hover:-translate-y-1 so the first card top border is not clipped. */
-  padding-top: 0.25rem;
-  padding-bottom: 0.75rem;
+  /* Room for Role Lens glow + SurfaceCard hover:-translate-y-1 inside the overflow viewport. */
+  padding-top: 1.25rem;
+  padding-bottom: 1.5rem;
+  padding-right: 1.25rem;
 }
 
 @media (max-width: 639px) {

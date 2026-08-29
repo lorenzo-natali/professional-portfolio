@@ -140,16 +140,19 @@ describe("ExperienceSection bounded viewport", () => {
     }
   });
 
-  it("keeps internal top breathing room for the first card hover transform", async () => {
+  it("keeps internal breathing room for Role Lens glow and first-card hover transform", async () => {
     const { readFileSync } = await import("node:fs");
     const { resolve } = await import("node:path");
     const css = readFileSync(resolve("src/index.css"), "utf8");
 
     expect(css).toMatch(
-      /\.experience-list-content\s*\{[^}]*padding-top:\s*0\.25rem/s
+      /\.experience-list-content\s*\{[^}]*padding-top:\s*1\.25rem/s
     );
     expect(css).toMatch(
-      /\.experience-list-viewport\s*\{[^}]*margin-top:\s*-0\.25rem/s
+      /\.experience-list-content\s*\{[^}]*padding-right:\s*1\.25rem/s
+    );
+    expect(css).toMatch(
+      /\.experience-list-viewport\s*\{[^}]*margin-top:\s*-1\.25rem/s
     );
   });
 
