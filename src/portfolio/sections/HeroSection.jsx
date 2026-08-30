@@ -18,7 +18,7 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
               transition={{ duration: 0.6 }}
               className="mb-4 text-sm font-medium uppercase tracking-[0.32em] text-cyan-300"
             >
-              Risk, Audit & Technology Portfolio
+              Professional Portfolio
             </motion.p>
 
             <motion.h1
@@ -39,7 +39,11 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
               Banking Risk &amp; Controls | Technology &amp; Information Security Governance | AI Governance
             </motion.h2>
 
-            <div className="h-12" aria-hidden="true" />
+            {/* pt/pb not mt/mb: index.css `p { margin: 0 }` overrides Tailwind margin utilities on paragraphs. */}
+            <p className="max-w-3xl pt-3 pb-6 text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
+              <span className="font-medium">IT Audit Specialist</span>
+              <span className="font-normal"> at Banca Profilo · Milan</span>
+            </p>
 
             <motion.div
               initial={{ opacity: 0, y: 18 }}
