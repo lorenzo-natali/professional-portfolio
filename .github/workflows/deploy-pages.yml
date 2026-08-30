@@ -35,6 +35,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build
+        env:
+          VITE_PORTFOLIO_ANALYTICS_ENABLED: "true"
+          VITE_PORTFOLIO_ANALYTICS_ENDPOINT: "https://portfolio-analytics.natalilorenzo-0ee.workers.dev"
         run: npm run build
 
       - name: Upload Pages artifact

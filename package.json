@@ -17,6 +17,7 @@
     "verify:mindar-patch": "node scripts/verify-mindar-resize-patch.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:analytics-worker": "vitest run workers/portfolio-analytics/test",
     "compile:ar-target": "node scripts/compile-ar-target.mjs",
     "optimize:ar-interests": "node scripts/optimize-ar-interests.mjs",
     "experiment:ar-tracking-features": "node scripts/experiment-ar-tracking-features.mjs"

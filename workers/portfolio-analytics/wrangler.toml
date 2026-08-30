@@ -1,0 +1,23 @@
+# Local / example configuration for portfolio analytics Worker.
+# Do NOT put account IDs, API tokens, or production secrets in this file.
+# Copy to wrangler.local.toml (gitignored) or set values via `wrangler` CLI when deploying.
+
+name = "portfolio-analytics"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+# Bind a local D1 database for `wrangler dev` / migrations.
+# Replace database_id after `wrangler d1 create portfolio-analytics` (never commit real secrets).
+[[d1_databases]]
+binding = "DB"
+database_name = "portfolio-analytics"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+ANALYTICS_ENABLED = "true"
+# Inclusive daily ceilings (UTC day). Set to 0 to disable that ceiling.
+ANALYTICS_MAX_REQUESTS_PER_DAY = "5000"
+ANALYTICS_MAX_EVENT_WRITES_PER_DAY = "20000"
+# Comma-separated allowed browser Origins for CORS (not authentication).
+ANALYTICS_ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173"

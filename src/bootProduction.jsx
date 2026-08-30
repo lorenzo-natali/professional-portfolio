@@ -9,12 +9,21 @@ import {
 import { installArExitTrace } from "./components/ar/createArExitTrace";
 import { getArRuntimeFlags } from "./components/ar/arRuntimeFlags";
 import { EAGER_SECTION_MODULES } from "./portfolio/sectionLoaders.js";
+import { installPortfolioAnalytics } from "./portfolio/analytics/createPortfolioAnalytics.js";
 
 /**
  * Production boot — eager Beyond graph + eager portfolio sections.
  * Kept in a dedicated module so siteDiag boots do not statically import App/AR.
  */
 export function bootProduction() {
+  // Phase B analytics: no-op unless Vite env explicitly enables + endpoint set.
+  // Owner exclusion query flags are still consumed when disabled.
+  try {
+    installPortfolioAnalytics();
+  } catch {
+    // Analytics must never block production boot.
+  }
+
   const runtimeFlags = getArRuntimeFlags();
 
   if (runtimeFlags.arCrashDiag) {

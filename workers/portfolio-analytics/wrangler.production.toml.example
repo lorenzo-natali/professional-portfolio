@@ -1,0 +1,19 @@
+# Example production overlay — copy fields into Cloudflare dashboard / `wrangler secret` / deploy config.
+# Do not commit real database_id or account_id.
+
+name = "portfolio-analytics"
+main = "src/index.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "portfolio-analytics"
+database_id = "<REPLACE_WITH_D1_DATABASE_ID>"
+migrations_dir = "migrations"
+
+[vars]
+ANALYTICS_ENABLED = "true"
+ANALYTICS_MAX_REQUESTS_PER_DAY = "5000"
+ANALYTICS_MAX_EVENT_WRITES_PER_DAY = "20000"
+# Production GitHub Pages origin(s), comma-separated — no trailing slash.
+ANALYTICS_ALLOWED_ORIGINS = "https://lorenzo-natali.github.io"
