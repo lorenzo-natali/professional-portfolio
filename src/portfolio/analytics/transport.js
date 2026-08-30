@@ -1,5 +1,11 @@
 import { ANALYTICS_SCHEMA_VERSION } from "./analyticsConfig.js";
 
+/** CORS-safelisted type for unload beacons / keepalive (avoids preflight on pagehide). */
+export const UNLOAD_CONTENT_TYPE = "text/plain;charset=utf-8";
+
+/** Alive-page POSTs (e.g. portfolio_visit) keep JSON Content-Type. */
+export const ALIVE_CONTENT_TYPE = "application/json";
+
 /**
  * @param {{
  *   endpoint: string,
@@ -33,24 +39,47 @@ export function sendAnalyticsBatch({
 
   const url = `${endpoint.replace(/\/$/, "")}/analytics`;
 
+  // Unload path: CORS-safelisted text/plain so cross-origin sendBeacon / keepalive
+  // does not require a preflight that pagehide cannot reliably complete.
   if (preferBeacon) {
     try {
       if (typeof sendBeaconImpl === "function") {
-        const blob = new Blob([body], { type: "application/json" });
+        const blob = new Blob([body], { type: UNLOAD_CONTENT_TYPE });
         if (sendBeaconImpl(url, blob)) return true;
       }
     } catch {
       // fall through to fetch
     }
+
+    const doFetch =
+      fetchImpl ?? (typeof fetch === "function" ? fetch.bind(globalThis) : null);
+    if (!doFetch) return false;
+
+    try {
+      void doFetch(url, {
+        method: "POST",
+        headers: { "content-type": UNLOAD_CONTENT_TYPE },
+        body,
+        keepalive: true,
+        mode: "cors",
+        credentials: "omit",
+      }).catch(() => {
+        // Silent — analytics must never surface errors.
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  const doFetch = fetchImpl ?? (typeof fetch === "function" ? fetch.bind(globalThis) : null);
+  const doFetch =
+    fetchImpl ?? (typeof fetch === "function" ? fetch.bind(globalThis) : null);
   if (!doFetch) return false;
 
   try {
     void doFetch(url, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": ALIVE_CONTENT_TYPE },
       body,
       keepalive: true,
       mode: "cors",

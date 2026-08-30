@@ -38,6 +38,19 @@ export function isAnalyticsEnabled(value) {
 }
 
 /**
+ * Accept only application/json and text/plain (optional charset params).
+ * text/plain is required so cross-origin unload beacons remain CORS-simple.
+ * @param {string} contentType
+ */
+export function isAllowedAnalyticsContentType(contentType) {
+  const mediaType = String(contentType || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  return mediaType === "application/json" || mediaType === "text/plain";
+}
+
+/**
  * @param {number} status
  * @param {HeadersInit} [headers]
  * @param {BodyInit | null} [body]
@@ -74,7 +87,7 @@ export async function handleAnalyticsPost(request, env, opts = {}) {
   }
 
   const contentType = request.headers.get("content-type") || "";
-  if (!contentType.toLowerCase().includes("application/json")) {
+  if (!isAllowedAnalyticsContentType(contentType)) {
     return jsonError(415, baseHeaders, '{"error":"unsupported_media_type"}');
   }
 

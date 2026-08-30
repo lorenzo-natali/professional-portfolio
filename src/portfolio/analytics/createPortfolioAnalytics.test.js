@@ -253,18 +253,18 @@ describe("portfolio analytics client — Phase B", () => {
     expect(tracker.finalize()).toBe(8000);
   });
 
-  it("pagehide sends session_end via sendBeacon", () => {
+  it("pagehide sends session_end via sendBeacon with text/plain Blob", async () => {
     const handle = install();
     nowMs = 1000;
-    // Simulate visible dwell then pagehide.
     const pagehide = winListeners.find(([t]) => t === "pagehide")?.[1];
     expect(pagehide).toBeTruthy();
     nowMs = 4000;
     pagehide();
     expect(beacons).toHaveLength(1);
+    expect(fetches).toHaveLength(1); // portfolio_visit only
     expect(beacons[0].url).toBe("https://analytics.test/analytics");
-    // Beacon body is a Blob — read via sync FileReader unavailable; decode through Response path:
-    // our mock stored the Blob; use text() async — instead inspect via install preferBeacon path
+    expect(beacons[0].body).toBeInstanceOf(Blob);
+    expect(beacons[0].body.type).toBe("text/plain;charset=utf-8");
     handle.stop();
   });
 
@@ -284,12 +284,28 @@ describe("portfolio analytics client — Phase B", () => {
     expect(beacons).toHaveLength(1);
   });
 
-  it("sendBeacon falls back to keepalive fetch", () => {
+  it("sendBeacon true does not fall through to fetch", () => {
+    const visitFetchesBefore = fetches.length;
+    install();
+    expect(fetches.length).toBe(visitFetchesBefore + 1);
+    winListeners.find(([t]) => t === "pagehide")?.[1]();
+    expect(beacons).toHaveLength(1);
+    // Only the alive-page portfolio_visit fetch — no unload duplicate.
+    expect(fetches).toHaveLength(visitFetchesBefore + 1);
+  });
+
+  it("sendBeacon false falls back to keepalive fetch with text/plain", () => {
     sendAnalyticsBatch({
       endpoint: "https://analytics.test",
       visitorId: "v",
       sessionId: "s",
-      events: [{ name: "session_end", ts: "2026-08-30T10:00:00.000Z", props: { active_ms: 1 } }],
+      events: [
+        {
+          name: "session_end",
+          ts: "2026-08-30T10:00:00.000Z",
+          props: { active_ms: 1 },
+        },
+      ],
       preferBeacon: true,
       sendBeaconImpl: () => false,
       fetchImpl: (url, init) => {
@@ -299,6 +315,37 @@ describe("portfolio analytics client — Phase B", () => {
     });
     expect(fetches).toHaveLength(1);
     expect(fetches[0].init.keepalive).toBe(true);
+    expect(fetches[0].init.headers).toMatchObject({
+      "content-type": "text/plain;charset=utf-8",
+    });
+  });
+
+  it("alive-page POST (preferBeacon false) keeps application/json", () => {
+    sendAnalyticsBatch({
+      endpoint: "https://analytics.test",
+      visitorId: "v",
+      sessionId: "s",
+      events: [
+        {
+          name: "portfolio_visit",
+          ts: "2026-08-30T10:00:00.000Z",
+          props: { referrer_class: "direct", landing_path: "/" },
+        },
+      ],
+      preferBeacon: false,
+      sendBeaconImpl: () => {
+        throw new Error("beacon must not be used for alive-page path");
+      },
+      fetchImpl: (url, init) => {
+        fetches.push({ url: String(url), init });
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+    expect(fetches).toHaveLength(1);
+    expect(fetches[0].init.headers).toMatchObject({
+      "content-type": "application/json",
+    });
+    expect(beacons).toHaveLength(0);
   });
 
   it("storage failure does not break install", () => {
@@ -366,6 +413,7 @@ describe("portfolio analytics client — Phase B", () => {
     docListeners.find(([t]) => t === "visibilitychange")?.[1]();
     winListeners.find(([t]) => t === "pagehide")?.[1]();
     expect(beacons).toHaveLength(1);
+    expect(beacons[0].body.type).toBe("text/plain;charset=utf-8");
     const text = await beacons[0].body.text();
     const payload = JSON.parse(text);
     expect(payload.events[0].name).toBe("session_end");

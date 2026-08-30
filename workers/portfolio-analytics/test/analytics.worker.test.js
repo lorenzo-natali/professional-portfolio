@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import worker from "../src/index.js";
 import { MAX_BODY_BYTES } from "../src/constants.js";
-import { handleAnalyticsPost, isAnalyticsEnabled } from "../src/handleAnalytics.js";
+import { handleAnalyticsPost, isAnalyticsEnabled, isAllowedAnalyticsContentType } from "../src/handleAnalytics.js";
 import {
   normalizeBrowserFamily,
   normalizeCountry,
@@ -266,18 +266,113 @@ describe("portfolio analytics Worker — Phase A", () => {
     expect(await res.json()).toEqual({ error: "malformed_json" });
   });
 
-  it("rejects wrong Content-Type", async () => {
+  it("accepts application/json Content-Type", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(postRequest(visitBody()), envWithDb(db));
+    expect(res.status).toBe(204);
+    expect(db.dump().events).toHaveLength(1);
+  });
+
+  it("accepts application/json with charset parameter", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest(visitBody(), {
+        headers: { "content-type": "application/json; charset=utf-8" },
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+    expect(db.dump().events).toHaveLength(1);
+  });
+
+  it("accepts text/plain Content-Type with JSON body", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest(visitBody(), {
+        headers: { "content-type": "text/plain" },
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+    expect(db.dump().events).toHaveLength(1);
+  });
+
+  it("accepts text/plain;charset=UTF-8 Content-Type with JSON body", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest(visitBody(), {
+        headers: { "content-type": "text/plain;charset=UTF-8" },
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+    expect(db.dump().sessions[0].landing_path).toBe("/");
+  });
+
+  it("accepts text/plain;charset=utf-8 Content-Type with JSON body", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest(visitBody(), {
+        headers: { "content-type": "text/plain;charset=utf-8" },
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+  });
+
+  it("accepts text/plain with spaced charset parameter", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest(visitBody(), {
+        headers: { "content-type": "text/plain; charset=utf-8" },
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+  });
+
+  it("rejects unsupported Content-Type", async () => {
     const db = createMemoryD1();
     const res = await handleAnalyticsPost(
       new Request("https://analytics.example/analytics", {
         method: "POST",
-        headers: { "content-type": "text/plain" },
+        headers: { "content-type": "multipart/form-data" },
         body: JSON.stringify(visitBody()),
       }),
       envWithDb(db)
     );
     expect(res.status).toBe(415);
     expect(db.dump().events).toHaveLength(0);
+  });
+
+  it("rejects malformed JSON even when Content-Type is text/plain", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      new Request("https://analytics.example/analytics", {
+        method: "POST",
+        headers: { "content-type": "text/plain;charset=UTF-8" },
+        body: "{not-json",
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "malformed_json" });
+    expect(db.dump().events).toHaveLength(0);
+  });
+
+  it("isAllowedAnalyticsContentType allows only json and text/plain media types", () => {
+    expect(isAllowedAnalyticsContentType("application/json")).toBe(true);
+    expect(isAllowedAnalyticsContentType("application/json; charset=utf-8")).toBe(
+      true
+    );
+    expect(isAllowedAnalyticsContentType("text/plain")).toBe(true);
+    expect(isAllowedAnalyticsContentType("text/plain;charset=UTF-8")).toBe(true);
+    expect(isAllowedAnalyticsContentType("TEXT/PLAIN; Charset=UTF-8")).toBe(true);
+    expect(isAllowedAnalyticsContentType("multipart/form-data")).toBe(false);
+    expect(isAllowedAnalyticsContentType("application/x-www-form-urlencoded")).toBe(
+      false
+    );
+    expect(isAllowedAnalyticsContentType("")).toBe(false);
   });
 
   it("handles CORS preflight and allows configured Origin", async () => {
