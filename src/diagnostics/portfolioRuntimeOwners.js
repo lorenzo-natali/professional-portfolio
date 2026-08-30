@@ -40,11 +40,12 @@ export const PORTFOLIO_RUNTIME_OWNERS = Object.freeze([
   {
     subsystem: "PortfolioAssistant preview interval",
     mountedOnHomepage: true,
-    loopListenerObserver: "setInterval 3600ms rotating preview question",
-    cleanup: "clearInterval on unmount",
-    suspectedRisk: "medium",
+    loopListenerObserver:
+      "IntersectionObserver + setInterval 3600ms only while Hero preview visible (and tab visible)",
+    cleanup: "clearInterval + observer.disconnect + visibilitychange remove on unmount",
+    suspectedRisk: "low",
     owner: "src/App.jsx PortfolioAssistant",
-    notes: "Long-lived timer; also recursive setTimeout on signal scroll",
+    notes: "No preview timer while off-screen or document.hidden; modal/drawer unchanged",
   },
   {
     subsystem: "ProjectDeck assistant listener",

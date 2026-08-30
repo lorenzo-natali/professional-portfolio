@@ -127,16 +127,73 @@ function PortfolioAssistant() {
   const closeButtonRef = useRef(null);
   const dialogRef = useRef(null);
   const questionRailRef = useRef(null);
+  const previewRootRef = useRef(null);
   const savedScrollYRef = useRef(0);
   const restoreFocusOnCloseRef = useRef(false);
   const previewQuestion = assistantPrompts[previewIndex % assistantPrompts.length].question;
 
+  // Homepage preview rotation only: timer exists while the Hero preview is in view
+  // (and the tab is visible). Cleared off-screen / when document.hidden — no idle interval.
   useEffect(() => {
-    const previewTimer = window.setInterval(() => {
-      setPreviewIndex((current) => (current + 1) % assistantPrompts.length);
-    }, 3600);
+    const root = previewRootRef.current;
+    if (!root) return undefined;
 
-    return () => window.clearInterval(previewTimer);
+    let inViewport = false;
+    let documentVisible = typeof document === "undefined" ? true : !document.hidden;
+    /** @type {ReturnType<typeof window.setInterval> | 0} */
+    let timerId = 0;
+
+    const clearTimer = () => {
+      if (timerId) {
+        window.clearInterval(timerId);
+        timerId = 0;
+      }
+    };
+
+    const syncTimer = () => {
+      const shouldRun = inViewport && documentVisible;
+      if (shouldRun) {
+        if (!timerId) {
+          timerId = window.setInterval(() => {
+            setPreviewIndex((current) => (current + 1) % assistantPrompts.length);
+          }, 3600);
+        }
+        return;
+      }
+      clearTimer();
+    };
+
+    /** @type {IntersectionObserver | null} */
+    let observer = null;
+    if (typeof IntersectionObserver === "function") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          inViewport = Boolean(
+            entry?.isIntersecting && (entry.intersectionRatio ?? 0) > 0
+          );
+          syncTimer();
+        },
+        { root: null, rootMargin: "0px", threshold: [0, 0.01] }
+      );
+      observer.observe(root);
+    } else {
+      // No IO: preserve previous always-on rotation rather than freezing the preview.
+      inViewport = true;
+      syncTimer();
+    }
+
+    const onVisibilityChange = () => {
+      documentVisible = !document.hidden;
+      syncTimer();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      clearTimer();
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const openAssistant = () => {
@@ -331,7 +388,11 @@ function PortfolioAssistant() {
           Guided answers on my background, projects and professional direction.
         </p>
 
-        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 px-4 py-3.5 sm:mt-3.5 sm:px-3 sm:py-3">
+        <div
+          ref={previewRootRef}
+          data-assistant-preview-root
+          className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 px-4 py-3.5 sm:mt-3.5 sm:px-3 sm:py-3"
+        >
           <p className="text-xs font-semibold uppercase leading-none tracking-[0.2em] text-cyan-300/75 sm:text-[11px] sm:tracking-[0.22em]">
             Example questions
           </p>

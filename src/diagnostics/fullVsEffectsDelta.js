@@ -27,7 +27,8 @@ export const FULL_VS_EFFECTS_DELTA = Object.freeze([
     file: "src/App.jsx (PortfolioAssistant)",
     mountedOnHomepage: true,
     startsBeforeUserInteraction: true,
-    longLivedResource: "setInterval 3600ms; custom event listeners on activate",
+    longLivedResource:
+      "setInterval 3600ms only while Hero preview in view; custom event listeners on activate",
     cleanup: "clearInterval / removeEventListener on unmount",
     introducedOrChangedDuringBeyond: false,
     risk: "medium",

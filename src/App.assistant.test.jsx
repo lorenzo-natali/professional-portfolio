@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -320,5 +321,177 @@ describe("Portfolio Assistant guided modal", () => {
     expect(applicationRoot).not.toHaveAttribute("inert");
     expect(applicationRoot).not.toHaveAttribute("aria-hidden");
     expect(openButton).toHaveFocus();
+  });
+});
+
+describe("Portfolio Assistant homepage preview rotation", () => {
+  /** @type {Array<{ cb: Function, el?: Element }>} */
+  let ioInstances = [];
+
+  function firePreviewVisibility(visible) {
+    for (const instance of ioInstances) {
+      instance.cb([
+        {
+          isIntersecting: visible,
+          intersectionRatio: visible ? 1 : 0,
+          target: instance.el,
+        },
+      ]);
+    }
+  }
+
+  function previewQuestionText() {
+    const root = document.querySelector("[data-assistant-preview-root]");
+    const paragraphs = root ? [...root.querySelectorAll("p")] : [];
+    // [0] = "Example questions" label; [1] = rotating question.
+    return paragraphs[1]?.textContent ?? "";
+  }
+
+  beforeEach(() => {
+    ioInstances = [];
+    vi.useFakeTimers();
+
+    class MockIO {
+      constructor(cb) {
+        this.cb = cb;
+        ioInstances.push(this);
+      }
+      observe(el) {
+        this.el = el;
+        this.cb([
+          { isIntersecting: true, intersectionRatio: 1, target: el },
+        ]);
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("IntersectionObserver", MockIO);
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    cleanup();
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    document.body.style.paddingRight = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("rotates every 3600ms while the preview is visible", () => {
+    renderAssistant();
+    expect(document.querySelector("[data-assistant-preview-root]")).toBeTruthy();
+    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
+
+    act(() => {
+      vi.advanceTimersByTime(3600);
+    });
+    expect(previewQuestionText()).toBe(assistantPrompts[1].question);
+
+    act(() => {
+      vi.advanceTimersByTime(3600);
+    });
+    expect(previewQuestionText()).toBe(assistantPrompts[2].question);
+  });
+
+  it("clears the 3600ms interval when the preview leaves the viewport", () => {
+    renderAssistant();
+    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
+
+    act(() => {
+      firePreviewVisibility(false);
+    });
+
+    const paused = previewQuestionText();
+    act(() => {
+      vi.advanceTimersByTime(3600 * 5);
+    });
+    expect(previewQuestionText()).toBe(paused);
+  });
+
+  it("resumes the 3600ms interval when the preview becomes visible again", () => {
+    renderAssistant();
+
+    act(() => {
+      firePreviewVisibility(false);
+    });
+    const paused = previewQuestionText();
+    act(() => {
+      vi.advanceTimersByTime(3600 * 2);
+    });
+    expect(previewQuestionText()).toBe(paused);
+
+    act(() => {
+      firePreviewVisibility(true);
+    });
+    act(() => {
+      vi.advanceTimersByTime(3600);
+    });
+    expect(previewQuestionText()).not.toBe(paused);
+  });
+
+  it("does not leave a preview interval after unmount", () => {
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const { unmount } = renderAssistant();
+    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
+
+    unmount();
+    expect(clearSpy).toHaveBeenCalled();
+
+    // Advancing time must not throw or resurrect preview DOM.
+    act(() => {
+      vi.advanceTimersByTime(3600 * 3);
+    });
+    expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
+  });
+
+  it("pauses rotation while the document tab is hidden", () => {
+    renderAssistant();
+    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
+
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => true,
+    });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    const paused = previewQuestionText();
+    act(() => {
+      vi.advanceTimersByTime(3600 * 3);
+    });
+    expect(previewQuestionText()).toBe(paused);
+
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => false,
+    });
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    act(() => {
+      vi.advanceTimersByTime(3600);
+    });
+    expect(previewQuestionText()).not.toBe(paused);
+  });
+
+  it("keeps opened Assistant guided behaviour independent of preview rotation", async () => {
+    vi.useRealTimers();
+    renderAssistant();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
+    const topic = assistantCategories[0];
+    fireEvent.click(screen.getByRole("button", { name: topic }));
+    const prompt = assistantPrompts.find((item) =>
+      item.categories.includes(topic)
+    );
+    fireEvent.click(screen.getByRole("button", { name: prompt.question }));
+    expectGuidedAnswer(prompt);
+    expect(screen.getByRole("dialog")).toBeTruthy();
   });
 });
