@@ -108,6 +108,131 @@ describe("portfolio analytics Worker — Phase A", () => {
     ]);
   });
 
+  it("accepts project_repository_click with project_id only", async () => {
+    const db = createMemoryD1();
+    await handleAnalyticsPost(postRequest(visitBody()), envWithDb(db));
+    const res = await handleAnalyticsPost(
+      postRequest({
+        v: 1,
+        visitor_id: VISITOR,
+        session_id: SESSION,
+        sent_at: TS,
+        events: [
+          {
+            name: "project_repository_click",
+            ts: "2026-08-30T10:02:00.000Z",
+            props: { project_id: "project-codeiak" },
+          },
+        ],
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+    const row = db.dump().events.find((e) => e.name === "project_repository_click");
+    expect(JSON.parse(row.props_json)).toEqual({ project_id: "project-codeiak" });
+  });
+
+  it("requires project_id for project_repository_click", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest({
+        v: 1,
+        visitor_id: VISITOR,
+        session_id: SESSION,
+        sent_at: TS,
+        events: [
+          {
+            name: "project_repository_click",
+            ts: TS,
+            props: {},
+          },
+        ],
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "missing_prop" });
+  });
+
+  it("rejects unexpected props on project_repository_click", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest({
+        v: 1,
+        visitor_id: VISITOR,
+        session_id: SESSION,
+        sent_at: TS,
+        events: [
+          {
+            name: "project_repository_click",
+            ts: TS,
+            props: {
+              project_id: "project-codeiak",
+              url: "https://github.com/lorenzo-natali/codeiak",
+            },
+          },
+        ],
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "unknown_prop" });
+  });
+
+  it("rejects non-string project_id on project_repository_click", async () => {
+    const db = createMemoryD1();
+    const res = await handleAnalyticsPost(
+      postRequest({
+        v: 1,
+        visitor_id: VISITOR,
+        session_id: SESSION,
+        sent_at: TS,
+        events: [
+          {
+            name: "project_repository_click",
+            ts: TS,
+            props: { project_id: 42 },
+          },
+        ],
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid_prop" });
+  });
+
+  it("still accepts existing Phase C events after repository click allowlist", async () => {
+    const db = createMemoryD1();
+    await handleAnalyticsPost(postRequest(visitBody()), envWithDb(db));
+    const res = await handleAnalyticsPost(
+      postRequest({
+        v: 1,
+        visitor_id: VISITOR,
+        session_id: SESSION,
+        sent_at: TS,
+        events: [
+          {
+            name: "project_view",
+            ts: TS,
+            props: { project_id: "project-codeiak", source: "deck" },
+          },
+          {
+            name: "outbound_click",
+            ts: TS,
+            props: { target: "github" },
+          },
+        ],
+      }),
+      envWithDb(db)
+    );
+    expect(res.status).toBe(204);
+    expect(db.dump().events.map((e) => e.name)).toEqual([
+      "portfolio_visit",
+      "project_view",
+      "outbound_click",
+    ]);
+  });
+
   it("updates an existing session on session_end", async () => {
     const db = createMemoryD1();
     await handleAnalyticsPost(postRequest(visitBody()), envWithDb(db));

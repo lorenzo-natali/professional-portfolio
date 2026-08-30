@@ -223,6 +223,15 @@ export function validateEventProps(name, props) {
       },
     };
   }
+  if (name === "project_repository_click" && !("project_id" in out)) {
+    return {
+      ok: false,
+      error: {
+        code: "missing_prop",
+        message: "project_repository_click requires project_id.",
+      },
+    };
+  }
   if (name === "assistant_curated_question") {
     if (!("prompt_id" in out) || !("category" in out)) {
       return {

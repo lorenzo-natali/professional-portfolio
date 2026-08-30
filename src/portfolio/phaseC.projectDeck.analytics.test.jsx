@@ -64,6 +64,41 @@ describe("Phase C project_view deck instrumentation", () => {
     });
   });
 
+  it("emits project_repository_click with canonical project_id, not outbound_click", () => {
+    render(<ProjectDeck />);
+    trackMock.mockClear();
+    const repo = screen.getByRole("link", { name: /View repository/i });
+    expect(repo).toHaveAttribute("href", projects[0].link);
+    expect(repo).toHaveAttribute("target", "_blank");
+    fireEvent.click(repo);
+    expect(trackMock).toHaveBeenCalledTimes(1);
+    expect(trackMock).toHaveBeenCalledWith("project_repository_click", {
+      project_id: "project-ai-audit-workflow",
+    });
+    expect(trackMock.mock.calls.some(([name]) => name === "outbound_click")).toBe(
+      false
+    );
+  });
+
+  it("emits CodeIAK repository click with project-codeiak", () => {
+    render(<ProjectDeck />);
+    fireEvent.click(screen.getByRole("button", { name: "Next project" }));
+    trackMock.mockClear();
+    fireEvent.click(screen.getByRole("link", { name: /View repository/i }));
+    expect(trackMock).toHaveBeenCalledWith("project_repository_click", {
+      project_id: "project-codeiak",
+    });
+  });
+
+  it("project_view does not emit project_repository_click", () => {
+    render(<ProjectDeck />);
+    trackMock.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Next project" }));
+    expect(
+      trackMock.mock.calls.every(([name]) => name !== "project_repository_click")
+    ).toBe(true);
+  });
+
   it("assistant activation emits no source:deck (assistant site owns the event)", () => {
     render(<ProjectDeck />);
     trackMock.mockClear();

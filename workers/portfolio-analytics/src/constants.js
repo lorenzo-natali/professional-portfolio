@@ -54,6 +54,7 @@ export const EVENT_PROP_SCHEMA = Object.freeze({
   assistant_curated_question: Object.freeze(["prompt_id", "category"]),
   beyond_cv_open: Object.freeze(["source"]),
   outbound_click: Object.freeze(["target"]),
+  project_repository_click: Object.freeze(["project_id"]),
 });
 
 export const ALLOWED_EVENT_NAMES = Object.freeze(

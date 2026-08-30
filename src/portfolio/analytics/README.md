@@ -35,3 +35,6 @@ trackPortfolioEvent("experience_open", { experience_id: "experience-boc" });
 
 `trackPortfolioEvent` no-ops when analytics is disabled, excluded, or not installed.
 Alive-page transport only (`application/json`). Never send prompt/answer text — only allowlisted IDs/enums.
+
+Phase C.1 also emits `project_repository_click` `{ project_id }` from ProjectDeck “View repository”
+(distinct from Hero `outbound_click` `{ target: "github" }`).
