@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import linkedinLogo from "../../assets/linkedin-logo.png";
+import { trackPortfolioEvent } from "../analytics/createPortfolioAnalytics.js";
 import { languageItems, stackStreams } from "../portfolioData.js";
 import TickerStream from "../TickerStream.jsx";
 
@@ -90,6 +91,9 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                 href="https://www.linkedin.com/in/natalilorenzo/"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  trackPortfolioEvent("outbound_click", { target: "linkedin" });
+                }}
                 className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/35 bg-slate-950/55 px-5 py-3.5 text-left font-semibold text-slate-100 shadow-lg shadow-black/50 transition hover:border-white/60 hover:bg-slate-900/75 hover:text-white hover:shadow-black/70"
               >
                 <img
@@ -107,6 +111,9 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                 href="https://github.com/lorenzo-natali"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  trackPortfolioEvent("outbound_click", { target: "github" });
+                }}
                 className="inline-flex items-center justify-center gap-3 rounded-lg border border-white/35 bg-slate-950/55 px-5 py-3.5 text-left font-semibold text-slate-100 shadow-lg shadow-black/50 transition hover:border-white/60 hover:bg-slate-900/75 hover:text-white hover:shadow-black/70"
               >
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-7 w-7 shrink-0 fill-current text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.16)]">

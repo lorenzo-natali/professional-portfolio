@@ -10,7 +10,7 @@ import {
   STORAGE_VISITOR_ID,
   resolveAnalyticsEnv,
 } from "./analyticsConfig.js";
-import { installPortfolioAnalytics } from "./createPortfolioAnalytics.js";
+import { installPortfolioAnalytics, trackPortfolioEvent } from "./createPortfolioAnalytics.js";
 import {
   getOrCreateSessionId,
   getOrCreateVisitorId,
@@ -22,7 +22,7 @@ import {
   setOwnerExcluded,
 } from "./ownerExclusion.js";
 import { classifyReferrer, normalizeLandingPath } from "./referrer.js";
-import { sendAnalyticsBatch } from "./transport.js";
+import { ALIVE_CONTENT_TYPE, sendAnalyticsBatch } from "./transport.js";
 
 function memoryStorage() {
   /** @type {Map<string, string>} */
@@ -71,6 +71,14 @@ describe("portfolio analytics client — Phase B", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    // Drop any active Phase C context left by a prior install.
+    installPortfolioAnalytics({
+      enabled: false,
+      endpoint: "",
+      dev: true,
+      localStorage: memoryStorage(),
+      sessionStorage: memoryStorage(),
+    });
   });
 
   function install(extra = {}) {
@@ -418,5 +426,178 @@ describe("portfolio analytics client — Phase B", () => {
     const payload = JSON.parse(text);
     expect(payload.events[0].name).toBe("session_end");
     expect(payload.events[0].props.active_ms).toBe(2500);
+  });
+});
+
+describe("portfolio analytics client — Phase C trackPortfolioEvent", () => {
+  /** @type {ReturnType<typeof memoryStorage>} */
+  let local;
+  /** @type {ReturnType<typeof memoryStorage>} */
+  let session;
+  /** @type {Array<{ url: string, init: RequestInit }>} */
+  let fetches;
+  /** @type {Array<[string, EventListener]>} */
+  let docListeners;
+  /** @type {Array<[string, EventListener]>} */
+  let winListeners;
+
+  beforeEach(() => {
+    local = memoryStorage();
+    session = memoryStorage();
+    fetches = [];
+    docListeners = [];
+    winListeners = [];
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    installPortfolioAnalytics({
+      enabled: false,
+      endpoint: "",
+      dev: true,
+      localStorage: memoryStorage(),
+      sessionStorage: memoryStorage(),
+    });
+  });
+
+  function installActive(extra = {}) {
+    return installPortfolioAnalytics({
+      enabled: true,
+      endpoint: "https://analytics.test",
+      dev: false,
+      hostname: "lorenzo-natali.github.io",
+      pathname: "/professional-portfolio/",
+      search: "",
+      hash: "",
+      referrer: "",
+      localStorage: local,
+      sessionStorage: session,
+      isHidden: () => false,
+      now: () => 0,
+      fetchImpl: (url, init) => {
+        fetches.push({ url: String(url), init });
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+      sendBeaconImpl: () => true,
+      addEventListener: (type, fn) => {
+        docListeners.push([type, fn]);
+      },
+      removeEventListener: () => {},
+      windowAddEventListener: (type, fn) => {
+        winListeners.push([type, fn]);
+      },
+      windowRemoveEventListener: () => {},
+      replaceState: () => {},
+      ...extra,
+    });
+  }
+
+  async function interactionPayloads() {
+    const out = [];
+    for (const entry of fetches) {
+      const body = entry.init?.body;
+      if (typeof body !== "string") continue;
+      const parsed = JSON.parse(body);
+      for (const event of parsed.events || []) {
+        if (event.name !== "portfolio_visit" && event.name !== "session_end") {
+          out.push({
+            event,
+            contentType: entry.init?.headers?.["content-type"],
+            keepalive: entry.init?.keepalive,
+          });
+        }
+      }
+    }
+    return out;
+  }
+
+  it("inactive analytics makes trackPortfolioEvent a no-op", async () => {
+    expect(() =>
+      trackPortfolioEvent("assistant_open")
+    ).not.toThrow();
+    expect(fetches).toHaveLength(0);
+  });
+
+  it("owner-excluded install keeps trackPortfolioEvent as no-op", async () => {
+    setOwnerExcluded(local, true);
+    const handle = installActive();
+    expect(handle.active).toBe(false);
+    trackPortfolioEvent("assistant_open");
+    expect(fetches).toHaveLength(0);
+  });
+
+  it("valid track uses alive application/json transport", async () => {
+    installActive();
+    const visitCount = fetches.length;
+    trackPortfolioEvent("experience_open", {
+      experience_id: "experience-boc",
+    });
+    expect(fetches.length).toBe(visitCount + 1);
+    const last = fetches[fetches.length - 1];
+    expect(last.init.headers["content-type"]).toBe(ALIVE_CONTENT_TYPE);
+    expect(last.init.keepalive).toBe(true);
+    const body = JSON.parse(String(last.init.body));
+    expect(body.events).toEqual([
+      expect.objectContaining({
+        name: "experience_open",
+        props: { experience_id: "experience-boc" },
+      }),
+    ]);
+  });
+
+  it("transport rejection does not throw to callers", () => {
+    installActive({
+      fetchImpl: () => Promise.reject(new Error("network down")),
+    });
+    expect(() =>
+      trackPortfolioEvent("assistant_open")
+    ).not.toThrow();
+  });
+
+  it("stop() disables subsequent trackPortfolioEvent calls", async () => {
+    const handle = installActive();
+    handle.stop();
+    const before = fetches.length;
+    trackPortfolioEvent("assistant_open");
+    expect(fetches.length).toBe(before);
+  });
+
+  it("assistant_curated_question payload contains only prompt_id and category", async () => {
+    installActive();
+    trackPortfolioEvent("assistant_curated_question", {
+      prompt_id: "assistant-role-orientation",
+      category: "Profile & Career Direction",
+    });
+    const interactions = await interactionPayloads();
+    expect(interactions).toHaveLength(1);
+    expect(Object.keys(interactions[0].event.props).sort()).toEqual([
+      "category",
+      "prompt_id",
+    ]);
+    expect(JSON.stringify(interactions[0].event)).not.toMatch(/What is|answer|question text/i);
+  });
+
+  it("Phase B visit still fires once on install and session_end still uses unload path", async () => {
+    const first = installActive();
+    expect(fetches).toHaveLength(1);
+    const visit = JSON.parse(String(fetches[0].init.body));
+    expect(visit.events[0].name).toBe("portfolio_visit");
+    expect(fetches[0].init.headers["content-type"]).toBe(ALIVE_CONTENT_TYPE);
+    first.stop();
+
+    docListeners = [];
+    winListeners = [];
+    const beacons = [];
+    installActive({
+      sendBeaconImpl: (url, body) => {
+        beacons.push({ url, body });
+        return true;
+      },
+      sessionStorage: memoryStorage(),
+      localStorage: local,
+    });
+    winListeners.find(([t]) => t === "pagehide")?.[1]();
+    expect(beacons).toHaveLength(1);
+    expect(beacons[0].body.type).toBe("text/plain;charset=utf-8");
   });
 });

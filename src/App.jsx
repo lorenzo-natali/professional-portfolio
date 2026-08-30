@@ -18,6 +18,7 @@ import {
 import { isOverviewLens } from "./portfolio/portfolioLens.js";
 import { PORTFOLIO_SECTION_IDS } from "./portfolio/sectionCatalog.js";
 import { useLensGlowActiveMarker } from "./portfolio/useLensGlowActiveMarker.js";
+import { trackPortfolioEvent } from "./portfolio/analytics/createPortfolioAnalytics.js";
 import "./index.css";
 
 /**
@@ -202,6 +203,8 @@ function PortfolioAssistant() {
     setSelectedPrompt(null);
     setSelectedCategory(null);
     setIsDrawerOpen(true);
+    // Compact event only — no prompt/answer text ever leaves this surface via analytics.
+    trackPortfolioEvent("assistant_open");
   };
 
   const closeAssistant = useCallback((restoreFocus = true) => {
@@ -347,6 +350,12 @@ function PortfolioAssistant() {
     // Project cards render one at a time in a carousel: activate the requested
     // project first, then scroll once its card has mounted.
     if (target.type === "project") {
+      // Canonical projects[].id from signalMap target — emit once here.
+      // ProjectDeck applies state without emitting source:deck for this path.
+      trackPortfolioEvent("project_view", {
+        project_id: target.id,
+        source: "assistant",
+      });
       window.dispatchEvent(
         new CustomEvent("assistant:activate-project", { detail: target.id })
       );
@@ -526,7 +535,16 @@ function PortfolioAssistant() {
                               key={prompt.question}
                               variant="question"
                               selected={isActive}
-                              onClick={() => setSelectedPrompt(prompt)}
+                              onClick={() => {
+                                // Privacy boundary: only prompt_id + category — never question/answer text.
+                                if (selectedCategory && prompt?.id) {
+                                  trackPortfolioEvent("assistant_curated_question", {
+                                    prompt_id: prompt.id,
+                                    category: selectedCategory,
+                                  });
+                                }
+                                setSelectedPrompt(prompt);
+                              }}
                             >
                               {prompt.question}
                             </AssistantSelectionCard>
@@ -727,6 +745,7 @@ function App({
   const [expandedExperiences, setExpandedExperiences] = useState({});
   // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
   const [arOpen, setArOpen] = useState(() => launchBeyond());
+  const beyondDeeplinkTrackedRef = useRef(false);
   const [showIntro, setShowIntro] = useState(() => {
     if (!features.intro) return false;
     if (typeof window === "undefined") return false;
@@ -748,6 +767,10 @@ function App({
     if (launchBeyond()) {
       setArOpen(true);
       setShowIntro(false);
+      if (!beyondDeeplinkTrackedRef.current) {
+        beyondDeeplinkTrackedRef.current = true;
+        trackPortfolioEvent("beyond_cv_open", { source: "deeplink" });
+      }
     }
   }, [beyondEnabled]);
 
@@ -762,15 +785,25 @@ function App({
 
   // Accordion: only one experience details panel open at a time.
   const toggleExperienceDetails = (experienceId) => {
-    setExpandedExperiences((current) => {
-      if (current[experienceId]) return {};
-      return { [experienceId]: true };
-    });
+    const isOpen = Boolean(expandedExperiences[experienceId]);
+    if (isOpen) {
+      setExpandedExperiences({});
+      return;
+    }
+    trackPortfolioEvent("experience_open", { experience_id: experienceId });
+    setExpandedExperiences({ [experienceId]: true });
   };
 
   const sidebarSlot = (
     <>
-      {BeyondCard ? <BeyondCard onLaunch={() => setArOpen(true)} /> : null}
+      {BeyondCard ? (
+        <BeyondCard
+          onLaunch={() => {
+            trackPortfolioEvent("beyond_cv_open", { source: "card" });
+            setArOpen(true);
+          }}
+        />
+      ) : null}
       {features.assistant ? <PortfolioAssistant /> : null}
     </>
   );

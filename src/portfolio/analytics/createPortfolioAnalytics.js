@@ -15,7 +15,41 @@ import { classifyReferrer, normalizeLandingPath } from "./referrer.js";
 import { sendAnalyticsBatch } from "./transport.js";
 
 /**
- * Install Phase B portfolio analytics (visit + active duration + session_end).
+ * Active install context for Phase C interaction tracking.
+ * Null whenever analytics is ineligible or stopped.
+ * @type {{
+ *   active: true,
+ *   postInteraction: (name: string, props?: Record<string, string | number>) => void,
+ * } | null}
+ */
+let activeContext = null;
+
+/**
+ * Phase C: fire a meaningful interaction event while the page is alive.
+ * No-ops when analytics is inactive/excluded/uninstalled. Never throws.
+ *
+ * Privacy: callers must pass only allowlisted compact IDs/enums — never
+ * prompt text, answers, free-form input, titles, or URLs.
+ *
+ * @param {string} name
+ * @param {Record<string, string | number>} [props]
+ */
+export function trackPortfolioEvent(name, props) {
+  try {
+    if (!activeContext?.active) return;
+    if (typeof name !== "string" || !name) return;
+    activeContext.postInteraction(
+      name,
+      props && typeof props === "object" && !Array.isArray(props) ? props : {}
+    );
+  } catch {
+    // Analytics must never break portfolio UI.
+  }
+}
+
+/**
+ * Install Phase B portfolio analytics (visit + active duration + session_end)
+ * and enable Phase C trackPortfolioEvent while active.
  * Returns a stop() that removes lifecycle listeners. Safe to call when disabled
  * (returns a no-op stop without IDs/listeners/network).
  *
@@ -43,6 +77,9 @@ import { sendAnalyticsBatch } from "./transport.js";
  * }} [options]
  */
 export function installPortfolioAnalytics(options = {}) {
+  // Any re-install clears prior Phase C context first (eligibility wins).
+  activeContext = null;
+
   // Always honour exclusion query flags (even when analytics stays off),
   // so owner exclusion is ready before a future production enable.
   consumeAnalyticsQueryFlag({
@@ -137,6 +174,20 @@ export function installPortfolioAnalytics(options = {}) {
     }
   };
 
+  const postInteraction = (name, props) => {
+    if (stopped) return;
+    post(
+      [
+        {
+          name,
+          ts: new Date().toISOString(),
+          props,
+        },
+      ],
+      false
+    );
+  };
+
   // One portfolio_visit per tab session.
   if (!wasVisitSent(sessionStore, sessionId)) {
     const referrer =
@@ -200,6 +251,11 @@ export function installPortfolioAnalytics(options = {}) {
     // If listeners cannot be attached, still leave visit as best-effort.
   }
 
+  activeContext = {
+    active: true,
+    postInteraction,
+  };
+
   return {
     active: true,
     visitorId,
@@ -209,6 +265,9 @@ export function installPortfolioAnalytics(options = {}) {
     stop() {
       if (stopped) return;
       stopped = true;
+      if (activeContext?.postInteraction === postInteraction) {
+        activeContext = null;
+      }
       try {
         docRemove?.("visibilitychange", onVisibility);
         winRemove?.("pagehide", onPageHide);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import CodeiakMascotVideo from "../components/CodeiakMascotVideo";
+import { trackPortfolioEvent } from "./analytics/createPortfolioAnalytics.js";
 import { projects } from "./portfolioData.js";
 import { lensSurfaceClass } from "./portfolioLens.js";
 import { ProjectStageIndicator, SurfaceCard } from "./portfolioUi.jsx";
@@ -28,18 +29,41 @@ export default function ProjectDeck({ selectedLens = "Overview" }) {
   const isCodeiakProject = project.id === "project-codeiak";
 
   const showPrevious = () => {
+    const next = activeProject === 0 ? projects.length - 1 : activeProject - 1;
     setDirection(-1);
-    setActiveProject((current) => (current === 0 ? projects.length - 1 : current - 1));
+    const project = projects[next];
+    if (project?.id) {
+      trackPortfolioEvent("project_view", {
+        project_id: project.id,
+        source: "deck",
+      });
+    }
+    setActiveProject(next);
   };
 
   const showNext = () => {
+    const next = activeProject === projects.length - 1 ? 0 : activeProject + 1;
     setDirection(1);
-    setActiveProject((current) => (current === projects.length - 1 ? 0 : current + 1));
+    const project = projects[next];
+    if (project?.id) {
+      trackPortfolioEvent("project_view", {
+        project_id: project.id,
+        source: "deck",
+      });
+    }
+    setActiveProject(next);
   };
 
   const showProject = (index) => {
     if (index === activeProject) return;
     setDirection(index > activeProject ? 1 : -1);
+    const project = projects[index];
+    if (project?.id) {
+      trackPortfolioEvent("project_view", {
+        project_id: project.id,
+        source: "deck",
+      });
+    }
     setActiveProject(index);
   };
 
@@ -47,6 +71,8 @@ export default function ProjectDeck({ selectedLens = "Overview" }) {
     const handleActivateProject = (event) => {
       const index = projects.findIndex((item) => item.id === event.detail);
       if (index < 0) return;
+      // Assistant path emits project_view source:assistant at the signal site.
+      // Do not emit source:deck here — avoids double-counting the same activation.
       setDirection(1);
       setActiveProject(index);
     };

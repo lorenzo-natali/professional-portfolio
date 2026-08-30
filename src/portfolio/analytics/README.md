@@ -23,9 +23,15 @@ Client POSTs to `{endpoint}/analytics`. Both must be present. Default / unset �
 
 Exclusion is not authentication.
 
-## Runtime
+## Interaction events (Phase C)
 
-- Boot: `bootProduction` → `installPortfolioAnalytics()`
-- Idle: **zero** timers / rAF / polling / analytics IO
-- Listeners when active: `visibilitychange`, `pagehide` only
-- Network: one `portfolio_visit` POST + one `session_end` beacon/fetch keepalive
+While analytics is installed and eligible, call:
+
+```js
+import { trackPortfolioEvent } from "./createPortfolioAnalytics.js";
+
+trackPortfolioEvent("experience_open", { experience_id: "experience-boc" });
+```
+
+`trackPortfolioEvent` no-ops when analytics is disabled, excluded, or not installed.
+Alive-page transport only (`application/json`). Never send prompt/answer text — only allowlisted IDs/enums.
