@@ -127,4 +127,20 @@ describe("CredentialsSection additional training Role Lens state", () => {
     expect(rail.contains(cisa)).toBe(true);
     expect(attestation).toBeTruthy();
   });
+
+  it("does not put percentage-width cards inside a w-max track (mobile width bomb)", () => {
+    const { container } = render(<CredentialsSection />);
+    const rail = container.querySelector(".credentials-rail");
+    const track = rail?.firstElementChild;
+    const cards = [...container.querySelectorAll("[data-role-lens-id^=\"credential-\"]")];
+
+    expect(track).toBeTruthy();
+    // Inner track may be flex+snap, but must not be w-max while cards use w-[78%].
+    expect(track.className).not.toMatch(/\bw-max\b/);
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) {
+      expect(card.className).toMatch(/w-\[78%\]/);
+      expect(card.className).toMatch(/sm:w-\[20rem\]/);
+    }
+  });
 });

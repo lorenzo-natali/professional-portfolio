@@ -12,7 +12,12 @@ export default function CredentialsSection({ selectedLens = "Overview" }) {
   return (
       <Section id="credentials" title={PORTFOLIO_SECTION_TITLES.credentials} className="bg-slate-950/80">
         <div className="credentials-rail role-lens-highlight-rail -mx-5 overflow-x-auto sm:-mx-8 lg:-mx-10">
-          <div className="flex w-max snap-x snap-mandatory gap-4">
+          {/*
+            Do not put w-max on this track: cards use w-[78%] below sm, which must
+            resolve against the rail’s definite width. w-max made % cyclic and blew
+            card widths to thousands of px on mobile (desktop sm:w-[20rem] masked it).
+          */}
+          <div className="flex snap-x snap-mandatory gap-4">
           {credentials.map((credential) => (
             <SurfaceCard
               data-role-lens-id={credential.id}
