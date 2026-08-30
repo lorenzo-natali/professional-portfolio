@@ -353,11 +353,12 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
 
         <div className="mt-14 border-t border-slate-800 pt-7 text-sm leading-6 text-slate-500">
           <p className="font-medium text-slate-400">Lorenzo Natali</p>
+          <p className="mt-2 font-medium text-slate-400">Privacy & Technology</p>
           <p className="mt-2">
-            Built with React, Vite and Codex-assisted development. This website uses privacy-conscious first-party analytics to understand aggregate usage and improve the experience. No raw IP addresses, full user-agent strings, cookies or fingerprinting data are stored.
+            Built with React and Vite. First-party analytics are designed with privacy and data minimisation principles to understand aggregate usage and improve the experience. No raw IP addresses, full user-agent strings, cookies or fingerprinting data are stored.
           </p>
           <p className="mt-1">
-            Hosted via GitHub Pages.
+            Frontend: GitHub Pages · Analytics: Cloudflare Workers + D1
           </p>
         </div>
       </div>
