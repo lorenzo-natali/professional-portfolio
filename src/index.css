@@ -612,6 +612,19 @@ html[data-lens-glow-active="true"] body {
   user-select: none;
 }
 
+/*
+ * Hide MindAR video/canvas until the adapter confirms layers fill the container.
+ * Prevents the post-permission transient camera-aspect box from flashing.
+ * Shell/stage background stays visible; UI overlays remain siblings above.
+ */
+.ar-tracking-container:not([data-ar-camera-surface="ready"]) {
+  opacity: 0;
+}
+
+.ar-tracking-container[data-ar-camera-surface="ready"] {
+  opacity: 1;
+}
+
 /* Exempt MindAR cover video from Tailwind Preflight `video { max-width: 100% }`. */
 .ar-tracking-container > video {
   z-index: 0 !important;

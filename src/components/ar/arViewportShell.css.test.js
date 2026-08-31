@@ -57,6 +57,16 @@ describe("ar fullscreen CSS", () => {
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*\.ar-status-fade/);
   });
 
+  it("hides the tracking container until data-ar-camera-surface=ready", () => {
+    const css = readFileSync(cssPath, "utf8");
+    expect(css).toMatch(
+      /\.ar-tracking-container:not\(\[data-ar-camera-surface="ready"\]\)\s*\{[^}]*opacity:\s*0/s,
+    );
+    expect(css).toMatch(
+      /\.ar-tracking-container\[data-ar-camera-surface="ready"\]\s*\{[^}]*opacity:\s*1/s,
+    );
+  });
+
   it("keeps Preflight max-width on non-AR videos while AR container video is exempt", () => {
     const style = document.createElement("style");
     style.textContent = `

@@ -44,8 +44,10 @@ vi.mock("mind-ar/dist/mindar-image-three.prod.js", () => ({
 import {
   applyCameraLayerStacking,
   bindMindArVideoResize,
+  concealCameraSurface,
   createMindARTrackingAdapter,
   layersMatchContainer,
+  revealCameraSurfaceWhenReady,
   syncTrackingContainerToShell,
 } from "./MindARTrackingAdapter";
 import { isVisuallyPresentObject3D } from "../createAnchorProofObject";
@@ -416,6 +418,55 @@ describe("createMindARTrackingAdapter interest objects", () => {
     container.appendChild(video);
     container.appendChild(canvas);
     expect(layersMatchContainer(container)).toBe(true);
+  });
+
+  it("revealCameraSurfaceWhenReady stays concealed until layers fill the container", () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", { value: 300 });
+    Object.defineProperty(container, "clientHeight", { value: 500 });
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "120px";
+    canvas.style.height = "120px";
+    const video = document.createElement("video");
+    video.style.width = "120px";
+    video.style.height = "120px";
+    container.appendChild(video);
+    container.appendChild(canvas);
+
+    expect(layersMatchContainer(container)).toBe(false);
+    expect(revealCameraSurfaceWhenReady(container)).toBe(false);
+    expect(container.dataset.arCameraSurface).toBeUndefined();
+
+    canvas.style.width = "300px";
+    canvas.style.height = "500px";
+    video.style.width = "320px";
+    video.style.height = "520px";
+
+    expect(revealCameraSurfaceWhenReady(container)).toBe(true);
+    expect(container.dataset.arCameraSurface).toBe("ready");
+    expect(revealCameraSurfaceWhenReady(container)).toBe(true);
+
+    concealCameraSurface(container);
+    expect(container.dataset.arCameraSurface).toBeUndefined();
+  });
+
+  it("does not show an undersized camera surface after MindAR start when the container is fullscreen-sized", async () => {
+    mocks.loadArTargetBuffer.mockResolvedValue(createValidMindFixture());
+    mockMindAR();
+    const adapter = createMindARTrackingAdapter({ showAnchorProof: false });
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientWidth", { configurable: true, value: 320 });
+    Object.defineProperty(container, "clientHeight", { configurable: true, value: 640 });
+    document.body.appendChild(container);
+
+    expect(container.dataset.arCameraSurface).toBeUndefined();
+    await adapter.start(container, {});
+    expect(container.dataset.arCameraSurface).toBe("ready");
+    expect(layersMatchContainer(container)).toBe(true);
+
+    await adapter.stop();
+    expect(container.dataset.arCameraSurface).toBeUndefined();
+    container.remove();
   });
 
   it("syncTrackingContainerToShell uses inset:0 without pixel pinning from the shell", () => {

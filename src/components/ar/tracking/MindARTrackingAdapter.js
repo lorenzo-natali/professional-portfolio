@@ -157,6 +157,28 @@ export function layersMatchContainer(container) {
 }
 
 /**
+ * Reveal the live camera surface only after MindAR layers fill the fullscreen container.
+ * @param {HTMLElement | null | undefined} container
+ * @returns {boolean} whether the surface is now ready
+ */
+export function revealCameraSurfaceWhenReady(container) {
+  if (!container) return false;
+  if (container.dataset.arCameraSurface === "ready") return true;
+  if (!layersMatchContainer(container)) return false;
+  container.dataset.arCameraSurface = "ready";
+  return true;
+}
+
+/**
+ * Hide the camera surface again (session teardown / before a new start).
+ * @param {HTMLElement | null | undefined} container
+ */
+export function concealCameraSurface(container) {
+  if (!container) return;
+  delete container.dataset.arCameraSurface;
+}
+
+/**
  * Video metadata/resize may only request a coordinated resize — never call
  * MindAR.resize / setSize directly (single resize authority).
  * @param {{ video?: HTMLVideoElement | null } | null} mindarThree
@@ -680,6 +702,7 @@ export function createMindARTrackingAdapter({
       const container = sessionContainer || instance?.container || null;
       sessionContainer = null;
       if (container) {
+        concealCameraSurface(container);
         try {
           container.innerHTML = "";
         } catch {
@@ -947,6 +970,8 @@ export function createMindARTrackingAdapter({
           { mode: crashDiagMode || "production", path: "mindar" },
           { asReason: false },
         );
+        // Keep the live feed invisible until layers fill the fullscreen container.
+        concealCameraSurface(container);
         await mindarThree.start();
         auditNote("mindarStartCompleted", {});
         if (crashDiagMonitor && mindarThree.controller) {
@@ -1075,11 +1100,13 @@ export function createMindARTrackingAdapter({
           },
           onApplied: () => {
             invalidateRender();
+            revealCameraSurfaceWhenReady(sessionContainer);
           },
         });
         resizeCoordinator.assumeOwnership(mindarThree);
         // Deterministic first apply (video dimensions known after start).
         resizeCoordinator.flushNow("after-first-normalize", { force: true });
+        revealCameraSurfaceWhenReady(container);
 
         videoResizeCleanup = bindMindArVideoResize(mindarThree, {
           container,
