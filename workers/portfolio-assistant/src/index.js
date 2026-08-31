@@ -8,11 +8,11 @@ import { handleAskPost } from "./handleAsk.js";
 import { handleHealthGet } from "./handleHealth.js";
 
 /**
- * Cloudflare Worker entry — Portfolio Assistant Phase A skeleton.
- * No OpenAI, no persistence, no frontend coupling.
+ * Cloudflare Worker entry — Portfolio Assistant Phase B (grounded OpenAI).
+ * No frontend coupling. Secrets via env bindings only.
  *
  * @param {Request} request
- * @param {{ ASSISTANT_ALLOWED_ORIGINS?: string }} env
+ * @param {Record<string, any>} env
  */
 export default {
   async fetch(request, env) {
@@ -39,7 +39,7 @@ export default {
           },
         );
       }
-      return handleHealthGet(origin);
+      return handleHealthGet(origin, env);
     }
 
     if (path === "/ask") {
@@ -55,7 +55,7 @@ export default {
           },
         );
       }
-      return handleAskPost(request, origin);
+      return handleAskPost(request, origin, env);
     }
 
     return new Response(JSON.stringify({ ok: false, error: "not_found" }), {

@@ -16,6 +16,7 @@ tmp/
 .wrangler
 workers/portfolio-analytics/wrangler.local.toml
 workers/portfolio-assistant/wrangler.local.toml
+workers/portfolio-assistant/.dev.vars
 
 # Local unpublished portfolio drafts (not shipped in the app bundle)
 src/portfolio/drafts/

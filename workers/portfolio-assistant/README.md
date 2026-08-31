@@ -1,68 +1,104 @@
-# Portfolio Assistant Worker (Phase A)
+# Portfolio Assistant Worker (Phase B)
 
-Dedicated Cloudflare Worker skeleton for the future free-form Portfolio Assistant API.
+Dedicated Cloudflare Worker for grounded, single-turn Portfolio Assistant Q&A.
 
-- **Runtime:** Cloudflare Worker (no D1 / KV in Phase A)
+- **Runtime:** Cloudflare Worker + Workers KV (quota counters only)
 - **Routes:** `GET /health`, `POST /ask`
-- **OpenAI:** not connected (Phase A stub only)
-- **Frontend:** unchanged — no client calls in Phase A
+- **Model:** `gpt-5.6-luna` via OpenAI Responses API (server-fixed)
+- **Frontend:** unchanged — no client calls in Phase B
 
-This Worker is logically isolated from `workers/portfolio-analytics/`.
+Isolated from `workers/portfolio-analytics/`.
 
-## Local development (later)
+## Knowledge pack
+
+```bash
+npm run generate:assistant-knowledge
+npm run verify:assistant-knowledge   # fails if pack.js is stale vs canonical sources
+```
+
+Pack items include `claimType` semantic metadata. Generation excludes `assistantPrompts` / `signalMap` as fact sources (navigation aliases are resolved at runtime).
+
+## Ask pipeline (Step B.2 / B.3)
+
+1. Private / unsupported / psychological / identity gate → local answer, **zero OpenAI**
+2. Deterministic retrieval V2 (exact tokens + bilingual aliases + intent ranking)
+3. Evidence sufficiency gate → local answer if incompatible, **zero OpenAI**
+4. Quota → OpenAI Responses API (grounded evidence + claimTypes + narrativeTypes)
+
+Public `/ask` evidence shape: `{ id, topic, claimType, signalIds, narrativeType? }`.
+
+Canonical career narrative: `src/portfolio/professionalNarrative.js` → generated pack (`topic: professional_narrative`, `claimType: career_direction`).
+Default voice: **authorized first-person** (server-controlled; third-person remains buildable).
+
+## Local development
+
+Uses committed `wrangler.toml` (localhost CORS + `ASSISTANT_CLIENT_IP_MODE=dev`).
 
 ```bash
 cd workers/portfolio-assistant
+npx wrangler secret put OPENAI_API_KEY
 npx wrangler dev
 ```
 
-Optional: copy `wrangler.toml` → `wrangler.local.toml` (gitignored) for machine-specific overrides.
+**Never deploy `wrangler.toml` to production** — it allows localhost origins.
 
-## Production deploy (later — not executed in Phase A)
+## Production deploy (explicit)
 
-1. Copy `wrangler.production.toml.example` values into the Cloudflare deploy config.
-2. Set `ASSISTANT_ALLOWED_ORIGINS` to the GitHub Pages origin (`https://lorenzo-natali.github.io`).
-3. Deploy: `wrangler deploy` from this directory.
-4. Do **not** add an OpenAI secret until a later phase that explicitly requires it.
+Production deploy config is gitignored `wrangler.local.toml`, aligned with
+`wrangler.production.toml.example`.
 
-## Phase A contracts
+Invariants:
+
+- `ASSISTANT_ALLOWED_ORIGINS` = exactly `https://lorenzo-natali.github.io`
+- `ASSISTANT_CLIENT_IP_MODE` = `cloudflare` (require `CF-Connecting-IP`)
+- Abuse limits are positive integers (defaults 80 / 12 / 4). **`0` is invalid** and fails closed.
+
+```bash
+npm run verify:assistant-worker-production-config
+cd workers/portfolio-assistant
+npx wrangler secret put OPENAI_API_KEY --config wrangler.local.toml
+npx wrangler deploy --config wrangler.local.toml
+```
+
+Package convenience (does not deploy secrets for you):
+
+```bash
+npm run deploy:assistant-worker:production
+```
+
+Never commit OpenAI keys or real KV ids.
+
+## Abuse / body / IP semantics
+
+| Control | Behavior |
+|---------|----------|
+| Raw body | Max **6144 bytes** before JSON parse; oversize → `413` `payload_too_large` |
+| Question | Max 500 chars after parse |
+| Trusted IP | Production: `CF-Connecting-IP` only. Missing → fail closed before KV/OpenAI. `X-Forwarded-For` ignored. Dev mode: fixed `dev-local` identity |
+| Quota config | Missing/empty → compiled defaults. `0`, negative, NaN, non-numeric, out-of-bounds → `server_configuration_error`, zero OpenAI |
+| Retrieval miss | Local answer, zero OpenAI, zero quota |
+| Kill switch | `ASSISTANT_AI_ENABLED=false` → zero OpenAI |
+
+Quota counters remain a **soft** check-then-act ceiling (not atomic).
+
+## Contracts
 
 ### `GET /health`
 
 ```json
-{ "ok": true, "service": "portfolio-assistant", "phase": "A", "openai": false }
+{
+  "ok": true,
+  "service": "portfolio-assistant",
+  "phase": "B",
+  "openai": true,
+  "ai_enabled": true,
+  "openai_configured": true,
+  "quota_configured": true
+}
 ```
 
 ### `POST /ask`
 
-Request:
+Request: `{ "question": "..." }`
 
-```json
-{ "question": "What is your background in internal audit?" }
-```
-
-Success (deterministic stub — no model call):
-
-```json
-{
-  "ok": true,
-  "phase": "A",
-  "stub": true,
-  "openai": false,
-  "echo": { "question": "What is your background in internal audit?" },
-  "answer": "Phase A deterministic stub. OpenAI is not connected. Your question was received and validated."
-}
-```
-
-## Security model
-
-`/ask` will be a public endpoint once wired. CORS/Origin checks are browser conveniences only — not authentication.
-Phase A performs no tracking, IP storage, cookies, or persistence.
-
-## Deferred (intentionally)
-
-- OpenAI API calls and secrets
-- Grounded retrieval / knowledge pack
-- Rate limiting / quotas (KV or Durable Objects)
-- Frontend free-form input
-- Conversation history
+Success: `{ "ok": true, "answer": "...", "evidence": [{ "id": "...", "topic": "..." }] }`

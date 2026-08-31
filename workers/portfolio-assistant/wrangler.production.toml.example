@@ -1,12 +1,28 @@
-# Example production overlay — copy fields into Cloudflare dashboard / deploy config.
-# Do not commit account_id, API tokens, or OpenAI secrets.
-# Phase A: no OpenAI secret is required or expected.
+# Example production overlay — copy fields into gitignored wrangler.local.toml.
+# Do not commit account_id, API tokens, OpenAI secrets, or real KV ids into git.
+#
+# Deploy ONLY via:
+#   npm run verify:assistant-worker-production-config
+#   npx wrangler deploy --config workers/portfolio-assistant/wrangler.local.toml
+# or: npm run deploy:assistant-worker:production
+#
+# NEVER deploy workers/portfolio-assistant/wrangler.toml (localhost CORS / dev IP mode).
 
 name = "portfolio-assistant"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
 
+[[kv_namespaces]]
+binding = "QUOTA_KV"
+id = "<REPLACE_WITH_KV_NAMESPACE_ID>"
+
 [vars]
-# Production GitHub Pages origin(s), comma-separated — no trailing slash.
-# Include local Vite origins only if you intentionally need browser CORS against a deployed Worker.
+ASSISTANT_AI_ENABLED = "true"
+OPENAI_MODEL = "gpt-5.6-luna"
+ASSISTANT_GLOBAL_DAILY_LIMIT = "80"
+ASSISTANT_IP_DAILY_LIMIT = "12"
+ASSISTANT_BURST_SECONDS = "4"
+# Production must use Cloudflare edge identity only (default if omitted).
+ASSISTANT_CLIENT_IP_MODE = "cloudflare"
+# Production GitHub Pages origin ONLY — no trailing slash, no localhost.
 ASSISTANT_ALLOWED_ORIGINS = "https://lorenzo-natali.github.io"

@@ -663,8 +663,8 @@ export const assistantPrompts = [
     categories: ["Audit, Banking & Financial Risk"],
     question: "What is your experience in internal audit?",
     answer:
-      "I work in Internal Audit at Bank of China – Milan Branch, within an international banking environment.\n\nMy experience includes audit activities across corporate credit and syndicated loans, credit risk, regulatory and supervisory frameworks, AML/KYC, internal controls, IT governance and operational resilience. I contribute to control assessment, working papers and audit reporting, identifying risk areas, control weaknesses and opportunities for improvement.",
-    signalIds: ["exp-boc", "cap-internal-audit", "radar-internal-audit"],
+      "I previously worked in Internal Audit at Bank of China – Milan Branch, within an international banking environment. My current role is IT Audit Specialist at Banca Profilo in Milan.\n\nAt Bank of China, my experience included audit activities across corporate credit and syndicated loans, credit risk, regulatory and supervisory frameworks, AML/KYC, internal controls, IT governance and operational resilience. I contributed to control assessment, working papers and audit reporting, identifying risk areas, control weaknesses and opportunities for improvement.",
+    signalIds: ["exp-boc", "exp-banca-profilo", "cap-internal-audit", "radar-internal-audit"],
   },
   {
     id: "assistant-credit-risk-exposure",

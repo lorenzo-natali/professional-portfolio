@@ -19,6 +19,10 @@
     "test:watch": "vitest",
     "test:analytics-worker": "vitest run workers/portfolio-analytics/test",
     "test:assistant-worker": "vitest run workers/portfolio-assistant/test",
+    "generate:assistant-knowledge": "node scripts/generate-assistant-knowledge.mjs",
+    "verify:assistant-knowledge": "node scripts/generate-assistant-knowledge.mjs --check",
+    "verify:assistant-worker-production-config": "node scripts/verify-assistant-worker-production-config.mjs",
+    "deploy:assistant-worker:production": "npm run verify:assistant-worker-production-config && npm run verify:assistant-knowledge && npm run test:assistant-worker && npx wrangler deploy --config workers/portfolio-assistant/wrangler.local.toml",
     "compile:ar-target": "node scripts/compile-ar-target.mjs",
     "optimize:ar-interests": "node scripts/optimize-ar-interests.mjs",
     "experiment:ar-tracking-features": "node scripts/experiment-ar-tracking-features.mjs"

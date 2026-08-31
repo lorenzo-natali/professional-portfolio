@@ -1,12 +1,27 @@
-# Local / example configuration for Portfolio Assistant Worker (Phase A).
+# Local / example configuration for Portfolio Assistant Worker (Phase B).
 # Do NOT put account IDs, API tokens, OpenAI keys, or production secrets in this file.
-# Copy to wrangler.local.toml (gitignored) or set values via `wrangler` CLI when deploying.
+# OpenAI key: `npx wrangler secret put OPENAI_API_KEY` (never commit).
+# Copy to wrangler.local.toml (gitignored) for machine-specific deploy bindings.
 
 name = "portfolio-assistant"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
 
+# Placeholder KV namespace for local `wrangler dev`. Replace id after:
+#   npx wrangler kv namespace create PORTFOLIO_ASSISTANT_QUOTA
+[[kv_namespaces]]
+binding = "QUOTA_KV"
+id = "00000000-0000-0000-0000-000000000000"
+preview_id = "00000000-0000-0000-0000-000000000000"
+
 [vars]
+ASSISTANT_AI_ENABLED = "true"
+OPENAI_MODEL = "gpt-5.6-luna"
+ASSISTANT_GLOBAL_DAILY_LIMIT = "80"
+ASSISTANT_IP_DAILY_LIMIT = "12"
+ASSISTANT_BURST_SECONDS = "4"
+# Local wrangler.dev has no CF-Connecting-IP — use fixed synthetic identity (never XFF).
+ASSISTANT_CLIENT_IP_MODE = "dev"
 # Comma-separated allowed browser Origins for CORS (not authentication).
-# Local Vite defaults match workers/portfolio-analytics conventions.
+# LOCAL ONLY — do not deploy this file to production.
 ASSISTANT_ALLOWED_ORIGINS = "http://127.0.0.1:5173,http://localhost:5173"
