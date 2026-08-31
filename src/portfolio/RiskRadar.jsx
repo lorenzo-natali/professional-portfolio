@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { User } from "lucide-react";
+import InternationalMobility, {
+  InternationalMobilitySummary,
+} from "./InternationalMobility.jsx";
 import { journeyMilestones, formatJourneyPeriod } from "./journeyData.js";
 import JourneyTimeline from "./JourneyTimeline.jsx";
 import { radarDomains, sectionAnchors } from "./portfolioData.js";
-import {
-  getRadarTone,
-  isLensRelevant,
-  isOverviewLens,
-} from "./portfolioLens.js";
+import { getRadarTone } from "./portfolioLens.js";
 import { SurfaceCard } from "./portfolioUi.jsx";
 import { PORTFOLIO_SECTION_TITLES } from "./sectionCatalog.js";
 import {
@@ -17,13 +16,22 @@ import {
   startCappedRadarSweep,
 } from "./radarSweepCadence.js";
 
+const SNAPSHOT_TABS = Object.freeze([
+  ["journey", "Career Timeline"],
+  ["risk-map", "Risk Exposure"],
+  ["mobility", "International Mobility"],
+]);
+
+/** Initial Professional Overview tab — Career Timeline (path → exposure → mobility). */
+const DEFAULT_SNAPSHOT_TAB = "journey";
+
 const journeyPanelTone = {
   dot: "bg-cyan-300",
 };
 
-export default function RiskRadar({ selectedLens = "Overview" }) {
+export default function RiskRadar({ selectedLens: _selectedLens = "Overview" }) {
   const [activeDomain, setActiveDomain] = useState(0);
-  const [mapView, setMapView] = useState("risk-map");
+  const [mapView, setMapView] = useState(DEFAULT_SNAPSHOT_TAB);
   const [activeJourneyIndex, setActiveJourneyIndex] = useState(0);
   const sweepRef = useRef(null);
   const selectedDomain = radarDomains[activeDomain];
@@ -33,7 +41,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
 
   // Step 4: mobile/iOS only — cap sweep compositor updates to ~30 FPS via one rAF loop.
   // Desktop keeps CSS @keyframes unchanged (effect no-ops when shouldReduce is false).
-  // Journey tab unmounts the sweep node and skips this effect entirely.
+  // Non-risk tabs unmount the sweep node and skip this effect entirely.
   useEffect(() => {
     if (mapView !== "risk-map") return undefined;
     const element = sweepRef.current;
@@ -49,34 +57,21 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
             {PORTFOLIO_SECTION_TITLES["risk-radar"]}
           </h2>
           <p className="mt-4 leading-7 text-slate-300">
-            An interactive view of my professional path, risk exposure and evolving areas of expertise.
+            An interactive view of my professional path, risk exposure and international career outlook.
           </p>
-          {mapView === "risk-map" && (
-            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
-              <span className="font-semibold uppercase tracking-[0.2em] text-slate-400">Domain status:</span>
-              <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                <span><span className="text-cyan-200/80">Primary</span> · stronger current exposure</span>
-                <span><span className="text-violet-200/80">Developing</span> · active competence-building</span>
-                <span><span className="text-amber-200/80">Emerging</span> · forward-looking focus</span>
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-stretch">
-          <div className="rounded-2xl border border-slate-800/80 bg-slate-900/45 p-4 shadow-xl shadow-slate-950/25 backdrop-blur sm:p-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="inline-flex rounded-lg border border-slate-800 bg-slate-950/45 p-1">
-                {[
-                  ["risk-map", "Risk Exposure"],
-                  ["journey", "Career Timeline"],
-                ].map(([value, label]) => (
+        <div className="grid gap-6 lg:min-h-[616px] lg:grid-cols-[minmax(0,1fr)_390px] lg:items-stretch">
+          <div className="rounded-2xl border border-slate-800/80 bg-slate-900/45 p-4 shadow-xl shadow-slate-950/25 backdrop-blur sm:p-6 lg:flex lg:h-full lg:flex-col">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 lg:shrink-0">
+              <div className="inline-flex max-w-full flex-wrap rounded-lg border border-slate-800 bg-slate-950/45 p-1">
+                {SNAPSHOT_TABS.map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
                     aria-pressed={mapView === value}
                     onClick={() => setMapView(value)}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
+                    className={`rounded-md px-2.5 py-1.5 text-[11px] font-medium transition sm:px-3 sm:text-xs ${
                       mapView === value
                         ? "bg-cyan-300/12 text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,0.12)]"
                         : "text-slate-400 hover:text-slate-200"
@@ -87,6 +82,8 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                 ))}
               </div>
             </div>
+            {/* Fills remaining left-panel height at lg so only journey content can be centered. */}
+            <div className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
             <AnimatePresence mode="wait">
               {mapView === "risk-map" ? (
                 <motion.div
@@ -141,12 +138,6 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
 
                   {radarDomains.map((domain, index) => {
                     const isActive = index === activeDomain;
-                    const isRelevant = isLensRelevant(selectedLens, "radar", domain.id);
-                    const showLensRelevance =
-                      !isOverviewLens(selectedLens) && isRelevant;
-                    // Dim unrelated domains only; never dim the selected exploration target.
-                    const isDimmed =
-                      !isOverviewLens(selectedLens) && !isRelevant && !isActive;
                     const tone = getRadarTone(domain.maturity);
                     return (
                       <button
@@ -155,26 +146,16 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                         data-role-lens-id={domain.id}
                         aria-pressed={isActive}
                         onClick={() => setActiveDomain(index)}
-                        className={`group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center transition-opacity ${
-                          isDimmed ? "opacity-60" : "opacity-100"
-                        }`}
+                        className="group absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center opacity-100 transition-opacity"
                         style={{ left: `${domain.x}%`, top: `${domain.y}%` }}
                       >
                         <span
                           className={`relative flex h-4 w-4 items-center justify-center rounded-full border transition ${
                             isActive
                               ? tone.activeDot
-                              : showLensRelevance
-                                ? "border-cyan-300/55 bg-slate-800 group-hover:border-cyan-300/70"
-                                : "border-slate-500 bg-slate-800 group-hover:border-cyan-300/60"
+                              : "border-slate-500 bg-slate-800 group-hover:border-cyan-300/60"
                           }`}
                         >
-                          {showLensRelevance ? (
-                            <span
-                              aria-hidden="true"
-                              className="role-lens-radar-node pointer-events-none absolute inset-0 rounded-full"
-                            />
-                          ) : null}
                           {isActive && (
                             <>
                               <motion.span
@@ -196,9 +177,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                           className={`max-w-[92px] text-[10px] font-medium leading-4 transition [text-shadow:0_1px_8px_rgba(2,6,23,0.92)] sm:max-w-[130px] sm:text-xs ${
                             isActive
                               ? "text-slate-50"
-                              : showLensRelevance
-                                ? "text-slate-200"
-                                : "text-slate-400 group-hover:text-slate-200"
+                              : "text-slate-400 group-hover:text-slate-200"
                           }`}
                         >
                           {domain.title}
@@ -207,13 +186,14 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                     );
                   })}
                 </motion.div>
-              ) : (
+              ) : mapView === "journey" ? (
                 <motion.div
                   key="journey"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
                   transition={{ duration: 0.22, ease: "easeOut" }}
+                  className="lg:flex lg:flex-1 lg:flex-col lg:justify-center"
                 >
                   <JourneyTimeline
                     milestones={journeyMilestones}
@@ -221,13 +201,24 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                     onSelect={setActiveJourneyIndex}
                   />
                 </motion.div>
+              ) : (
+                <motion.div
+                  key="mobility"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                >
+                  <InternationalMobility />
+                </motion.div>
               )}
             </AnimatePresence>
+            </div>
           </div>
 
           <SurfaceCard
             className={`p-5 sm:p-6 ${
-              mapView === "journey" ? "min-h-0 sm:min-h-[380px]" : "min-h-[380px]"
+              mapView === "risk-map" ? "min-h-[380px]" : "min-h-0 sm:min-h-[380px]"
             }`}
           >
             <AnimatePresence mode="wait">
@@ -274,7 +265,7 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                     </div>
                   </div>
                 </motion.div>
-              ) : (
+              ) : mapView === "journey" ? (
                 <motion.div
                   key={`journey-${selectedMilestone.id}`}
                   initial={{ opacity: 0, x: 24 }}
@@ -345,6 +336,16 @@ export default function RiskRadar({ selectedLens = "Overview" }) {
                       ) : null}
                     </>
                   )}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="mobility-summary"
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <InternationalMobilitySummary />
                 </motion.div>
               )}
             </AnimatePresence>

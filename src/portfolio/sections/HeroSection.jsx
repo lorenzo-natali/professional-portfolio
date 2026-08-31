@@ -41,8 +41,8 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
             </motion.h2>
 
             {/* pt/pb not mt/mb: index.css `p { margin: 0 }` overrides Tailwind margin utilities on paragraphs. */}
-            <p className="max-w-3xl pt-3 pb-6 text-sm leading-6 text-slate-300 sm:text-base sm:leading-7">
-              <span className="font-medium">IT Audit Specialist</span>
+            <p className="max-w-3xl pt-3 pb-6 text-sm leading-6 !text-white sm:text-base sm:leading-7">
+              <span className="font-medium">Currently IT Audit Specialist</span>
               <span className="font-normal"> at Banca Profilo · Milan</span>
             </p>
 

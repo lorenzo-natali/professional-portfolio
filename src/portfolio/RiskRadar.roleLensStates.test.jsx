@@ -7,18 +7,16 @@ function domainButton(title) {
   return screen.getByRole("button", { name: title });
 }
 
-function nodeDot(button) {
-  return button.querySelector(":scope > span.relative");
-}
-
-function hasRelevanceHalo(button) {
-  return Boolean(button.querySelector(".role-lens-radar-node"));
+async function openRiskExposure() {
+  fireEvent.click(screen.getByRole("button", { name: "Risk Exposure" }));
+  await waitFor(() => {
+    expect(document.querySelector(".radar-sweep")).toBeTruthy();
+  });
 }
 
 function hasSelectionPulses(button) {
   const abs = [...button.querySelectorAll(":scope > span.relative > span.absolute")];
-  // Selection uses dual expanding rings; relevance halo is a single inset-0 span.
-  return abs.filter((el) => !el.classList.contains("role-lens-radar-node")).length >= 2;
+  return abs.length >= 2;
 }
 
 async function expectPanelTitle(title) {
@@ -27,80 +25,49 @@ async function expectPanelTitle(title) {
   });
 }
 
-describe("Risk Exposure Role Lens visual states (Option B)", () => {
+describe("Risk Exposure domain selection (Role Lens–neutral)", () => {
   afterEach(cleanup);
 
-  it("keeps Role Lens relevance and radar selection independent", async () => {
+  it("keeps domain selection and detail panel independent of selectedLens", async () => {
     render(<RiskRadar selectedLens="Information Security Governance" />);
+    await openRiskExposure();
 
     const internalAudit = domainButton("Internal Audit & Assurance");
     const infoSec = domainButton("Information Security Governance");
 
     expect(internalAudit).toHaveAttribute("aria-pressed", "true");
     expect(infoSec).toHaveAttribute("aria-pressed", "false");
-    expect(hasRelevanceHalo(infoSec)).toBe(true);
-    expect(hasRelevanceHalo(internalAudit)).toBe(false);
     expect(hasSelectionPulses(internalAudit)).toBe(true);
     expect(hasSelectionPulses(infoSec)).toBe(false);
+    expect(document.querySelector(".role-lens-radar-node")).toBeNull();
     await expectPanelTitle("Internal Audit & Assurance");
   });
 
-  it("gives relevant-only nodes a halo without cyan fill or selection pulses", () => {
-    render(<RiskRadar selectedLens="Information Security Governance" />);
-    const infoSec = domainButton("Information Security Governance");
-    const dot = nodeDot(infoSec);
-
-    expect(hasRelevanceHalo(infoSec)).toBe(true);
-    expect(hasSelectionPulses(infoSec)).toBe(false);
-    expect(dot.className).toContain("bg-slate-800");
-    expect(dot.className).not.toContain("bg-cyan-300");
-    expect(infoSec).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("composes selected + Role-Lens-relevant treatments", async () => {
-    render(<RiskRadar selectedLens="Information Security Governance" />);
-    const infoSec = domainButton("Information Security Governance");
-
-    fireEvent.click(infoSec);
-
-    expect(infoSec).toHaveAttribute("aria-pressed", "true");
-    expect(hasSelectionPulses(infoSec)).toBe(true);
-    expect(hasRelevanceHalo(infoSec)).toBe(true);
-    await expectPanelTitle("Information Security Governance");
-  });
-
-  it("keeps selected unrelated domains fully selected and not dimmed or disabled", async () => {
-    render(<RiskRadar selectedLens="Information Security Governance" />);
-    const tech = domainButton("Technology & ICT Risk");
-    const infoSec = domainButton("Information Security Governance");
-
-    fireEvent.click(tech);
-
-    expect(tech).toHaveAttribute("aria-pressed", "true");
-    expect(tech).not.toHaveAttribute("disabled");
-    expect(tech).not.toHaveAttribute("aria-disabled");
-    expect(tech.className).not.toContain("opacity-60");
-    expect(hasSelectionPulses(tech)).toBe(true);
-    expect(hasRelevanceHalo(tech)).toBe(false);
-    expect(hasRelevanceHalo(infoSec)).toBe(true);
-    await expectPanelTitle("Technology & ICT Risk");
-  });
-
-  it("updates the right panel without changing Role Lens when clicking an unrelated domain", async () => {
-    const { rerender } = render(
-      <RiskRadar selectedLens="Information Security Governance" />
-    );
-    fireEvent.click(domainButton("Technology & ICT Risk"));
-    await expectPanelTitle("Technology & ICT Risk");
-
-    // Role Lens is owned by the parent; same lens after click proves radar did not clear it.
-    rerender(<RiskRadar selectedLens="Information Security Governance" />);
-    expect(domainButton("Technology & ICT Risk")).toHaveAttribute("aria-pressed", "true");
-    expect(hasRelevanceHalo(domainButton("Information Security Governance"))).toBe(true);
-  });
-
-  it("reflects only activeDomain in aria-pressed across all radar domains", () => {
+  it("does not apply Role Lens halo or dimming under any lens", async () => {
     render(<RiskRadar selectedLens="Technology Risk" />);
+    await openRiskExposure();
+
+    for (const domain of radarDomains) {
+      const button = domainButton(domain.title);
+      expect(button.querySelector(".role-lens-radar-node")).toBeNull();
+      expect(button.className).not.toContain("opacity-60");
+      expect(button).not.toHaveAttribute("disabled");
+    }
+  });
+
+  it("updates the right panel when selecting a domain", async () => {
+    render(<RiskRadar selectedLens="Information Security Governance" />);
+    await openRiskExposure();
+    fireEvent.click(domainButton("Technology & ICT Risk"));
+
+    expect(domainButton("Technology & ICT Risk")).toHaveAttribute("aria-pressed", "true");
+    expect(hasSelectionPulses(domainButton("Technology & ICT Risk"))).toBe(true);
+    await expectPanelTitle("Technology & ICT Risk");
+  });
+
+  it("reflects only activeDomain in aria-pressed across all radar domains", async () => {
+    render(<RiskRadar selectedLens="Technology Risk" />);
+    await openRiskExposure();
 
     for (const domain of radarDomains) {
       const pressed = domain.title === "Internal Audit & Assurance" ? "true" : "false";
@@ -115,8 +82,9 @@ describe("Risk Exposure Role Lens visual states (Option B)", () => {
     }
   });
 
-  it("does not auto-change activeDomain when Role Lens changes", async () => {
+  it("does not auto-change activeDomain when selectedLens changes", async () => {
     const { rerender } = render(<RiskRadar selectedLens="Overview" />);
+    await openRiskExposure();
     fireEvent.click(domainButton("AI Governance"));
     expect(domainButton("AI Governance")).toHaveAttribute("aria-pressed", "true");
     await expectPanelTitle("AI Governance");
@@ -126,34 +94,25 @@ describe("Risk Exposure Role Lens visual states (Option B)", () => {
     await expectPanelTitle("AI Governance");
   });
 
-  it("does not apply Role Lens relevance halos under Overview", () => {
-    render(<RiskRadar selectedLens="Overview" />);
+  it("preserves data-role-lens-id on every radar domain for Assistant contracts", async () => {
+    render(<RiskRadar />);
+    await openRiskExposure();
 
     for (const domain of radarDomains) {
-      const button = domainButton(domain.title);
-      expect(hasRelevanceHalo(button)).toBe(false);
-      expect(button).not.toBeDisabled();
+      expect(domainButton(domain.title)).toHaveAttribute("data-role-lens-id", domain.id);
     }
-
-    const selected = domainButton("Internal Audit & Assurance");
-    expect(selected).toHaveAttribute("aria-pressed", "true");
-    expect(hasSelectionPulses(selected)).toBe(true);
   });
 
-  it("marks both Technology Risk radar associations as relevant and keeps all domains clickable", async () => {
-    render(<RiskRadar selectedLens="Technology Risk" />);
-
-    const tech = domainButton("Technology & ICT Risk");
-    const resilience = domainButton("Operational & Digital Resilience");
-    expect(hasRelevanceHalo(tech)).toBe(true);
-    expect(hasRelevanceHalo(resilience)).toBe(true);
+  it("keeps all domains clickable and shows maturity pill for the active domain", async () => {
+    render(<RiskRadar selectedLens="Overview" />);
+    await openRiskExposure();
 
     for (const domain of radarDomains) {
       const button = domainButton(domain.title);
-      expect(button).not.toHaveAttribute("disabled");
       fireEvent.click(button);
       expect(button).toHaveAttribute("aria-pressed", "true");
       await expectPanelTitle(domain.title);
+      expect(screen.getByText(domain.maturity)).toBeTruthy();
     }
   });
 });

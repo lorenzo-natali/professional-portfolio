@@ -260,24 +260,39 @@ describe("Snapshot Journey integration", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps Risk Exposure as the default Overview tab", () => {
+  it("keeps Career Timeline as the default Overview tab", () => {
     render(<RiskRadar />);
     expect(
       screen.getByRole("heading", { level: 2, name: "Professional Overview" })
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Risk Exposure" })).toHaveAttribute(
+    const tabs = screen.getAllByRole("button").filter((btn) =>
+      ["Career Timeline", "Risk Exposure", "International Mobility"].includes(
+        btn.textContent ?? ""
+      )
+    );
+    expect(tabs.map((btn) => btn.textContent)).toEqual([
+      "Career Timeline",
+      "Risk Exposure",
+      "International Mobility",
+    ]);
+    expect(screen.getByRole("button", { name: "Career Timeline" })).toHaveAttribute(
       "aria-pressed",
       "true"
     );
-    expect(screen.getByRole("button", { name: "Career Timeline" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Risk Exposure" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(screen.getByRole("button", { name: "International Mobility" })).toHaveAttribute(
       "aria-pressed",
       "false"
     );
     expect(screen.queryByRole("button", { name: "Profile Coverage" })).toBeNull();
-    expect(document.querySelector(".radar-sweep")).toBeTruthy();
+    expect(document.querySelector(".radar-sweep")).toBeNull();
+    expect(screen.getByRole("button", { name: "Older year" })).toBeTruthy();
     expect(
       screen.getByText(
-        "An interactive view of my professional path, risk exposure and evolving areas of expertise."
+        "An interactive view of my professional path, risk exposure and international career outlook."
       )
     ).toBeTruthy();
   });

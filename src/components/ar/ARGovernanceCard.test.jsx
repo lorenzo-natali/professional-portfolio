@@ -30,5 +30,8 @@ describe("ARGovernanceCard entry button", () => {
     expect(mark.getAttribute("style") || "").toMatch(/mask-image/i);
     expect(button.querySelector("animate")).toBeNull();
     expect(button.querySelector("animateTransform")).toBeNull();
+    expect(
+      screen.getByText("Discover the person behind the professional.")
+    ).toBeTruthy();
   });
 });

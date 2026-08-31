@@ -1,79 +1,96 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import CredentialsSection from "./CredentialsSection.jsx";
-import { additionalTraining, lensRelevance } from "../portfolioData.js";
-import { lensOptions } from "../portfolioLens.js";
+import { additionalTraining } from "../portfolioData.js";
 
-function getAdditionalTrainingSubsection(container) {
-  return container.querySelector("[data-additional-training-subsection]");
+function trainingCard(container, id) {
+  return container.querySelector(`[data-role-lens-id="${id}"]`);
 }
 
-describe("CredentialsSection additional training Role Lens state", () => {
+function expectHighlighted(el) {
+  expect(el.className).toMatch(/role-lens-highlight-cyan/);
+  expect(el.className).not.toMatch(/\bopacity-55\b/);
+}
+
+function expectDimmed(el) {
+  expect(el.className).toMatch(/\bopacity-55\b/);
+  expect(el.className).not.toMatch(/role-lens-highlight/);
+}
+
+function expectNeutralOverview(el) {
+  expect(el.className).not.toMatch(/role-lens-highlight/);
+  expect(el.className).not.toMatch(/\bopacity-55\b/);
+}
+
+describe("CredentialsSection additional training Role Lens (per-item)", () => {
   afterEach(cleanup);
 
-  it("keeps the subsection at normal brightness in Overview", () => {
-    const { container } = render(
-      <CredentialsSection selectedLens="Overview" />
-    );
+  it("keeps training cards neutral in Overview", () => {
+    const { container } = render(<CredentialsSection selectedLens="Overview" />);
+    const subsection = container.querySelector("[data-additional-training-subsection]");
+    expect(subsection).not.toHaveClass("opacity-55");
 
-    expect(getAdditionalTrainingSubsection(container)).not.toHaveClass(
-      "opacity-55"
+    for (const item of additionalTraining.items) {
+      expectNeutralOverview(trainingCard(container, item.id));
+    }
+  });
+
+  it("highlights Digital Banking / eIDAS / AI Act for AI Governance, Technology Risk, and Banking Risk", () => {
+    for (const lens of ["AI Governance", "Technology Risk", "Banking Risk"]) {
+      const { container, unmount } = render(<CredentialsSection selectedLens={lens} />);
+      expectHighlighted(
+        trainingCard(container, "additional-training-digital-banking-eidas-ai-act")
+      );
+      unmount();
+    }
+  });
+
+  it("does not map Digital Banking / eIDAS training to Information Security Governance", () => {
+    const { container } = render(
+      <CredentialsSection selectedLens="Information Security Governance" />
+    );
+    expectDimmed(
+      trainingCard(container, "additional-training-digital-banking-eidas-ai-act")
     );
   });
 
-  it.each(lensOptions.map((lens) => lens.name))(
-    "dims the entire subsection for the %s lens",
-    (selectedLens) => {
-      const { container } = render(
-        <CredentialsSection selectedLens={selectedLens} />
-      );
-
-      expect(getAdditionalTrainingSubsection(container)).toHaveClass(
-        "opacity-55"
-      );
+  it("highlights GDPR / Banking / AI Governance training for InfoSec, AI Governance, and Banking Risk", () => {
+    for (const lens of [
+      "Information Security Governance",
+      "AI Governance",
+      "Banking Risk",
+    ]) {
+      const { container, unmount } = render(<CredentialsSection selectedLens={lens} />);
+      expectHighlighted(trainingCard(container, "additional-training-gdpr-banking"));
+      unmount();
     }
-  );
+  });
 
-  it("restores normal brightness when the active lens is cleared", () => {
+  it("keeps Chinese Language and Healthcare / BLS unmapped (dimmed under active lenses)", () => {
+    const { container } = render(<CredentialsSection selectedLens="AI Governance" />);
+    expectDimmed(trainingCard(container, "additional-training-chinese-language"));
+    expectDimmed(trainingCard(container, "additional-training-healthcare-transport"));
+  });
+
+  it("restores neutral training cards when the lens is cleared", () => {
     const { container, rerender } = render(
-      <CredentialsSection selectedLens="IT Audit" />
+      <CredentialsSection selectedLens="Banking Risk" />
     );
-    const subsection = getAdditionalTrainingSubsection(container);
-    expect(subsection).toHaveClass("opacity-55");
+    expectHighlighted(
+      trainingCard(container, "additional-training-digital-banking-eidas-ai-act")
+    );
 
     rerender(<CredentialsSection selectedLens="Overview" />);
-    expect(subsection).not.toHaveClass("opacity-55");
-  });
-
-  it("keeps every unmapped training card inside the dimmed wrapper", () => {
-    const { container } = render(
-      <CredentialsSection selectedLens="AI Governance" />
-    );
-    const subsection = getAdditionalTrainingSubsection(container);
-    const trainingCards = additionalTraining.items.map((item) =>
-      container.querySelector(`[data-role-lens-id="${item.id}"]`)
-    );
-
-    expect(subsection).toHaveClass("opacity-55");
-    expect(trainingCards).toHaveLength(additionalTraining.items.length);
-    for (const card of trainingCards) {
-      expect(card).toBeTruthy();
-      expect(subsection.contains(card)).toBe(true);
-    }
-
-    const mappedValues = Object.values(lensRelevance).flatMap((groups) =>
-      Object.values(groups).flat()
-    );
     for (const item of additionalTraining.items) {
-      expect(mappedValues).not.toContain(item.id);
+      expectNeutralOverview(trainingCard(container, item.id));
     }
   });
 
-  it("keeps attestation links usable while the subsection is dimmed", () => {
+  it("keeps attestation links usable while unmapped cards are dimmed", () => {
     const { container } = render(
-      <CredentialsSection selectedLens="Technology Risk" />
+      <CredentialsSection selectedLens="IT Audit" />
     );
-    const subsection = getAdditionalTrainingSubsection(container);
+    const subsection = container.querySelector("[data-additional-training-subsection]");
     const links = within(subsection).getAllByRole("link", {
       name: "View attestation",
     });
@@ -84,10 +101,8 @@ describe("CredentialsSection additional training Role Lens state", () => {
     expect(links.map((link) => link.getAttribute("href"))).toEqual(expectedUrls);
     expect(subsection).not.toHaveAttribute("aria-hidden");
     expect(subsection).not.toHaveAttribute("inert");
-    expect(subsection).not.toHaveClass("pointer-events-none");
 
     for (const link of links) {
-      expect(link).not.toHaveAttribute("disabled");
       expect(link.closest('[aria-hidden="true"]')).toBeNull();
       expect(link.closest("[inert]")).toBeNull();
       expect(link.closest(".pointer-events-none")).toBeNull();
@@ -98,49 +113,38 @@ describe("CredentialsSection additional training Role Lens state", () => {
     expect(screen.getByText(additionalTraining.label)).toBeTruthy();
   });
 
-  it("keeps Role Lens glow room without shifting cards off the content column", async () => {
+  it("keeps Role Lens glow room on the credentials rail without w-max width bomb", async () => {
     const { container } = render(<CredentialsSection selectedLens="IT Audit" />);
     const rail = container.querySelector(".credentials-rail");
-
-    expect(rail).toBeTruthy();
-    expect(rail).toHaveClass("overflow-x-auto");
     expect(rail).toHaveClass("role-lens-highlight-rail");
-    // Bleed matches Section padding so cards align with attestation / titles.
+    expect(rail).toHaveClass("overflow-x-auto");
+
+    const track = rail?.firstElementChild;
+    expect(track.className).not.toMatch(/\bw-max\b/);
+
+    const cisa = container.querySelector('[data-role-lens-id="credential-cisa"]');
+    expect(cisa.className).toMatch(/role-lens-highlight-cyan/);
+  });
+
+  it("gives the attestation rail the same Role Lens glow room without w-max or % width cards", () => {
+    const { container } = render(<CredentialsSection selectedLens="Banking Risk" />);
+    const rail = container.querySelector(".attestation-rail");
+    expect(rail).toHaveClass("role-lens-highlight-rail");
+    expect(rail).toHaveClass("overflow-x-auto");
     expect(rail.className).toMatch(/-mx-5/);
     expect(rail.className).toMatch(/sm:-mx-8/);
     expect(rail.className).toMatch(/lg:-mx-10/);
 
-    const { readFileSync } = await import("node:fs");
-    const { resolve } = await import("node:path");
-    const css = readFileSync(resolve("src/index.css"), "utf8");
-    expect(css).toMatch(
-      /\.role-lens-highlight-rail\s*\{[^}]*padding-inline:\s*1\.25rem/s
-    );
-    expect(css).toMatch(
-      /\.role-lens-highlight-rail\s*\{[^}]*scroll-padding-inline:\s*1\.25rem/s
-    );
-
-    const cisa = container.querySelector('[data-role-lens-id="credential-cisa"]');
-    const attestation = container.querySelector(".attestation-rail");
-    expect(cisa).toBeTruthy();
-    expect(cisa.className).toMatch(/role-lens-highlight-cyan/);
-    expect(rail.contains(cisa)).toBe(true);
-    expect(attestation).toBeTruthy();
-  });
-
-  it("does not put percentage-width cards inside a w-max track (mobile width bomb)", () => {
-    const { container } = render(<CredentialsSection />);
-    const rail = container.querySelector(".credentials-rail");
     const track = rail?.firstElementChild;
-    const cards = [...container.querySelectorAll("[data-role-lens-id^=\"credential-\"]")];
-
     expect(track).toBeTruthy();
-    // Inner track may be flex+snap, but must not be w-max while cards use w-[78%].
+    expect(track.className).toMatch(/\bflex\b/);
     expect(track.className).not.toMatch(/\bw-max\b/);
-    expect(cards.length).toBeGreaterThan(0);
-    for (const card of cards) {
-      expect(card.className).toMatch(/w-\[78%\]/);
-      expect(card.className).toMatch(/sm:w-\[20rem\]/);
-    }
+
+    const first = container.querySelector(
+      '[data-role-lens-id="additional-training-digital-banking-eidas-ai-act"]'
+    );
+    expect(first.className).toMatch(/role-lens-highlight-cyan/);
+    expect(first.className).toMatch(/min-w-\[20rem\]/);
+    expect(first.className).not.toMatch(/w-\[78%\]/);
   });
 });

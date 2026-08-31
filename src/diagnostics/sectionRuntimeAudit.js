@@ -93,13 +93,13 @@ export const PORTFOLIO_SECTION_RUNTIME_AUDIT = Object.freeze([
   },
   {
     section: "risk-radar",
-    files: "RiskRadar.jsx, JourneyTimeline.jsx, index.css (radar-sweep, lens-glow)",
+    files: "RiskRadar.jsx, JourneyTimeline.jsx, InternationalMobility.jsx, mobilityData.js, index.css (radar-sweep, lens-glow)",
     continuousRuntime:
-      "Framer Motion repeat: Infinity dual pulses on active risk-map node; CSS radar-sweep 28s infinite; lens-glow-clock when highlights apply; Journey year changes use finite Framer fade/translate only (no idle loops)",
+      "Framer Motion repeat: Infinity dual pulses on active risk-map node; CSS radar-sweep 28s infinite; Journey year changes use finite Framer fade/translate only (no idle loops); International Mobility is static raster + static DOM/CSS markers/text (no timers/rAF/observers); Risk Exposure is Role Lens–neutral (no lens halo/dimming)",
     compositorHeavyCss:
-      "radar-sweep blur + will-change:transform; large backdrop-blur map panel; multi-layer shadows; Risk Map SVG spokes",
+      "radar-sweep blur + will-change:transform; large backdrop-blur map panel; multi-layer shadows; Risk Map SVG spokes; Mobility uses one decorative PNG (no SVG filters/blur/backdrop-filter)",
     observers: "none dedicated (Framer internal)",
-    cleanup: "Framer cancels on unmount; CSS stops on detach",
+    cleanup: "Framer cancels on unmount; CSS stops on detach; mobility unmounts with tab switch",
     risk: "high",
   },
 ]);

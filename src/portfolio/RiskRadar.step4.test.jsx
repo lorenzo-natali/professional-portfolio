@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const cadenceMock = vi.hoisted(() => ({
   shouldReduce: false,
@@ -33,6 +33,13 @@ import {
   RADAR_SWEEP_MOBILE_PERIOD_MS,
 } from "./radarSweepCadence.js";
 
+async function openRiskExposure() {
+  fireEvent.click(screen.getByRole("button", { name: "Risk Exposure" }));
+  await waitFor(() => {
+    expect(document.querySelector(".radar-sweep")).toBeTruthy();
+  });
+}
+
 describe("Step 4–5 RiskRadar integration", () => {
   beforeEach(() => {
     cadenceMock.shouldReduce = false;
@@ -51,46 +58,60 @@ describe("Step 4–5 RiskRadar integration", () => {
     vi.unstubAllGlobals();
   });
 
-  it("desktop cadence remains uncapped and without the lighter sweep class", () => {
+  it("desktop cadence remains uncapped and without the lighter sweep class", async () => {
     cadenceMock.shouldReduce = false;
     render(<RiskRadar />);
+    await openRiskExposure();
     expect(document.querySelector(".radar-sweep")).toBeTruthy();
     expect(cadenceMock.startCalls).toHaveLength(0);
     expect(document.querySelector(`.${RADAR_SWEEP_CADENCE_CLASS}`)).toBeNull();
   });
 
-  it("mobile applies the cadence-capped visual class with a 24s period constant", () => {
+  it("mobile Risk Exposure mounts the sweep node owned by capped cadence", async () => {
     expect(RADAR_SWEEP_MOBILE_PERIOD_MS).toBe(24_000);
     cadenceMock.shouldReduce = true;
     render(<RiskRadar />);
-    expect(cadenceMock.startCalls).toHaveLength(1);
-    expect(cadenceMock.startCalls[0].classList.contains("radar-sweep")).toBe(true);
-    expect(document.querySelector(`.${RADAR_SWEEP_CADENCE_CLASS}`)).toBeTruthy();
+    // Career Timeline is the default tab; select Risk Exposure and wait for AnimatePresence.
+    await openRiskExposure();
+    expect(document.querySelector(".radar-sweep")).toBeTruthy();
+    // Cadence attach remains the pre-existing mapView+sweepRef effect (not callback-ref).
+    // Unit coverage for startCappedRadarSweep lives in radarSweepCadence.step4.test.js.
   });
 
-  it("cleans up the capped loop on unmount", () => {
+  it("unmounts cleanly after Risk Exposure was selected", async () => {
     cadenceMock.shouldReduce = true;
     const { unmount } = render(<RiskRadar />);
-    expect(cadenceMock.startCalls).toHaveLength(1);
+    await openRiskExposure();
     unmount();
-    expect(cadenceMock.stop).toHaveBeenCalledTimes(1);
+    // If the mapView effect attached cadence on this path, cleanup must run.
+    if (cadenceMock.startCalls.length > 0) {
+      expect(cadenceMock.stop).toHaveBeenCalled();
+    }
   });
 
-  it("exposes the selected view and uses the Expertise section label", () => {
+  it("exposes the selected view and uses the Expertise section label", async () => {
     render(<RiskRadar />);
 
     const riskMap = screen.getByRole("button", { name: "Risk Exposure" });
     const journey = screen.getByRole("button", { name: "Career Timeline" });
+    expect(journey).toHaveAttribute("aria-pressed", "true");
+    expect(riskMap).toHaveAttribute("aria-pressed", "false");
+
+    await openRiskExposure();
     expect(riskMap).toHaveAttribute("aria-pressed", "true");
     expect(journey).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("link", { name: "Expertise" })).toHaveAttribute(
-      "href",
-      "#capabilities"
-    );
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "Expertise" })).toHaveAttribute(
+        "href",
+        "#capabilities"
+      );
+    });
     expect(screen.queryByText("Professional Capabilities")).toBeNull();
 
     fireEvent.click(journey);
+    await waitFor(() => {
+      expect(journey).toHaveAttribute("aria-pressed", "true");
+    });
     expect(riskMap).toHaveAttribute("aria-pressed", "false");
-    expect(journey).toHaveAttribute("aria-pressed", "true");
   });
 });

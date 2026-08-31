@@ -11,14 +11,8 @@ describe("Technology Risk vs Information Security Governance differentiation", (
     expect(tech.capabilities).toEqual(["capability-technology-risk"]);
   });
 
-  it("maps Technology Risk radar to ICT Risk and Operational Resilience only", () => {
-    expect(tech.radar).toContain("radar-technology-ict-risk");
-    expect(tech.radar).toContain("radar-operational-resilience");
-    expect(tech.radar).not.toContain("radar-information-security-governance");
-    expect(tech.radar).toEqual([
-      "radar-technology-ict-risk",
-      "radar-operational-resilience",
-    ]);
+  it("keeps Technology Risk radar mappings empty (Risk Exposure is Role Lens–neutral)", () => {
+    expect(tech.radar).toEqual([]);
   });
 
   it("gives Information Security Governance a primary InfoSec capability only", () => {
@@ -27,11 +21,18 @@ describe("Technology Risk vs Information Security Governance differentiation", (
     expect(infoSec.capabilities).toEqual(["capability-information-security"]);
   });
 
-  it("maps Information Security Governance radar to the InfoSec domain only", () => {
-    expect(infoSec.radar).toContain("radar-information-security-governance");
-    expect(infoSec.radar).not.toContain("radar-technology-ict-risk");
-    expect(infoSec.radar).not.toContain("radar-operational-resilience");
-    expect(infoSec.radar).toEqual(["radar-information-security-governance"]);
+  it("keeps Information Security Governance radar mappings empty", () => {
+    expect(infoSec.radar).toEqual([]);
+  });
+
+  it("differentiates training evidence without forcing eIDAS onto InfoSec", () => {
+    expect(tech.additionalTraining).toEqual([
+      "additional-training-digital-banking-eidas-ai-act",
+    ]);
+    expect(infoSec.additionalTraining).toEqual(["additional-training-gdpr-banking"]);
+    expect(infoSec.additionalTraining).not.toContain(
+      "additional-training-digital-banking-eidas-ai-act"
+    );
   });
 
   it("keeps legitimate shared experience and credential evidence", () => {

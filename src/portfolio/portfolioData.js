@@ -514,6 +514,7 @@ export const lensRelevance = {
     projects: [],
     radar: [],
     education: [],
+    additionalTraining: [],
     streamItems: [],
   },
   "IT Audit": {
@@ -521,8 +522,9 @@ export const lensRelevance = {
     credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-banca-profilo", "experience-boc"],
     projects: [],
-    radar: ["radar-control-audit-risk", "radar-technology-ict-risk", "radar-operational-resilience"],
-    education: [],
+    radar: [],
+    education: ["education-altis-ey"],
+    additionalTraining: [],
     streamItems: ["Internal Audit", "Internal Controls", "SOX Principles", "ITGC"],
   },
   "Technology Risk": {
@@ -530,8 +532,9 @@ export const lensRelevance = {
     credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-banca-profilo", "experience-boc"],
     projects: [],
-    radar: ["radar-technology-ict-risk", "radar-operational-resilience"],
+    radar: [],
     education: [],
+    additionalTraining: ["additional-training-digital-banking-eidas-ai-act"],
     streamItems: [
       "DORA",
       "Operational Resilience",
@@ -548,8 +551,9 @@ export const lensRelevance = {
     credentials: ["credential-cisa", "credential-crisc"],
     experiences: ["experience-banca-profilo", "experience-boc"],
     projects: [],
-    radar: ["radar-information-security-governance"],
+    radar: [],
     education: [],
+    additionalTraining: ["additional-training-gdpr-banking"],
     streamItems: ["ISO/IEC 27001", "NIST CSF", "COBIT", "ITGC", "NIS2"],
   },
   "AI Governance": {
@@ -557,8 +561,12 @@ export const lensRelevance = {
     credentials: ["credential-aair"],
     experiences: [],
     projects: ["project-ai-audit-workflow", "project-codeiak"],
-    radar: ["radar-ai-model-governance", "radar-technology-ict-risk", "radar-information-security-governance", "radar-control-audit-risk"],
+    radar: [],
     education: [],
+    additionalTraining: [
+      "additional-training-digital-banking-eidas-ai-act",
+      "additional-training-gdpr-banking",
+    ],
     streamItems: ["EU AI Act", "ISO/IEC 42001", "NIST AI RMF", "Local LLMs", "AI Agents", "LLM Evaluation"],
   },
   "Banking Risk": {
@@ -566,8 +574,12 @@ export const lensRelevance = {
     credentials: ["credential-frm"],
     experiences: ["experience-boc", "experience-prelios"],
     projects: [],
-    radar: ["radar-credit-risk", "radar-regulatory-compliance-risk", "radar-control-audit-risk"],
-    education: [],
+    radar: [],
+    education: ["education-altis-ey", "education-banking-sciences"],
+    additionalTraining: [
+      "additional-training-digital-banking-eidas-ai-act",
+      "additional-training-gdpr-banking",
+    ],
     streamItems: ["IFRS 9 / ECL", "Credit Risk", "ICAAP / ILAAP", "Pillar III", "Basel III / IV", "CRD VI"],
   },
 };

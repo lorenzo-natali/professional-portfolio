@@ -1,14 +1,10 @@
 import { Award } from "lucide-react";
 import { additionalTraining, credentials } from "../portfolioData.js";
-import { isOverviewLens, lensSurfaceClass } from "../portfolioLens.js";
+import { lensSurfaceClass } from "../portfolioLens.js";
 import { Section, SurfaceCard } from "../portfolioUi.jsx";
 import { PORTFOLIO_SECTION_TITLES } from "../sectionCatalog.js";
 
 export default function CredentialsSection({ selectedLens = "Overview" }) {
-  const additionalTrainingLensClass = isOverviewLens(selectedLens)
-    ? ""
-    : "opacity-55";
-
   return (
       <Section id="credentials" title={PORTFOLIO_SECTION_TITLES.credentials} className="bg-slate-950/80">
         <div className="credentials-rail role-lens-highlight-rail -mx-5 overflow-x-auto sm:-mx-8 lg:-mx-10">
@@ -55,33 +51,37 @@ export default function CredentialsSection({ selectedLens = "Overview" }) {
           ))}
           </div>
         </div>
-        <div
-          data-additional-training-subsection
-          className={`mt-6 ${additionalTrainingLensClass}`}
-        >
+        <div data-additional-training-subsection className="mt-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-50">{additionalTraining.label}</p>
-          <div className="attestation-rail mt-2 flex gap-4 overflow-x-auto pb-3 pt-1">
-            {additionalTraining.items.map((item) => (
-              <div
-                key={item.id}
-                data-role-lens-id={item.id}
-                className="attestation-card group relative min-w-[20rem] snap-start overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900/55 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur transition hover:-translate-y-1 hover:border-slate-700 hover:bg-slate-900/75 hover:shadow-xl hover:shadow-slate-950/30 sm:min-w-[23rem] lg:min-w-[24rem]"
-              >
-                <h3 className="font-medium leading-6 text-slate-50">{item.title}</h3>
-                <p className="mt-1.5 text-xs leading-5 text-cyan-200/80">{item.subtitle}</p>
-                <p className="mt-3 text-sm leading-6 text-slate-300">{item.description}</p>
-                {item.attestation?.url ? (
-                  <a
-                    href={item.attestation.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex text-xs text-slate-300 underline decoration-slate-700/80 underline-offset-2 transition hover:text-cyan-200/70 hover:decoration-cyan-400/35"
-                  >
-                    {item.attestation.label}
-                  </a>
-                ) : null}
-              </div>
-            ))}
+          {/*
+            Mirror credentials-rail Role Lens glow room: section-padding bleed +
+            role-lens-highlight-rail inset. Fixed min-w cards (not %). Inner flex
+            track only — never w-max.
+          */}
+          <div className="attestation-rail role-lens-highlight-rail -mx-5 mt-2 overflow-x-auto sm:-mx-8 lg:-mx-10">
+            <div className="flex gap-4">
+              {additionalTraining.items.map((item) => (
+                <div
+                  key={item.id}
+                  data-role-lens-id={item.id}
+                  className={`attestation-card group relative min-w-[20rem] snap-start overflow-hidden rounded-xl border border-slate-800/60 bg-slate-900/55 p-4 text-sm shadow-lg shadow-slate-950/10 backdrop-blur transition hover:-translate-y-1 hover:border-slate-700 hover:bg-slate-900/75 hover:shadow-xl hover:shadow-slate-950/30 sm:min-w-[23rem] lg:min-w-[24rem] ${lensSurfaceClass(selectedLens, "additionalTraining", item.id)}`}
+                >
+                  <h3 className="font-medium leading-6 text-slate-50">{item.title}</h3>
+                  <p className="mt-1.5 text-xs leading-5 text-cyan-200/80">{item.subtitle}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-300">{item.description}</p>
+                  {item.attestation?.url ? (
+                    <a
+                      href={item.attestation.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 inline-flex text-xs text-slate-300 underline decoration-slate-700/80 underline-offset-2 transition hover:text-cyan-200/70 hover:decoration-cyan-400/35"
+                    >
+                      {item.attestation.label}
+                    </a>
+                  ) : null}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </Section>
