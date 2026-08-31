@@ -4,6 +4,7 @@ import {
   checkArTargetAvailable,
   isValidMindTargetBuffer,
   loadArTargetBuffer,
+  resetArTargetAvailabilityCacheForTests,
 } from "./checkArTargetAvailable";
 import { createValidMindFixture } from "./mindTargetFixture";
 
@@ -27,6 +28,7 @@ describe("checkArTargetAvailable / loadArTargetBuffer", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    resetArTargetAvailabilityCacheForTests();
   });
 
   it("returns unavailable for 404 HTML", async () => {

@@ -6,7 +6,7 @@
  * values such as isMobile. intentionalClose is recorded only when open → false.
  */
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ARTrackingProvider } from "./tracking/ARTrackingProvider";
 import ARDesktopGate from "./ARDesktopGate";
@@ -36,6 +36,37 @@ import {
   getDisplayedArExitReason,
   recordArExitTrace,
 } from "./createArExitTrace";
+import {
+  peekArTargetAvailable,
+  prewarmArTargetAvailable,
+} from "./checkArTargetAvailable";
+
+/**
+ * Resolve .mind target availability before painting intro CTAs.
+ * Uses the module prewarm cache when already warm (typical after page load).
+ * @returns {"pending" | "available" | "unavailable"}
+ */
+function useIntroTargetAvailability() {
+  const [status, setStatus] = useState(() => {
+    const peeked = peekArTargetAvailable();
+    if (peeked === true) return "available";
+    if (peeked === false) return "unavailable";
+    return "pending";
+  });
+
+  useEffect(() => {
+    if (status !== "pending") return undefined;
+    let cancelled = false;
+    prewarmArTargetAvailable().then((ok) => {
+      if (!cancelled) setStatus(ok ? "available" : "unavailable");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  return status;
+}
 
 function unavailableCopy(reason) {
   switch (reason) {
@@ -72,6 +103,7 @@ function ARGovernanceExperience({ isMobile, onClose }) {
     Boolean(flags.arCrashDiag);
   const [screen, setScreen] = useState(() => initialArScreen(isMobile, flags));
   const [unavailableReason, setUnavailableReason] = useState(null);
+  const introTarget = useIntroTargetAvailability();
 
   const goUnavailable = (reason) => {
     if (typeof window !== "undefined") {
@@ -116,8 +148,9 @@ function ARGovernanceExperience({ isMobile, onClose }) {
     <>
       {screen === "desktop" && <ARDesktopGate onClose={onClose} />}
 
-      {screen === "intro" && (
+      {screen === "intro" && introTarget !== "pending" && (
         <ARGovernanceIntro
+          targetAvailable={introTarget === "available"}
           previousExitReason={
             flags.arCrashDiag ? getDisplayedArExitReason() : null
           }
@@ -174,6 +207,11 @@ export default function ARGovernanceView({ open, onClose }) {
   /** Tracks latest open for cleanup: intentional close only when open → false. */
   const openRef = useRef(open);
   openRef.current = open;
+
+  // Warm the .mind probe while closed so mobile open can paint both intro CTAs.
+  useEffect(() => {
+    prewarmArTargetAvailable();
+  }, []);
 
   const portalHost = useMemo(() => {
     if (!open || typeof document === "undefined") return null;

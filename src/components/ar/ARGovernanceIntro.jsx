@@ -1,27 +1,27 @@
 import { useEffect, useState } from "react";
-import { checkArTargetAvailable } from "./checkArTargetAvailable";
 import { recordArExitTrace } from "./createArExitTrace";
 
 /**
  * Lightweight transition before launching AR.
  * Camera permission is never requested here — only after “Activate Camera”.
+ * Parent mounts this only after .mind target availability is already known
+ * so the first paint never shows a Back-only intermediate layout.
+ *
+ * @param {{
+ *   onActivateCamera: () => void,
+ *   onBack: () => void,
+ *   previousExitReason?: string | null,
+ *   targetAvailable: boolean,
+ * }} props
  */
 export default function ARGovernanceIntro({
   onActivateCamera,
   onBack,
   previousExitReason = null,
+  targetAvailable,
 }) {
-  const [targetState, setTargetState] = useState("checking"); // checking | available | unavailable
-
   useEffect(() => {
-    let cancelled = false;
-
-    checkArTargetAvailable().then((available) => {
-      if (!cancelled) setTargetState(available ? "available" : "unavailable");
-    });
-
     return () => {
-      cancelled = true;
       recordArExitTrace(
         "componentUnmount",
         { component: "ARGovernanceIntro" },
@@ -60,7 +60,7 @@ export default function ARGovernanceIntro({
           </p>
         ) : null}
 
-        {targetState === "available" && (
+        {targetAvailable ? (
           <button
             type="button"
             onClick={onActivateCamera}
@@ -71,9 +71,7 @@ export default function ARGovernanceIntro({
           >
             Activate Camera
           </button>
-        )}
-
-        {targetState === "unavailable" && (
+        ) : (
           <p className="mt-8 text-center text-[11px] leading-5 text-slate-500">
             The AR recognition experience is not currently available on this device.
           </p>
@@ -82,9 +80,7 @@ export default function ARGovernanceIntro({
         <button
           type="button"
           onClick={onBack}
-          className={`${
-            targetState === "checking" ? "mt-8" : "mt-3"
-          } w-full rounded-md border border-cyan-400/75 bg-transparent px-4 py-2.5 text-sm font-medium text-slate-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35`}
+          className="mt-3 w-full rounded-md border border-cyan-400/75 bg-transparent px-4 py-2.5 text-sm font-medium text-slate-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
           style={{
             boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
           }}

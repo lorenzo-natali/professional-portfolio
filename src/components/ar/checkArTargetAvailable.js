@@ -7,6 +7,50 @@ export const AR_TARGET_MIN_BYTES = 256;
 /** MindAR compiler export version used by mind-ar@1.x OfflineCompiler/Compiler. */
 const MINDAR_TARGET_VERSION = 2;
 
+/** @type {boolean | null} */
+let availabilityCache = null;
+/** @type {Promise<boolean> | null} */
+let availabilityInflight = null;
+
+/**
+ * Sync snapshot of the last target-availability probe.
+ * @returns {boolean | null} true/false when resolved; null while unknown / in flight.
+ */
+export function peekArTargetAvailable() {
+  return availabilityCache;
+}
+
+/** Test-only: clear module probe cache between cases. */
+export function resetArTargetAvailabilityCacheForTests() {
+  availabilityCache = null;
+  availabilityInflight = null;
+}
+
+/**
+ * Start (or reuse) the MindAR target availability probe without blocking render.
+ * Safe to call while Beyond CV is still closed so open can paint a resolved intro.
+ * @param {string} [url]
+ * @returns {Promise<boolean>}
+ */
+export function prewarmArTargetAvailable(url = AR_TARGET_SRC) {
+  if (availabilityCache !== null) return Promise.resolve(availabilityCache);
+  if (availabilityInflight) return availabilityInflight;
+
+  availabilityInflight = loadArTargetBuffer(url)
+    .then((buffer) => {
+      availabilityCache = buffer !== null;
+      availabilityInflight = null;
+      return availabilityCache;
+    })
+    .catch(() => {
+      availabilityCache = false;
+      availabilityInflight = null;
+      return false;
+    });
+
+  return availabilityInflight;
+}
+
 function bytesLookLikeHtml(bytes) {
   const head = new TextDecoder()
     .decode(bytes.subarray(0, Math.min(bytes.byteLength, 80)))
@@ -63,10 +107,10 @@ export async function loadArTargetBuffer(url = AR_TARGET_SRC) {
 /**
  * Lightweight availability probe for the compiled MindAR image target.
  * Used by the intro CTA (before camera) and as a safety check in the adapter.
+ * Shares the module prewarm cache so intro can open with a resolved UI.
  */
 export async function checkArTargetAvailable(url = AR_TARGET_SRC) {
-  const buffer = await loadArTargetBuffer(url);
-  return buffer !== null;
+  return prewarmArTargetAvailable(url);
 }
 
 export function isTargetLoadError(error) {

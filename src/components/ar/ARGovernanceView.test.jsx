@@ -17,9 +17,22 @@ vi.mock("./useIsMobileDevice", () => ({
   useIsMobileDevice: () => mobileMock.isMobile,
 }));
 
-vi.mock("./checkArTargetAvailable", () => ({
-  checkArTargetAvailable: vi.fn(),
-}));
+vi.mock("./checkArTargetAvailable", () => {
+  let cached = /** @type {boolean | null} */ (null);
+  const checkArTargetAvailable = vi.fn(async () => true);
+  return {
+    checkArTargetAvailable,
+    peekArTargetAvailable: () => cached,
+    prewarmArTargetAvailable: () =>
+      checkArTargetAvailable().then((value) => {
+        cached = value;
+        return value;
+      }),
+    resetArTargetAvailabilityCacheForTests: () => {
+      cached = null;
+    },
+  };
+});
 
 vi.mock("./ARCameraView", () => ({
   default: () => {
@@ -41,7 +54,11 @@ vi.mock("./createArRuntimeAudit", async (importOriginal) => {
   };
 });
 
-import { checkArTargetAvailable } from "./checkArTargetAvailable";
+import {
+  checkArTargetAvailable,
+  prewarmArTargetAvailable,
+  resetArTargetAvailabilityCacheForTests,
+} from "./checkArTargetAvailable";
 
 function portalScope() {
   const host = document.querySelector("[data-ar-portal-host='true']");
@@ -54,6 +71,7 @@ describe("ARGovernanceView entry flow", () => {
     vi.clearAllMocks();
     cleanup();
     resetArRuntimeFlagsForTests();
+    resetArTargetAvailabilityCacheForTests();
     sessionStorage.clear();
     document.body.innerHTML = '<div id="root"></div>';
     document.querySelectorAll("[data-ar-portal-host='true']").forEach((el) => el.remove());
@@ -201,6 +219,19 @@ describe("ARGovernanceView entry flow", () => {
         ([phase]) => phase === "beyond-the-cv-close",
       ),
     ).toBe(true);
+  });
+
+  it("on supported mobile with a warm target probe paints Activate Camera and Back on first intro paint", async () => {
+    await prewarmArTargetAvailable();
+
+    render(<ARGovernanceView open onClose={vi.fn()} />);
+
+    const scope = portalScope();
+    // Synchronous first intro paint — no waitFor for Activate Camera.
+    expect(scope.getByRole("button", { name: "Activate Camera" })).toBeTruthy();
+    expect(scope.getByRole("button", { name: "Back to Portfolio" })).toBeTruthy();
+    expect(scope.getByRole("heading", { name: "Beyond the CV" })).toBeTruthy();
+    expect(scope.queryByTestId("ar-camera-view")).toBeNull();
   });
 
   it("does not offer a 2D brief when the target is missing", async () => {
