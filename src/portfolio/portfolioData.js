@@ -329,10 +329,10 @@ export const stackStreams = [
 ];
 
 export const languageItems = [
-  { flag: "🇮🇹", language: "Italian", level: "Native" },
-  { flag: "🇬🇧", language: "English", level: "C2" },
-  { flag: "🇫🇷", language: "French", level: "B1" },
-  { flag: "🇨🇳", language: "Mandarin Chinese", level: "B1" },
+  { flagCode: "it", language: "Italian", level: "Native" },
+  { flagCode: "gb", language: "English", level: "C2" },
+  { flagCode: "fr", language: "French", level: "B1" },
+  { flagCode: "cn", language: "Mandarin Chinese", level: "B1" },
 ];
 
 export const radarDomains = [

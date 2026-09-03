@@ -129,7 +129,13 @@ export default function ProjectDeck({ selectedLens = "Overview" }) {
               <ProjectStageIndicator stage={project.stage} />
             </div>
             <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-50 sm:mt-3">{project.title}</h3>
-            <p className="mt-6 max-w-3xl leading-7 text-slate-300 sm:mt-5">{project.text}</p>
+            <p
+              className={`mt-6 leading-7 text-slate-300 sm:mt-5 ${
+                isCodeiakProject ? "codeiak-project-description" : "max-w-3xl"
+              }`}
+            >
+              {project.text}
+            </p>
 
             {isCodeiakProject && (
               <div className="codeiak-project-mascot">

@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import linkedinLogo from "../../assets/linkedin-logo.png";
 import { trackPortfolioEvent } from "../analytics/createPortfolioAnalytics.js";
+import LanguageFlag from "../../components/LanguageFlag.jsx";
 import { languageItems, stackStreams } from "../portfolioData.js";
 import TickerStream from "../TickerStream.jsx";
 
@@ -76,7 +77,7 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                   className="flex min-w-0 items-center gap-3 rounded-lg bg-slate-950/25 px-3.5 py-3 backdrop-blur"
                 >
                   <div className="language-flag shrink-0" aria-hidden="true">
-                    <span>{item.flag}</span>
+                    <LanguageFlag code={item.flagCode} />
                   </div>
                   <div className="min-w-0">
                     <p className="break-words text-sm font-semibold text-slate-100">{item.language}</p>
