@@ -74,6 +74,36 @@ function logRejectedProviderResponse(category, payload) {
 }
 
 /**
+ * Public /ask body stays openai_unavailable. Status only; the body is never read.
+ * @param {number} status
+ */
+function logProviderHttpFailure(status) {
+  const safeStatus =
+    Number.isInteger(status) && status >= 100 && status <= 599 ? String(status) : "none";
+  console.warn(`portfolio-assistant openai_unavailable provider_http_status=${safeStatus}`);
+}
+
+/**
+ * Map thrown fetch failures to a fixed category. Names and messages are not logged.
+ * @param {unknown} err
+ * @returns {"network" | "unexpected"}
+ */
+function classifyProviderException(err) {
+  const name = err && typeof err === "object" ? /** @type {{ name?: unknown }} */ (err).name : "";
+  if (name === "TypeError") return "network";
+  return "unexpected";
+}
+
+/**
+ * @param {unknown} err
+ */
+function logProviderException(err) {
+  console.warn(
+    `portfolio-assistant openai_unavailable exception_category=${classifyProviderException(err)}`,
+  );
+}
+
+/**
  * Incomplete Responses API results are failures even when partial text is present.
  * Missing status stays compatible with fixtures that only send output_text.
  * @param {unknown} payload
@@ -160,6 +190,7 @@ export async function createGroundedAnswer({
     }
 
     if (!response.ok) {
+      logProviderHttpFailure(response.status);
       return { ok: false, error: "openai_unavailable", httpStatus: 503 };
     }
 
@@ -191,6 +222,7 @@ export async function createGroundedAnswer({
     if (name === "AbortError" || name === "TimeoutError") {
       return { ok: false, error: "openai_timeout", httpStatus: 504 };
     }
+    logProviderException(err);
     return { ok: false, error: "openai_unavailable", httpStatus: 503 };
   } finally {
     clearTimeout(timer);

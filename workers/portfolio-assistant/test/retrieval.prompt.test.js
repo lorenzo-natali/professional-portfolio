@@ -272,6 +272,58 @@ describe("OpenAI response parsing", () => {
     }
   });
 
+  it("logs provider HTTP status without response text or secrets", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const secretBody = "sk-live-marker invalid_api_key UNIQUE_PROVIDER_MESSAGE https://api.openai.com/v1/responses";
+    try {
+      for (const status of [401, 400, 500]) {
+        warn.mockClear();
+        const result = await createGroundedAnswer({
+          apiKey: "sk-test-secret-marker",
+          question: "UNIQUE_QUESTION_MARKER",
+          evidence: [{ id: "x", topic: "profile", text: "UNIQUE_EVIDENCE_MARKER" }],
+          fetchImpl: async () =>
+            new Response(JSON.stringify({ error: { message: secretBody } }), { status }),
+        });
+        expect(result).toEqual({
+          ok: false,
+          error: "openai_unavailable",
+          httpStatus: 503,
+        });
+        const logged = warn.mock.calls.map((call) => call.map(String).join(" ")).join("\n");
+        expect(logged).toBe(`portfolio-assistant openai_unavailable provider_http_status=${status}`);
+        expect(logged).not.toMatch(/sk-live-marker|sk-test-secret-marker|UNIQUE_PROVIDER_MESSAGE|UNIQUE_QUESTION_MARKER|UNIQUE_EVIDENCE_MARKER|api\.openai\.com/);
+      }
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("logs a fixed network category without the exception message", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const result = await createGroundedAnswer({
+        apiKey: "sk-test-secret-marker",
+        question: "UNIQUE_QUESTION_MARKER",
+        evidence: [{ id: "x", topic: "profile", text: "UNIQUE_EVIDENCE_MARKER" }],
+        fetchImpl: async () => {
+          const err = new TypeError("network down sk-test-secret-marker https://api.openai.com/v1/responses UNIQUE_QUESTION_MARKER");
+          throw err;
+        },
+      });
+      expect(result).toEqual({
+        ok: false,
+        error: "openai_unavailable",
+        httpStatus: 503,
+      });
+      const logged = warn.mock.calls.map((call) => call.map(String).join(" ")).join("\n");
+      expect(logged).toBe("portfolio-assistant openai_unavailable exception_category=network");
+      expect(logged).not.toMatch(/sk-test-secret-marker|UNIQUE_QUESTION_MARKER|UNIQUE_EVIDENCE_MARKER|api\.openai\.com|network down/);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("rejects incomplete output when the cutoff reason is omitted", async () => {
     const partial = "Traceability of";
     const result = await createGroundedAnswer({
