@@ -4,6 +4,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App.jsx";
+import { ASSISTANT_CONVERSATION_STORAGE_KEY } from "./assistantConversationStore.js";
 import {
   ASSISTANT_ABOUT_NOTE,
   ASSISTANT_ASK_TIMEOUT_MS,
@@ -104,6 +105,7 @@ function askBody(call) {
 describe("assistant chat POST /ask", () => {
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -427,6 +429,141 @@ describe("assistant chat POST /ask", () => {
     expect(askBody(asks[0])).toEqual({ question: "First question about Lorenzo?" });
     expect(askBody(asks[1])).toEqual({ question: "Second question about projects?" });
     expect(Object.keys(askBody(asks[1]))).toEqual(["question"]);
+  });
+
+  it("keeps completed messages after close, related links, and a later cancelled question", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    /** @type {(value: Response) => void} */
+    let resolveSecond = () => {};
+    const { asks } = mockWorker({
+      ask: (call) => {
+        if (call === 1) {
+          return askResponse({
+            ok: true,
+            answer: "Lorenzo's audit background includes **control testing**.",
+            evidence: [{ id: "evidence-1", signalIds: ["exp-boc"] }],
+          });
+        }
+        return new Promise((resolve) => {
+          resolveSecond = resolve;
+        });
+      },
+    });
+    renderAssistant();
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveClass("bg-emerald-400"));
+    send("What is Lorenzo's audit background?");
+    expect(await screen.findByText("control testing")).toBeTruthy();
+    expect(screen.getByText("control testing").tagName).toBe("STRONG");
+
+    fireEvent.click(screen.getByRole("link", { name: "Bank of China — Internal Audit" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Close" })).toBeNull());
+    openChat();
+    expect(screen.getByText("What is Lorenzo's audit background?")).toBeTruthy();
+    expect(screen.getByText("control testing")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Bank of China — Internal Audit" })).toBeTruthy();
+
+    send("What is still pending?");
+    expect(await screen.findByText("Preparing a response…")).toBeTruthy();
+    const whilePending = JSON.parse(sessionStorage.getItem(ASSISTANT_CONVERSATION_STORAGE_KEY) || "{}");
+    expect(whilePending.messages.map((message) => message.text)).toEqual([
+      "What is Lorenzo's audit background?",
+      "Lorenzo's audit background includes **control testing**.",
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    openChat();
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    expect(screen.queryByText("What is still pending?")).toBeNull();
+    expect(screen.getByText("What is Lorenzo's audit background?")).toBeTruthy();
+    expect(screen.getByText("control testing")).toBeTruthy();
+
+    resolveSecond(askResponse({ ok: true, answer: "LATE_SECOND_ANSWER", evidence: [] }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("LATE_SECOND_ANSWER")).toBeNull();
+    expect(asks).toHaveLength(2);
+    expect(askBody(asks[1])).toEqual({ question: "What is still pending?" });
+  });
+
+  it("restores a saved conversation on reload without sending it again", async () => {
+    sessionStorage.setItem(
+      ASSISTANT_CONVERSATION_STORAGE_KEY,
+      JSON.stringify({
+        v: 1,
+        messages: [
+          { id: "user-4", role: "user", text: "Saved question" },
+          {
+            id: "assistant-4",
+            role: "assistant",
+            text: "Saved **answer**.",
+            signalIds: ["exp-boc"],
+          },
+          { id: "user-5", role: "user", text: "Later saved question" },
+          { id: "assistant-5", role: "assistant", text: "Later saved answer." },
+        ],
+      }),
+    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAssistant();
+    openChat();
+
+    const transcript = document.querySelector("[data-assistant-transcript]");
+    expect(transcript?.textContent?.indexOf("Saved question")).toBeLessThan(
+      transcript?.textContent?.indexOf("Later saved question") ?? -1,
+    );
+    expect(screen.getByText("answer").tagName).toBe("STRONG");
+    expect(screen.getByRole("link", { name: "Bank of China — Internal Audit" })).toBeTruthy();
+    expect(screen.getByText("Later saved answer.")).toBeTruthy();
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    cleanup();
+    const { asks } = mockWorker({
+      ask: askResponse({ ok: true, answer: "Fresh answer.", evidence: [] }),
+    });
+    renderAssistant();
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveClass("bg-emerald-400"));
+    send("A new independent question?");
+    expect(await screen.findByText("Fresh answer.")).toBeTruthy();
+    expect(screen.getByText("Saved question")).toBeTruthy();
+    expect(asks).toHaveLength(1);
+    expect(askBody(asks[0])).toEqual({ question: "A new independent question?" });
+  });
+
+  it("ignores corrupt session storage and keeps working when storage is blocked", async () => {
+    sessionStorage.setItem(ASSISTANT_CONVERSATION_STORAGE_KEY, "{not-json");
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({
+      ask: askResponse({ ok: true, answer: "Assistant answer.", evidence: [] }),
+    });
+    renderAssistant();
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveClass("bg-emerald-400"));
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    send("What is Lorenzo's background?");
+    expect(await screen.findByText("Assistant answer.")).toBeTruthy();
+    cleanup();
+
+    sessionStorage.clear();
+    vi.spyOn(window.sessionStorage, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(window.sessionStorage, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    mockWorker({
+      ask: askResponse({ ok: true, answer: "Still answered.", evidence: [] }),
+    });
+    expect(() => renderAssistant()).not.toThrow();
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveClass("bg-emerald-400"));
+    send("What remains available?");
+    expect(await screen.findByText("Still answered.")).toBeTruthy();
   });
 
   it("leaves loading when fetch does not settle within the deadline", async () => {

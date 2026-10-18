@@ -25,6 +25,11 @@ import { interpretAskResult } from "./portfolio/assistantAsk.js";
 import { resolveAssistantEndpoint, useAssistantAvailability } from "./portfolio/useAssistantAvailability.js";
 import { AssistantConversation } from "./portfolio/AssistantConversation.jsx";
 import {
+  highestAssistantMessageSeq,
+  loadAssistantConversation,
+  saveAssistantConversation,
+} from "./portfolio/assistantConversationStore.js";
+import {
   ASSISTANT_ASK_TIMEOUT_MS,
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
@@ -141,7 +146,7 @@ function PortfolioAssistant() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [panel, setPanel] = useState("chat");
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => loadAssistantConversation());
   const [reply, setReply] = useState(
     /** @type {{ phase: "idle" | "loading" | "unavailable" | "error", text: string }} */ ({
       phase: "idle",
@@ -153,14 +158,31 @@ function PortfolioAssistant() {
   const composerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const dialogRef = useRef(null);
+  const assistantFrameRef = useRef(null);
   const questionRailRef = useRef(null);
   const savedScrollYRef = useRef(0);
   const restoreFocusOnCloseRef = useRef(false);
-  const askSeqRef = useRef(0);
+  const askSeqRef = useRef(highestAssistantMessageSeq(messages));
   const askAbortRef = useRef(/** @type {AbortController | null} */ (null));
   const askDeadlineRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
   const sendingRef = useRef(false);
+  const messagesRef = useRef(messages);
+  const pendingMessageIdRef = useRef(/** @type {string | null} */ (null));
   const { status: availability, refresh: refreshAvailability } = useAssistantAvailability(isDrawerOpen);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const persistSettledMessages = useCallback((next = messagesRef.current) => {
+    const pendingId = pendingMessageIdRef.current;
+    const settled = pendingId ? next.filter((message) => message.id !== pendingId) : next;
+    saveAssistantConversation(settled);
+  }, []);
+
+  useEffect(() => {
+    persistSettledMessages(messages);
+  }, [messages, persistSettledMessages]);
 
   const clearAskDeadline = useCallback(() => {
     if (askDeadlineRef.current != null) {
@@ -178,15 +200,30 @@ function PortfolioAssistant() {
     controller?.abort();
   }, [clearAskDeadline]);
 
+  const releasePendingMessage = useCallback((drop) => {
+    const pendingId = pendingMessageIdRef.current;
+    pendingMessageIdRef.current = null;
+    if (drop && pendingId) {
+      setMessages((current) => {
+        const next = current.filter((message) => message.id !== pendingId);
+        saveAssistantConversation(next);
+        return next;
+      });
+      setReply({ phase: "idle", text: "" });
+      return;
+    }
+    saveAssistantConversation(messagesRef.current);
+  }, []);
+
   const openAssistant = (prefill) => {
     cancelAsk();
+    releasePendingMessage(true);
     restoreFocusOnCloseRef.current = false;
     savedScrollYRef.current = window.scrollY;
     setSelectedPrompt(null);
     setSelectedCategory(null);
     setPanel("chat");
     setHowOpen(false);
-    setMessages([]);
     setReply({ phase: "idle", text: "" });
     setDraft(typeof prefill === "string" ? clampAssistantQuestion(prefill) : "");
     setIsDrawerOpen(true);
@@ -211,9 +248,10 @@ function PortfolioAssistant() {
 
     const endpoint = resolveAssistantEndpoint();
     if (!endpoint) {
+      const seq = ++askSeqRef.current;
       setMessages((current) => [
         ...current,
-        { id: `user-${current.length + 1}`, role: "user", text },
+        { id: `user-${seq}`, role: "user", text },
       ]);
       setDraft("");
       setReply({ phase: "unavailable", text: "" });
@@ -226,7 +264,9 @@ function PortfolioAssistant() {
     const seq = ++askSeqRef.current;
     const controller = new AbortController();
     askAbortRef.current = controller;
-    setMessages((current) => [...current, { id: `user-${seq}`, role: "user", text }]);
+    const userMessageId = `user-${seq}`;
+    pendingMessageIdRef.current = userMessageId;
+    setMessages((current) => [...current, { id: userMessageId, role: "user", text }]);
     setDraft("");
     setReply({ phase: "loading", text: "" });
 
@@ -238,6 +278,8 @@ function PortfolioAssistant() {
       const active = askAbortRef.current;
       askAbortRef.current = null;
       active?.abort();
+      pendingMessageIdRef.current = null;
+      saveAssistantConversation(messagesRef.current);
       setReply({ phase: "unavailable", text: "" });
       void refreshAvailability();
     }, ASSISTANT_ASK_TIMEOUT_MS);
@@ -267,6 +309,7 @@ function PortfolioAssistant() {
         if (seq !== askSeqRef.current) return;
         const outcome = interpretAskResult(response.status, body);
         if (outcome.type === "answer") {
+          pendingMessageIdRef.current = null;
           setMessages((current) => [
             ...current,
             {
@@ -279,6 +322,8 @@ function PortfolioAssistant() {
           applyReply({ phase: "idle", text: "" });
           void refreshAvailability();
         } else if (outcome.type === "quota") {
+          pendingMessageIdRef.current = null;
+          saveAssistantConversation(messagesRef.current);
           const next = await refreshAvailability();
           if (seq !== askSeqRef.current) return;
           if (next === "visitor_limit") {
@@ -291,12 +336,16 @@ function PortfolioAssistant() {
             applyReply({ phase: "unavailable", text: "" });
           }
         } else {
+          pendingMessageIdRef.current = null;
+          saveAssistantConversation(messagesRef.current);
           applyReply({ phase: "error", text: ASSISTANT_ERROR_MESSAGE });
           void refreshAvailability();
         }
       } catch (error) {
         if (seq !== askSeqRef.current) return;
         if (error?.name === "AbortError") return;
+        pendingMessageIdRef.current = null;
+        saveAssistantConversation(messagesRef.current);
         applyReply({ phase: "unavailable", text: "" });
         void refreshAvailability();
       } finally {
@@ -310,9 +359,10 @@ function PortfolioAssistant() {
 
   const closeAssistant = useCallback((restoreFocus = true) => {
     cancelAsk();
+    releasePendingMessage(true);
     restoreFocusOnCloseRef.current = restoreFocus;
     setIsDrawerOpen(false);
-  }, [cancelAsk]);
+  }, [cancelAsk, releasePendingMessage]);
 
   useEffect(() => cancelAsk, [cancelAsk]);
 
@@ -432,6 +482,36 @@ function PortfolioAssistant() {
     };
   }, [closeAssistant, isDrawerOpen]);
 
+  useEffect(() => {
+    if (!isDrawerOpen) return undefined;
+    const viewport = window.visualViewport;
+    const frame = assistantFrameRef.current;
+    if (!viewport || !frame) return undefined;
+
+    const desktop = window.matchMedia("(min-width: 640px)");
+    const syncFrameToVisibleViewport = () => {
+      if (desktop.matches) {
+        frame.style.top = "";
+        frame.style.height = "";
+        return;
+      }
+      frame.style.top = `${viewport.offsetTop}px`;
+      frame.style.height = `${viewport.height}px`;
+    };
+
+    syncFrameToVisibleViewport();
+    viewport.addEventListener("resize", syncFrameToVisibleViewport);
+    viewport.addEventListener("scroll", syncFrameToVisibleViewport);
+    desktop.addEventListener("change", syncFrameToVisibleViewport);
+    return () => {
+      viewport.removeEventListener("resize", syncFrameToVisibleViewport);
+      viewport.removeEventListener("scroll", syncFrameToVisibleViewport);
+      desktop.removeEventListener("change", syncFrameToVisibleViewport);
+      frame.style.top = "";
+      frame.style.height = "";
+    };
+  }, [isDrawerOpen]);
+
   const handleAssistantSignalClick = (event, signal) => {
     event.preventDefault();
 
@@ -486,7 +566,7 @@ function PortfolioAssistant() {
   return (
     <>
       <aside className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-5">
-        <div className="mb-4 flex items-center gap-4 border-b border-slate-800 pb-4 sm:gap-3">
+        <div className="mb-4 flex items-center gap-4 border-b border-slate-800 pb-4 max-sm:justify-center sm:gap-3">
           <img
             src={publicAsset("profile.png")}
             alt="Lorenzo Natali"
@@ -503,7 +583,7 @@ function PortfolioAssistant() {
           </div>
         </div>
 
-        <p className="mx-auto max-w-[30ch] text-center text-sm font-medium leading-6 text-slate-400 sm:text-xs sm:leading-5 sm:text-slate-500">
+        <p className="w-full text-center text-sm font-medium leading-6 text-slate-400 sm:mx-auto sm:max-w-[30ch] sm:text-xs sm:leading-5 sm:text-slate-500">
           Ask about my professional background, expertise, and projects.
         </p>
 
@@ -530,14 +610,17 @@ function PortfolioAssistant() {
                   exit={{ opacity: 0 }}
                   onClick={() => closeAssistant(true)}
                 >
-                  <div className="flex h-[100dvh] w-full justify-center sm:items-center sm:p-6">
+                  <div
+                    ref={assistantFrameRef}
+                    className="absolute inset-x-0 top-0 flex h-dvh min-h-0 w-full flex-col overflow-hidden px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:h-[100dvh] sm:items-center sm:justify-center sm:overflow-visible sm:p-6"
+                  >
                     <motion.div
                       ref={dialogRef}
                       role="dialog"
                       aria-modal="true"
                       aria-labelledby="portfolio-assistant-modal-title"
                       aria-describedby="portfolio-assistant-modal-description"
-                      className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden rounded-none border border-cyan-400/75 bg-slate-950 pt-[env(safe-area-inset-top)] sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:rounded-2xl sm:pt-0"
+                      className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-400/75 bg-slate-950 sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:flex-none"
                       style={{
                         boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
                       }}
@@ -547,7 +630,7 @@ function PortfolioAssistant() {
                       transition={{ duration: 0.28, ease: "easeOut" }}
                       onClick={(event) => event.stopPropagation()}
                     >
-                <div className="relative z-20 grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-cyan-400/60 px-4 py-3 sm:px-5">
+                <div className="relative z-20 grid max-h-[40%] min-h-0 shrink grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 overflow-y-auto border-b border-cyan-400/60 px-4 py-3 sm:max-h-none sm:shrink-0 sm:overflow-visible sm:px-5">
                   <img
                     src={publicAsset("profile.png")}
                     alt="Lorenzo Natali"

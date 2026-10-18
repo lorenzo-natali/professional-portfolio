@@ -63,6 +63,7 @@ function stubEndpoint(endpoint = ENDPOINT) {
 describe("assistant availability indicator integration", () => {
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
     vi.useRealTimers();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
@@ -302,7 +303,9 @@ describe("assistant availability indicator integration", () => {
     expect(await screen.findByText("Lorenzo's background is in internal audit.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     openChat();
-    expect(screen.queryByText("What is Lorenzo's background?")).toBeNull();
+    expect(screen.getByText("What is Lorenzo's background?")).toBeTruthy();
+    expect(screen.getByText("Lorenzo's background is in internal audit.")).toBeTruthy();
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
     expect(screen.queryByRole("button", { name: "New conversation" })).toBeNull();
 
     const askCalls = fetchSpy.mock.calls.filter((call) => String(call[0]).endsWith("/ask"));

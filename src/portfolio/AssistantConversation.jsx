@@ -69,7 +69,7 @@ export function AssistantConversation({
             <article
               key={message.id}
               data-assistant-message-role={message.role}
-              className={`w-fit max-w-[85%] rounded-lg border px-3 py-2.5 text-sm leading-6 ${
+              className={`w-fit max-w-[85%] break-words rounded-lg border px-3 py-2.5 text-sm leading-6 ${
                 isUser
                   ? "ml-auto border-slate-700 bg-slate-900/50 text-slate-200"
                   : "mr-auto border-cyan-400/15 bg-slate-900/25 text-slate-300"
@@ -81,7 +81,7 @@ export function AssistantConversation({
                 </p>
               ) : null}
               {isUser ? (
-                <p className="whitespace-pre-wrap">{message.text}</p>
+                <p className="whitespace-pre-wrap break-words">{message.text}</p>
               ) : (
                 <AssistantAnswerBody text={message.text} />
               )}
@@ -148,7 +148,7 @@ export function AssistantConversation({
             aria-describedby="assistant-question-count"
             onChange={(event) => onDraftChange(clampAssistantQuestion(event.target.value))}
             onKeyDown={onComposerKeyDown}
-            className="max-h-32 min-h-[2.75rem] w-full flex-1 resize-none overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2.5 text-sm leading-6 text-slate-200 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/35 disabled:cursor-not-allowed disabled:opacity-60"
+            className="max-h-32 min-h-[2.75rem] w-full min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2.5 text-[16px] leading-6 text-slate-200 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/35 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
           />
           <button
             type="button"

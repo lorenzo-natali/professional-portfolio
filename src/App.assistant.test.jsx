@@ -41,6 +41,7 @@ describe("Portfolio Assistant guided modal", () => {
 
   afterEach(() => {
     cleanup();
+    sessionStorage.clear();
     document.documentElement.style.overflow = "";
     document.body.style.overflow = "";
     document.body.style.paddingRight = "";
@@ -54,11 +55,11 @@ describe("Portfolio Assistant guided modal", () => {
     renderAssistant();
 
     expect(screen.getByRole("img", { name: "Lorenzo Natali" })).toBeTruthy();
-    expect(
-      screen.getByText(
-        "Ask about my professional background, expertise, and projects."
-      )
-    ).toBeTruthy();
+    const description = screen.getByText(
+      "Ask about my professional background, expertise, and projects."
+    );
+    expect(description).toHaveClass("w-full", "text-center", "sm:max-w-[30ch]", "sm:mx-auto");
+    expect(description.parentElement?.firstElementChild).toHaveClass("max-sm:justify-center");
     expect(screen.queryByText("Suggested question")).toBeNull();
     expect(screen.queryByRole("button", { name: /Use example question/ })).toBeNull();
     expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
@@ -111,6 +112,7 @@ describe("Portfolio Assistant guided modal", () => {
       "placeholder",
       "Ask me something..."
     );
+    expect(screen.getByRole("textbox", { name: "Your question" })).toHaveClass("text-[16px]", "sm:text-sm");
     expect(screen.queryByText("Explore by topic")).toBeNull();
     expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
     expect(document.body.style.position).toBe("fixed");
@@ -125,8 +127,9 @@ describe("Portfolio Assistant guided modal", () => {
     const transcript = dialog.querySelector("[data-assistant-transcript]");
     expect(overlay).toHaveClass("fixed", "inset-0", "overflow-hidden");
     expect(overlay).not.toHaveClass("absolute", "overflow-y-auto");
-    expect(dialog).toHaveClass("overflow-hidden", "max-h-[100dvh]", "sm:max-h-[80vh]", "sm:h-[78vh]");
-    expect(dialog.parentElement).toHaveClass("flex", "h-[100dvh]");
+    expect(dialog).toHaveClass("overflow-hidden", "rounded-2xl", "min-h-0", "sm:max-h-[80vh]", "sm:h-[78vh]");
+    expect(dialog).not.toHaveClass("rounded-none", "h-[100dvh]");
+    expect(dialog.parentElement).toHaveClass("flex", "h-dvh", "min-h-0", "sm:h-[100dvh]");
     expect(modalContent).not.toHaveClass("overflow-y-auto", "overflow-y-scroll");
     expect(transcript).toHaveClass("overflow-y-auto", "overscroll-y-contain");
     expect(dialog.querySelector("[data-assistant-curated]")).toBeNull();
@@ -272,8 +275,8 @@ describe("Portfolio Assistant guided modal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     openChat();
-    expect(document.querySelector("[data-assistant-transcript]")?.textContent?.trim()).toBe("");
-    expect(screen.queryByText("What is Lorenzo's background?")).toBeNull();
+    expect(screen.getByText("What is Lorenzo's background?")).toBeTruthy();
+    expect(screen.queryByText(/Preparing a response/)).toBeNull();
     expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
   });
 
