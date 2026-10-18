@@ -8,11 +8,11 @@ export const ASSISTANT_QUESTION_MAX_LENGTH = 500;
 export const ASSISTANT_UNAVAILABLE_MESSAGE =
   "AI Assistant is temporarily unavailable.";
 
-export const ASSISTANT_CONTEXT_NOTE =
-  "Previous messages are shown for reference only. They are not used as context for the next answer.";
+export const ASSISTANT_HEADER_SUBTITLE =
+  "Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies · Do not enter personal, confidential, or sensitive information.";
 
-export const ASSISTANT_HOW_IT_WORKS =
-  "This assistant uses OpenAI AI models to answer questions based on curated information from this portfolio, including professional experience, skills, projects, and career interests. Responses are AI-generated and may contain inaccuracies. Please refer to the portfolio sections for additional details. Do not enter personal, confidential, or sensitive information.";
+export const ASSISTANT_ABOUT_NOTE =
+  "This AI assistant has a limited daily capacity. To make the most of it, consider focusing on two or three questions that matter most to you.";
 
 export const ASSISTANT_ERROR_MESSAGE =
   "The assistant could not complete that request.";

@@ -1,6 +1,5 @@
 import { Send } from "lucide-react";
 import {
-  ASSISTANT_CONTEXT_NOTE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_QUESTION_MAX_LENGTH,
   ASSISTANT_UNAVAILABLE_MESSAGE,
@@ -9,9 +8,6 @@ import {
   clampAssistantQuestion,
   resolveVerifiedSignals,
 } from "./assistantChatModel.js";
-
-const quietLinkClassName =
-  "text-[11px] font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35";
 
 /**
  * Chat presentation for the Portfolio Assistant modal.
@@ -22,7 +18,6 @@ const quietLinkClassName =
  *   draft: string,
  *   onDraftChange: (value: string) => void,
  *   onSend: () => void,
- *   onReset: () => void,
  *   onSignalClick?: (event: import("react").MouseEvent<HTMLAnchorElement>, signal: { id: string, label: string, href: string, target?: { type?: string, id?: string } }) => void,
  *   signalMap?: Record<string, { label?: string, href?: string, target?: { type?: string, id?: string } }>,
  *   status?: "idle" | "loading" | "unavailable" | "error",
@@ -36,7 +31,6 @@ export function AssistantConversation({
   draft,
   onDraftChange,
   onSend,
-  onReset,
   onSignalClick,
   signalMap,
   status = "idle",
@@ -46,7 +40,6 @@ export function AssistantConversation({
 }) {
   const locked = status === "loading";
   const sendable = canSendAssistantQuestion(draft) && !locked;
-  const showReset = messages.length > 0 || status === "unavailable" || status === "error";
 
   const onComposerKeyDown = (event) => {
     if (event.key !== "Enter" || event.shiftKey) return;
@@ -57,14 +50,6 @@ export function AssistantConversation({
 
   return (
     <div data-assistant-panel="chat" className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 px-4 pt-3 sm:px-5">
-        <div className="rounded-lg border border-slate-800/80 bg-slate-900/25 px-3 py-2">
-          <p className="text-[11px] font-medium leading-4 text-slate-400">A quick note</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            This AI assistant has a limited daily capacity. To make the most of it, consider focusing on two or three questions that matter most to you.
-          </p>
-        </div>
-      </div>
       <div
         data-assistant-transcript
         role="log"
@@ -118,10 +103,6 @@ export function AssistantConversation({
           );
         })}
 
-        {messages.length > 0 ? (
-          <p className="text-[11px] leading-4 text-slate-500">{ASSISTANT_CONTEXT_NOTE}</p>
-        ) : null}
-
         {status === "loading" ? (
           <p role="status" className="text-sm leading-6 text-slate-500">
             Preparing a response…
@@ -145,13 +126,6 @@ export function AssistantConversation({
         data-assistant-composer
         className="shrink-0 border-t border-cyan-400/60 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"
       >
-        {showReset ? (
-          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-            <button type="button" onClick={onReset} className={quietLinkClassName}>
-              New conversation
-            </button>
-          </div>
-        ) : null}
         <label htmlFor="assistant-question" className="sr-only">
           Your question
         </label>

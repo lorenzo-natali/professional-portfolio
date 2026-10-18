@@ -13,7 +13,6 @@ function renderConversation(overrides = {}) {
     draft: "",
     onDraftChange: vi.fn(),
     onSend: vi.fn(),
-    onReset: vi.fn(),
     ...overrides,
   };
   return { ...render(<AssistantConversation {...props} />), props };
@@ -50,7 +49,8 @@ describe("assistant chat presentation", () => {
     expect(screen.getByRole("link", { name: signalMap["exp-boc"].label })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "missing-signal-id" })).toBeNull();
     expect(screen.getByText("Explore related portfolio content")).toBeTruthy();
-    expect(screen.getByText(/not used as context/)).toBeTruthy();
+    expect(screen.queryByText(/not used as context/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "New conversation" })).toBeNull();
   });
 
   it("omits related links when no verified mapping exists", () => {

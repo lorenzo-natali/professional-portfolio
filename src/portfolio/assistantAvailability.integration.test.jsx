@@ -4,6 +4,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App.jsx";
+import { ASSISTANT_ABOUT_NOTE, ASSISTANT_HEADER_SUBTITLE } from "./assistantChatModel.js";
 import { useAssistantAvailability } from "./useAssistantAvailability.js";
 
 const ENDPOINT = "https://assistant.example";
@@ -256,18 +257,15 @@ describe("assistant availability indicator integration", () => {
     renderAssistant();
     openChat();
 
-    expect(
-      screen.getByText(
-        "Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies.",
-      ),
-    ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "About this assistant" })).toBeTruthy();
-    expect(screen.getByText("A quick note")).toBeTruthy();
-    expect(
-      screen.getByText(
-        "This AI assistant has a limited daily capacity. To make the most of it, consider focusing on two or three questions that matter most to you.",
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText(ASSISTANT_HEADER_SUBTITLE)).toBeTruthy();
+    const about = screen.getByRole("button", { name: "About this assistant" });
+    expect(about).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: "A quick note" })).toBeNull();
+    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
+    fireEvent.click(about);
+    const disclosure = document.getElementById("assistant-how-it-works");
+    expect(disclosure?.textContent).toBe(ASSISTANT_ABOUT_NOTE);
+    expect(disclosure?.textContent).not.toMatch(/OpenAI AI models|portfolio sections|personal, confidential/);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Your question" }), {
       target: { value: "What is Lorenzo's background?" },
@@ -275,8 +273,10 @@ describe("assistant availability indicator integration", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send" }));
     expect(screen.getByText("What is Lorenzo's background?")).toBeTruthy();
     expect(await screen.findByText("Lorenzo's background is in internal audit.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    openChat();
     expect(screen.queryByText("What is Lorenzo's background?")).toBeNull();
+    expect(screen.queryByRole("button", { name: "New conversation" })).toBeNull();
 
     const askCalls = fetchSpy.mock.calls.filter((call) => String(call[0]).endsWith("/ask"));
     expect(askCalls).toHaveLength(1);

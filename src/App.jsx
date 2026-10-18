@@ -29,7 +29,8 @@ import {
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_GLOBAL_LIMIT_MESSAGE,
-  ASSISTANT_HOW_IT_WORKS,
+  ASSISTANT_ABOUT_NOTE,
+  ASSISTANT_HEADER_SUBTITLE,
   ASSISTANT_VISITOR_LIMIT_MESSAGE,
   canSendAssistantQuestion,
   clampAssistantQuestion,
@@ -191,14 +192,6 @@ function PortfolioAssistant() {
     setIsDrawerOpen(true);
     // Compact event only — no prompt/answer text ever leaves this surface via analytics.
     trackPortfolioEvent("assistant_open");
-  };
-
-  const resetConversation = () => {
-    cancelAsk();
-    setMessages([]);
-    setDraft("");
-    setReply({ phase: "idle", text: "" });
-    setPanel("chat");
   };
 
   const sendQuestion = () => {
@@ -569,25 +562,25 @@ function PortfolioAssistant() {
                   >
                     Close
                   </button>
-                  <div className="col-start-2">
+                  <div className="col-start-2 min-w-0">
                     <p id="portfolio-assistant-modal-description" className="text-[11px] leading-4 text-slate-500">
-                      Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies.
+                      {ASSISTANT_HEADER_SUBTITLE}
                     </p>
                     <button
                       type="button"
                       aria-expanded={howOpen}
                       aria-controls="assistant-how-it-works"
                       onClick={() => setHowOpen((open) => !open)}
-                      className="mt-1 text-[11px] font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+                      className="mt-1 text-left text-[11px] font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35"
                     >
                       About this assistant
                     </button>
                     {howOpen ? (
                       <p
                         id="assistant-how-it-works"
-                        className="mt-2 max-w-3xl text-xs leading-5 text-slate-400"
+                        className="mt-2 max-w-3xl text-[11px] font-medium leading-4 text-slate-500"
                       >
-                        {ASSISTANT_HOW_IT_WORKS}
+                        {ASSISTANT_ABOUT_NOTE}
                       </p>
                     ) : null}
                   </div>
@@ -600,7 +593,6 @@ function PortfolioAssistant() {
                       draft={draft}
                       onDraftChange={setDraft}
                       onSend={sendQuestion}
-                      onReset={resetConversation}
                       onSignalClick={handleAssistantSignalClick}
                       signalMap={signalMap}
                       status={reply.phase}

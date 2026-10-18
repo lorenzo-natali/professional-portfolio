@@ -5,10 +5,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App.jsx";
 import {
+  ASSISTANT_ABOUT_NOTE,
   ASSISTANT_ASK_TIMEOUT_MS,
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_GLOBAL_LIMIT_MESSAGE,
+  ASSISTANT_HEADER_SUBTITLE,
   ASSISTANT_UNAVAILABLE_MESSAGE,
   ASSISTANT_VISITOR_LIMIT_MESSAGE,
 } from "./assistantChatModel.js";
@@ -141,17 +143,18 @@ describe("assistant chat POST /ask", () => {
     expect(askBody(asks[0])).toEqual({ question: "What is Lorenzo's audit background?" });
     expect(String(asks[0].url)).toBe(`${ENDPOINT}/ask`);
 
-    expect(
-      screen.getByText(
-        "Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies.",
-      ),
-    ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "About this assistant" }));
-    expect(screen.getByText(/Do not enter personal, confidential, or sensitive information/)).toBeTruthy();
-    expect(screen.getByText("A quick note")).toBeTruthy();
-    expect(
-      screen.getByText(/consider focusing on two or three questions that matter most to you/),
-    ).toBeTruthy();
+    expect(screen.getByText(ASSISTANT_HEADER_SUBTITLE)).toBeTruthy();
+    const about = screen.getByRole("button", { name: "About this assistant" });
+    expect(about).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
+    expect(screen.queryByRole("button", { name: "A quick note" })).toBeNull();
+    fireEvent.click(about);
+    const disclosure = document.getElementById("assistant-how-it-works");
+    expect(disclosure?.textContent).toBe(ASSISTANT_ABOUT_NOTE);
+    expect(disclosure?.textContent).not.toMatch(/OpenAI AI models|portfolio sections|personal, confidential/);
+    fireEvent.click(about);
+    expect(about).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
   });
 
   it("shows a local refusal when evidence is empty", async () => {
@@ -350,7 +353,7 @@ describe("assistant chat POST /ask", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("drops a late answer after New conversation", async () => {
+  it("drops a late answer after the assistant is closed and reopened", async () => {
     vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
     /** @type {(value: Response) => void} */
     let resolveAsk = () => {};
@@ -365,7 +368,8 @@ describe("assistant chat POST /ask", () => {
     await waitFor(() => expect(availabilityDot()).toHaveClass("bg-emerald-400"));
     send("What is Lorenzo's current role?");
     expect(await screen.findByText("Preparing a response…")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    openChat();
     expect(screen.queryByText("What is Lorenzo's current role?")).toBeNull();
     resolveAsk(askResponse({ ok: true, answer: "LATE_AFTER_RESET_9f3a", evidence: [] }));
     await act(async () => {
@@ -532,7 +536,7 @@ describe("assistant chat POST /ask", () => {
     expect(screen.getByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeTruthy();
   });
 
-  it("does not show a timeout after New conversation or close", async () => {
+  it("does not show a timeout after the assistant is closed and reopened", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
     const { asks } = mockWorker({
@@ -552,7 +556,8 @@ describe("assistant chat POST /ask", () => {
     });
     send("What is Lorenzo's current role?");
     expect(screen.getByText("Preparing a response…")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    openChat();
     expect(screen.queryByText("Preparing a response…")).toBeNull();
     expect(screen.queryByText("What is Lorenzo's current role?")).toBeNull();
 
