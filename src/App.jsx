@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { MessageSquare } from "lucide-react";
 import {
   DEFAULT_APP_FEATURES,
   resolveAppFeatures,
@@ -19,6 +20,19 @@ import { isOverviewLens } from "./portfolio/portfolioLens.js";
 import { PORTFOLIO_SECTION_IDS } from "./portfolio/sectionCatalog.js";
 import { useLensGlowActiveMarker } from "./portfolio/useLensGlowActiveMarker.js";
 import { trackPortfolioEvent } from "./portfolio/analytics/createPortfolioAnalytics.js";
+import { AssistantAvailabilityIndicator } from "./portfolio/AssistantAvailability.jsx";
+import { interpretAskResult } from "./portfolio/assistantAsk.js";
+import { resolveAssistantEndpoint, useAssistantAvailability } from "./portfolio/useAssistantAvailability.js";
+import { AssistantConversation } from "./portfolio/AssistantConversation.jsx";
+import {
+  ASSISTANT_BURST_MESSAGE,
+  ASSISTANT_ERROR_MESSAGE,
+  ASSISTANT_GLOBAL_LIMIT_MESSAGE,
+  ASSISTANT_HOW_IT_WORKS,
+  ASSISTANT_VISITOR_LIMIT_MESSAGE,
+  canSendAssistantQuestion,
+  clampAssistantQuestion,
+} from "./portfolio/assistantChatModel.js";
 import "./index.css";
 
 /**
@@ -123,94 +137,163 @@ function PortfolioAssistant() {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [previewIndex, setPreviewIndex] = useState(0);
+  const [panel, setPanel] = useState("chat");
+  const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [reply, setReply] = useState(
+    /** @type {{ phase: "idle" | "loading" | "unavailable" | "error", text: string }} */ ({
+      phase: "idle",
+      text: "",
+    }),
+  );
+  const [howOpen, setHowOpen] = useState(false);
   const openButtonRef = useRef(null);
+  const composerRef = useRef(null);
   const closeButtonRef = useRef(null);
   const dialogRef = useRef(null);
   const questionRailRef = useRef(null);
-  const previewRootRef = useRef(null);
   const savedScrollYRef = useRef(0);
   const restoreFocusOnCloseRef = useRef(false);
-  const previewQuestion = assistantPrompts[previewIndex % assistantPrompts.length].question;
+  const askSeqRef = useRef(0);
+  const askAbortRef = useRef(/** @type {AbortController | null} */ (null));
+  const sendingRef = useRef(false);
+  const { status: availability, refresh: refreshAvailability } = useAssistantAvailability(isDrawerOpen);
 
-  // Homepage preview rotation only: timer exists while the Hero preview is in view
-  // (and the tab is visible). Cleared off-screen / when document.hidden — no idle interval.
-  useEffect(() => {
-    const root = previewRootRef.current;
-    if (!root) return undefined;
-
-    let inViewport = false;
-    let documentVisible = typeof document === "undefined" ? true : !document.hidden;
-    /** @type {ReturnType<typeof window.setInterval> | 0} */
-    let timerId = 0;
-
-    const clearTimer = () => {
-      if (timerId) {
-        window.clearInterval(timerId);
-        timerId = 0;
-      }
-    };
-
-    const syncTimer = () => {
-      const shouldRun = inViewport && documentVisible;
-      if (shouldRun) {
-        if (!timerId) {
-          timerId = window.setInterval(() => {
-            setPreviewIndex((current) => (current + 1) % assistantPrompts.length);
-          }, 3600);
-        }
-        return;
-      }
-      clearTimer();
-    };
-
-    /** @type {IntersectionObserver | null} */
-    let observer = null;
-    if (typeof IntersectionObserver === "function") {
-      observer = new IntersectionObserver(
-        (entries) => {
-          const entry = entries[0];
-          inViewport = Boolean(
-            entry?.isIntersecting && (entry.intersectionRatio ?? 0) > 0
-          );
-          syncTimer();
-        },
-        { root: null, rootMargin: "0px", threshold: [0, 0.01] }
-      );
-      observer.observe(root);
-    } else {
-      // No IO: preserve previous always-on rotation rather than freezing the preview.
-      inViewport = true;
-      syncTimer();
-    }
-
-    const onVisibilityChange = () => {
-      documentVisible = !document.hidden;
-      syncTimer();
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      clearTimer();
-      observer?.disconnect();
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+  const cancelAsk = useCallback(() => {
+    askSeqRef.current += 1;
+    sendingRef.current = false;
+    const controller = askAbortRef.current;
+    askAbortRef.current = null;
+    controller?.abort();
   }, []);
 
-  const openAssistant = () => {
+  const openAssistant = (prefill) => {
+    cancelAsk();
     restoreFocusOnCloseRef.current = false;
     savedScrollYRef.current = window.scrollY;
     setSelectedPrompt(null);
     setSelectedCategory(null);
+    setPanel("chat");
+    setHowOpen(false);
+    setMessages([]);
+    setReply({ phase: "idle", text: "" });
+    setDraft(typeof prefill === "string" ? clampAssistantQuestion(prefill) : "");
     setIsDrawerOpen(true);
     // Compact event only — no prompt/answer text ever leaves this surface via analytics.
     trackPortfolioEvent("assistant_open");
   };
 
+  const resetConversation = () => {
+    cancelAsk();
+    setMessages([]);
+    setDraft("");
+    setReply({ phase: "idle", text: "" });
+    setPanel("chat");
+  };
+
+  const sendQuestion = () => {
+    const text = clampAssistantQuestion(draft).trim();
+    if (!canSendAssistantQuestion(text) || sendingRef.current) return;
+
+    if (availability === "visitor_limit" || availability === "global_limit") {
+      setReply({
+        phase: "unavailable",
+        text:
+          availability === "visitor_limit"
+            ? ASSISTANT_VISITOR_LIMIT_MESSAGE
+            : ASSISTANT_GLOBAL_LIMIT_MESSAGE,
+      });
+      return;
+    }
+
+    const endpoint = resolveAssistantEndpoint();
+    if (!endpoint) {
+      setMessages((current) => [
+        ...current,
+        { id: `user-${current.length + 1}`, role: "user", text },
+      ]);
+      setDraft("");
+      setReply({ phase: "unavailable", text: "" });
+      return;
+    }
+
+    sendingRef.current = true;
+    askAbortRef.current?.abort();
+    const seq = ++askSeqRef.current;
+    const controller = new AbortController();
+    askAbortRef.current = controller;
+    setMessages((current) => [...current, { id: `user-${seq}`, role: "user", text }]);
+    setDraft("");
+    setReply({ phase: "loading", text: "" });
+
+    const applyReply = (next) => {
+      if (seq !== askSeqRef.current) return;
+      setReply(next);
+    };
+
+    void (async () => {
+      try {
+        const response = await fetch(`${endpoint}/ask`, {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text }),
+          signal: controller.signal,
+        });
+        if (seq !== askSeqRef.current) return;
+        let body = null;
+        try {
+          body = await response.json();
+        } catch {
+          body = null;
+        }
+        if (seq !== askSeqRef.current) return;
+        const outcome = interpretAskResult(response.status, body);
+        if (outcome.type === "answer") {
+          setMessages((current) => [
+            ...current,
+            {
+              id: `assistant-${seq}`,
+              role: "assistant",
+              text: outcome.answer,
+              signalIds: outcome.signalIds,
+            },
+          ]);
+          applyReply({ phase: "idle", text: "" });
+          void refreshAvailability();
+        } else if (outcome.type === "quota") {
+          const next = await refreshAvailability();
+          if (seq !== askSeqRef.current) return;
+          if (next === "visitor_limit") {
+            applyReply({ phase: "unavailable", text: ASSISTANT_VISITOR_LIMIT_MESSAGE });
+          } else if (next === "global_limit") {
+            applyReply({ phase: "unavailable", text: ASSISTANT_GLOBAL_LIMIT_MESSAGE });
+          } else if (next === "available") {
+            applyReply({ phase: "unavailable", text: ASSISTANT_BURST_MESSAGE });
+          } else {
+            applyReply({ phase: "unavailable", text: "" });
+          }
+        } else {
+          applyReply({ phase: "error", text: ASSISTANT_ERROR_MESSAGE });
+          void refreshAvailability();
+        }
+      } catch (error) {
+        if (error?.name === "AbortError" || seq !== askSeqRef.current) return;
+        applyReply({ phase: "unavailable", text: "" });
+        void refreshAvailability();
+      } finally {
+        if (seq === askSeqRef.current) sendingRef.current = false;
+      }
+    })();
+  };
+
   const closeAssistant = useCallback((restoreFocus = true) => {
+    cancelAsk();
     restoreFocusOnCloseRef.current = restoreFocus;
     setIsDrawerOpen(false);
-  }, []);
+  }, [cancelAsk]);
+
+  useEffect(() => cancelAsk, [cancelAsk]);
 
   const categoryPrompts = selectedCategory
     ? assistantPrompts.filter((prompt) =>
@@ -388,44 +471,29 @@ function PortfolioAssistant() {
             alt="Lorenzo Natali"
             className="h-16 w-16 shrink-0 rounded-full border border-cyan-400/30 object-cover sm:h-11 sm:w-11"
           />
-          <div>
-            <p className="text-base font-semibold leading-tight tracking-tight text-slate-50 sm:text-sm">Portfolio Assistant</p>
+          <div className="min-w-0">
+            <p className="text-base font-semibold leading-tight tracking-tight text-slate-50 sm:text-sm">
+              AI Portfolio{" "}
+              <span className="whitespace-nowrap">
+                Assistant
+                <AssistantAvailabilityIndicator status={availability} />
+              </span>
+            </p>
           </div>
         </div>
 
-        <p className="max-w-[30ch] text-sm font-medium leading-6 text-slate-400 sm:text-xs sm:leading-5 sm:text-slate-500">
-          Guided answers on my background, projects and professional direction.
+        <p className="mx-auto max-w-[30ch] text-center text-sm font-medium leading-6 text-slate-400 sm:text-xs sm:leading-5 sm:text-slate-500">
+          Ask about my professional background, expertise, and projects.
         </p>
-
-        <div
-          ref={previewRootRef}
-          data-assistant-preview-root
-          className="mt-4 rounded-lg border border-slate-800 bg-slate-950/35 px-4 py-3.5 sm:mt-3.5 sm:px-3 sm:py-3"
-        >
-          <p className="text-xs font-semibold uppercase leading-none tracking-[0.2em] text-cyan-300/75 sm:text-[11px] sm:tracking-[0.22em]">
-            Example questions
-          </p>
-          {/* Fixed height sized for the longest showcase questions — avoids card resize on rotate. */}
-          <div className="mt-2.5 flex h-[6rem] items-start overflow-hidden sm:mt-2 sm:h-[5rem]">
-            <motion.p
-              key={previewQuestion}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32, ease: "easeOut" }}
-              className="text-sm font-medium leading-6 text-slate-200 sm:text-xs sm:leading-5 sm:text-slate-300"
-            >
-              {previewQuestion}
-            </motion.p>
-          </div>
-        </div>
 
         <button
           ref={openButtonRef}
           type="button"
           onClick={() => openAssistant()}
-          className="mt-5 w-full rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:py-3 sm:text-sm"
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:py-3 sm:text-sm"
         >
-          Open Assistant
+          <MessageSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Chat
         </button>
       </aside>
 
@@ -435,51 +503,95 @@ function PortfolioAssistant() {
               {isDrawerOpen && (
                 <motion.div
                   data-assistant-overlay="scroll"
-                  className="fixed inset-0 z-50 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-slate-950/75 backdrop-blur-sm"
+                  className="fixed inset-0 z-50 overflow-hidden bg-slate-950/75 backdrop-blur-sm"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onClick={() => closeAssistant(true)}
                 >
-                  <div className="flex min-h-full justify-center p-4 sm:p-6">
+                  <div className="flex h-[100dvh] w-full justify-center sm:items-center sm:p-6">
                     <motion.div
                       ref={dialogRef}
                       role="dialog"
                       aria-modal="true"
                       aria-labelledby="portfolio-assistant-modal-title"
                       aria-describedby="portfolio-assistant-modal-description"
-                      className="w-full max-w-4xl self-start rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl shadow-slate-950/70"
+                      className="flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden rounded-none border border-cyan-400/75 bg-slate-950 pt-[env(safe-area-inset-top)] sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:rounded-2xl sm:pt-0"
+                      style={{
+                        boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
+                      }}
                       initial={{ y: 18, scale: 0.98 }}
                       animate={{ y: 0, scale: 1 }}
                       exit={{ y: 18, scale: 0.98 }}
                       transition={{ duration: 0.28, ease: "easeOut" }}
                       onClick={(event) => event.stopPropagation()}
                     >
-                <div className="flex items-center justify-between gap-3 border-b border-slate-800 p-5">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <img
-                      src={publicAsset("profile.png")}
-                      alt="Lorenzo Natali"
-                      className="h-11 w-11 rounded-full border border-cyan-400/30 object-cover"
-                    />
-                    <div className="min-w-0">
-                      <p id="portfolio-assistant-modal-title" className="text-sm font-semibold text-slate-50">Portfolio Assistant</p>
-                      <p id="portfolio-assistant-modal-description" className="mt-1 max-w-xl text-xs leading-4 text-slate-500 sm:leading-5">
-                        Explore my experience through curated questions and guided answers.
-                      </p>
-                    </div>
-                  </div>
+                <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-cyan-400/60 px-4 py-3 sm:px-5">
+                  <img
+                    src={publicAsset("profile.png")}
+                    alt="Lorenzo Natali"
+                    className="row-span-2 h-10 w-10 rounded-full border border-cyan-400/30 object-cover"
+                  />
+                  <p id="portfolio-assistant-modal-title" className="text-sm font-semibold text-slate-50">AI Portfolio Assistant</p>
                   <button
                     ref={closeButtonRef}
                     type="button"
                     onClick={() => closeAssistant(true)}
-                    className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100"
+                    className="row-span-2 shrink-0 self-center rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100"
                   >
                     Close
                   </button>
+                  <div className="col-start-2">
+                    <p id="portfolio-assistant-modal-description" className="text-[11px] leading-4 text-slate-500">
+                      Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies.
+                    </p>
+                    <button
+                      type="button"
+                      aria-expanded={howOpen}
+                      aria-controls="assistant-how-it-works"
+                      onClick={() => setHowOpen((open) => !open)}
+                      className="mt-1 text-[11px] font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+                    >
+                      About this assistant
+                    </button>
+                    {howOpen ? (
+                      <p
+                        id="assistant-how-it-works"
+                        className="mt-2 max-w-3xl text-xs leading-5 text-slate-400"
+                      >
+                        {ASSISTANT_HOW_IT_WORKS}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
 
-                <div data-assistant-modal-content className="p-5 sm:p-6">
+                <div data-assistant-modal-content className="flex min-h-0 flex-1 flex-col">
+                  {panel === "chat" ? (
+                    <AssistantConversation
+                      messages={messages}
+                      draft={draft}
+                      onDraftChange={setDraft}
+                      onSend={sendQuestion}
+                      onReset={resetConversation}
+                      onSignalClick={handleAssistantSignalClick}
+                      signalMap={signalMap}
+                      status={reply.phase}
+                      unavailableMessage={reply.text}
+                      errorMessage={reply.text || ASSISTANT_ERROR_MESSAGE}
+                      composerRef={composerRef}
+                    />
+                  ) : (
+                    <div
+                      data-assistant-curated
+                      className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5"
+                    >
+                  <button
+                    type="button"
+                    onClick={() => setPanel("chat")}
+                    className="mb-4 text-xs font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+                  >
+                    Back to AI Assistant
+                  </button>
                   <p
                     id="assistant-topic-rail-label"
                     className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
@@ -598,6 +710,8 @@ function PortfolioAssistant() {
                       </AnimatePresence>
                     </div>
                   ) : null}
+                    </div>
+                  )}
                 </div>
                     </motion.div>
                   </div>

@@ -47,6 +47,52 @@ export function hasOpenAiApiKey(env) {
 }
 
 /**
+ * Keep diagnostic tokens to short identifiers. Free text is never logged.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function safeDiagnosticToken(value) {
+  return typeof value === "string" && /^[a-z0-9_]{1,64}$/i.test(value) ? value : null;
+}
+
+/**
+ * Local Wrangler diagnostic only. Public /ask body stays invalid_provider_response.
+ * @param {"incomplete_response" | "empty_output" | "invalid_response_shape"} category
+ * @param {unknown} payload
+ */
+function logRejectedProviderResponse(category, payload) {
+  const root = payload && typeof payload === "object" ? /** @type {Record<string, unknown>} */ (payload) : null;
+  const details =
+    root && root.incomplete_details && typeof root.incomplete_details === "object"
+      ? /** @type {Record<string, unknown>} */ (root.incomplete_details)
+      : null;
+  const providerStatus = safeDiagnosticToken(root ? root.status : null) ?? "none";
+  const incompleteReason = safeDiagnosticToken(details ? details.reason : null) ?? "none";
+  console.warn(
+    `portfolio-assistant invalid_provider_response category=${category} provider_status=${providerStatus} incomplete_reason=${incompleteReason}`,
+  );
+}
+
+/**
+ * Incomplete Responses API results are failures even when partial text is present.
+ * Missing status stays compatible with fixtures that only send output_text.
+ * @param {unknown} payload
+ */
+function isIncompleteProviderResponse(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const root = /** @type {Record<string, unknown>} */ (payload);
+  if (root.status !== "incomplete") return false;
+  const details = root.incomplete_details;
+  const reason =
+    details && typeof details === "object"
+      ? /** @type {Record<string, unknown>} */ (details).reason
+      : undefined;
+  // max_output_tokens and any other incomplete reason are non-retryable.
+  // Partial text is discarded either way and is not returned to the visitor.
+  return reason === "max_output_tokens" || root.status === "incomplete";
+}
+
+/**
  * Single-turn OpenAI Responses API call. No tools, no store, fixed model.
  *
  * @param {{
@@ -121,11 +167,21 @@ export async function createGroundedAnswer({
     try {
       payload = await response.json();
     } catch {
+      logRejectedProviderResponse("invalid_response_shape", null);
+      return { ok: false, error: "invalid_provider_response", httpStatus: 502 };
+    }
+
+    // Responses API can return nonempty output_text with status "incomplete"
+    // (for example incomplete_details.reason "max_output_tokens"). That text
+    // is not a finished answer and must not be shown. No automatic retry.
+    if (isIncompleteProviderResponse(payload)) {
+      logRejectedProviderResponse("incomplete_response", payload);
       return { ok: false, error: "invalid_provider_response", httpStatus: 502 };
     }
 
     const answer = extractOutputText(payload);
     if (!answer) {
+      logRejectedProviderResponse("empty_output", payload);
       return { ok: false, error: "invalid_provider_response", httpStatus: 502 };
     }
 

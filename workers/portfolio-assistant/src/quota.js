@@ -151,6 +151,59 @@ async function writeCount(kv, key, next, expirationTtl) {
 }
 
 /**
+ * Shared prelude for quota consumption and read-only availability.
+ * Does not touch KV.
+ *
+ * @param {{ request: Request, env: Record<string, any>, nowMs: number }} args
+ * @returns {{ ok: true, kv: KVNamespace, config: { globalLimit: number, ipLimit: number, burstSeconds: number }, day: string, ip: string } | { ok: false, error: "server_configuration_error", httpStatus: 503 }}
+ */
+function prepareQuotaPrelude({ request, env, nowMs }) {
+  const kv = env.QUOTA_KV;
+  if (!kv) {
+    return { ok: false, error: "server_configuration_error", httpStatus: 503 };
+  }
+
+  const config = resolveAbuseControlConfig(env);
+  if (!config.ok) {
+    return { ok: false, error: "server_configuration_error", httpStatus: 503 };
+  }
+
+  const trusted = resolveTrustedClientIp(request, env);
+  if (!trusted.ok) {
+    return { ok: false, error: trusted.error, httpStatus: trusted.httpStatus };
+  }
+
+  return {
+    ok: true,
+    kv,
+    config,
+    day: utcDayKey(new Date(nowMs)),
+    ip: trusted.ip,
+  };
+}
+
+/**
+ * @param {Record<string, any>} env
+ * @param {string} day
+ * @param {string} ip
+ */
+async function quotaStorageKeys(env, day, ip) {
+  const pepper = String(env.ASSISTANT_QUOTA_PEPPER || "portfolio-assistant-quota-v1");
+  const ipHash = (await sha256Hex(`${pepper}|${day}|${ip}`)).slice(0, 32);
+  return {
+    globalKey: `quota:global:${day}`,
+    ipKey: `quota:ip:${ipHash}:${day}`,
+    burstKey: `quota:burst:${ipHash}`,
+  };
+}
+
+/** Next UTC midnight after nowMs, as an ISO timestamp. */
+export function nextUtcMidnightIso(nowMs) {
+  const now = new Date(nowMs);
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString();
+}
+
+/**
  * Enforce burst + per-IP-hash day + global day quotas before OpenAI.
  * Missing KV, invalid config, or missing trusted IP → fail closed.
  *
@@ -162,42 +215,13 @@ async function writeCount(kv, key, next, expirationTtl) {
  * @returns {Promise<{ ok: true } | { ok: false, error: "quota_exceeded" | "server_configuration_error", httpStatus: number }>}
  */
 export async function consumeAskQuota({ request, env, nowMs = Date.now() }) {
-  const kv = env.QUOTA_KV;
-  if (!kv) {
-    return {
-      ok: false,
-      error: "server_configuration_error",
-      httpStatus: 503,
-    };
-  }
-
-  const config = resolveAbuseControlConfig(env);
-  if (!config.ok) {
-    return {
-      ok: false,
-      error: "server_configuration_error",
-      httpStatus: 503,
-    };
-  }
-
-  const trusted = resolveTrustedClientIp(request, env);
-  if (!trusted.ok) {
-    return {
-      ok: false,
-      error: trusted.error,
-      httpStatus: trusted.httpStatus,
-    };
-  }
+  const prelude = prepareQuotaPrelude({ request, env, nowMs });
+  if (!prelude.ok) return prelude;
 
   try {
-    const day = utcDayKey(new Date(nowMs));
-    const pepper = String(env.ASSISTANT_QUOTA_PEPPER || "portfolio-assistant-quota-v1");
-    const ipHash = (await sha256Hex(`${pepper}|${day}|${trusted.ip}`)).slice(0, 32);
-
+    const { kv, config } = prelude;
     const { globalLimit, ipLimit, burstSeconds } = config;
-    const globalKey = `quota:global:${day}`;
-    const ipKey = `quota:ip:${ipHash}:${day}`;
-    const burstKey = `quota:burst:${ipHash}`;
+    const { globalKey, ipKey, burstKey } = await quotaStorageKeys(env, prelude.day, prelude.ip);
 
     const burstRaw = await kv.get(burstKey);
     if (burstRaw) {
@@ -228,6 +252,52 @@ export async function consumeAskQuota({ request, env, nowMs = Date.now() }) {
     ]);
 
     return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      error: "server_configuration_error",
+      httpStatus: 503,
+    };
+  }
+}
+
+/**
+ * Read daily quota state for the same identity POST /ask would use.
+ * Does not read the burst timestamp and does not write KV.
+ *
+ * @param {{
+ *   request: Request,
+ *   env: Record<string, any>,
+ *   nowMs?: number,
+ * }} args
+ * @returns {Promise<
+ *   | { ok: true, state: "available" | "visitor_limit_reached" | "global_limit_reached", resetsAt: string }
+ *   | { ok: false, error: "server_configuration_error", httpStatus: 503 }
+ * >}
+ */
+export async function readAskAvailability({ request, env, nowMs = Date.now() }) {
+  const prelude = prepareQuotaPrelude({ request, env, nowMs });
+  if (!prelude.ok) return prelude;
+
+  try {
+    const { globalKey, ipKey } = await quotaStorageKeys(env, prelude.day, prelude.ip);
+    const [globalCount, ipCount] = await Promise.all([
+      readCount(prelude.kv, globalKey),
+      readCount(prelude.kv, ipKey),
+    ]);
+    const { globalLimit, ipLimit } = prelude.config;
+    const state =
+      globalCount >= globalLimit
+        ? "global_limit_reached"
+        : ipCount >= ipLimit
+          ? "visitor_limit_reached"
+          : "available";
+
+    return {
+      ok: true,
+      state,
+      resetsAt: nextUtcMidnightIso(nowMs),
+    };
   } catch {
     return {
       ok: false,

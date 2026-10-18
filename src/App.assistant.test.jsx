@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  act,
   cleanup,
   fireEvent,
   render,
@@ -8,11 +7,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import App from "./App.jsx";
-import {
-  assistantCategories,
-  assistantPrompts,
-  signalMap,
-} from "./portfolio/portfolioData.js";
 
 function HeroHarness({ sidebarSlot }) {
   return <section id="hero">{sidebarSlot}</section>;
@@ -32,10 +26,8 @@ function renderAssistant() {
   );
 }
 
-function expectGuidedAnswer(prompt) {
-  const heading = screen.getByRole("heading", { name: prompt.question });
-  const answer = heading.parentElement?.querySelector(".max-w-3xl");
-  expect(answer?.textContent).toBe(prompt.answer);
+function openChat() {
+  fireEvent.click(screen.getByRole("button", { name: "Chat" }));
 }
 
 describe("Portfolio Assistant guided modal", () => {
@@ -54,22 +46,73 @@ describe("Portfolio Assistant guided modal", () => {
     vi.restoreAllMocks();
   });
 
-  it("progressively reveals topics, questions, and the selected answer", async () => {
+  it("presents the preview card as a chat entry without claiming the assistant is online", () => {
+    renderAssistant();
+
+    expect(screen.getByRole("img", { name: "Lorenzo Natali" })).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Ask about my professional background, expertise, and projects."
+      )
+    ).toBeTruthy();
+    expect(screen.queryByText("Suggested question")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Use example question/ })).toBeNull();
+    expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
+    expect(document.querySelector("[data-assistant-preview-question]")).toBeNull();
+    expect(screen.queryByText("Status unknown")).toBeNull();
+    expect(screen.queryByText("Available")).toBeNull();
+    expect(screen.queryByText("Unavailable")).toBeNull();
+
+    const dot = screen.getByRole("img", { name: "AI Assistant status unknown" });
+    const title = dot.closest("p");
+    expect(title).toHaveClass(
+      "text-base",
+      "font-semibold",
+      "leading-tight",
+      "tracking-tight",
+      "text-slate-50",
+      "sm:text-sm"
+    );
+    expect(title?.textContent?.replace(/\s+/g, " ").trim().startsWith("AI Portfolio Assistant")).toBe(true);
+    expect(title.parentElement?.querySelector("svg")).toBeNull();
+
+    expect(dot.closest("p")).toBe(title);
+    expect(dot.parentElement).toHaveClass("whitespace-nowrap");
+    expect(dot.parentElement?.textContent?.startsWith("Assistant")).toBe(true);
+    expect(dot).toHaveAttribute("data-assistant-availability", "unknown");
+    expect(dot).toHaveClass("ml-2", "bg-slate-500", "inline-block");
+    expect(dot.tagName).not.toBe("BUTTON");
+
+    const chatButton = screen.getByRole("button", { name: "Chat" });
+    expect(chatButton.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(chatButton.textContent?.replace(/\s+/g, " ").trim()).toBe("Chat");
+    expect(document.querySelector("[data-assistant-availability]")).toHaveAttribute(
+      "data-assistant-availability",
+      "unknown"
+    );
+  });
+
+  it("opens the chat, keeps focus inside the dialog, and restores scrolling on close", async () => {
     vi.spyOn(window, "scrollY", "get").mockReturnValue(480);
     renderAssistant();
 
-    const openButton = screen.getByRole("button", { name: "Open Assistant" });
+    const openButton = screen.getByRole("button", { name: "Chat" });
     fireEvent.click(openButton);
 
     expect(
       screen.getByText(
-        "Explore my experience through curated questions and guided answers."
+        "Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies."
       )
     ).toBeTruthy();
-    expect(screen.getByText("Explore by topic")).toBeTruthy();
-    expect(screen.queryByText("Suggested questions")).toBeNull();
-    expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
-    expect(screen.queryByText("Continue exploring")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "What would you like to know about Lorenzo?" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "What is Lorenzo's professional background?" })).toBeNull();
+    expect(document.querySelector("[data-assistant-transcript]")?.textContent?.trim()).toBe("");
+    expect(screen.getByRole("textbox", { name: "Your question" })).toHaveAttribute(
+      "placeholder",
+      "Ask me something..."
+    );
+    expect(screen.queryByText("Explore by topic")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
     expect(document.body.style.position).toBe("fixed");
     expect(document.body.style.top).toBe("-480px");
     expect(document.body.style.width).toBe("100%");
@@ -79,100 +122,14 @@ describe("Portfolio Assistant guided modal", () => {
     const overlay = document.querySelector('[data-assistant-overlay="scroll"]');
     const dialog = screen.getByRole("dialog");
     const modalContent = dialog.querySelector("[data-assistant-modal-content]");
-    expect(overlay).toHaveClass("fixed", "inset-0", "overflow-y-auto");
-    expect(overlay).not.toHaveClass("absolute");
-    expect(overlay.scrollTop).toBe(0);
-    expect(dialog.parentElement).toHaveClass("min-h-full");
-    expect(dialog).not.toHaveClass(
-      "max-h-[92vh]",
-      "overflow-hidden",
-      "overflow-y-auto",
-      "overflow-y-scroll"
-    );
-    expect(modalContent).not.toHaveClass(
-      "overflow-y-auto",
-      "overflow-y-scroll",
-      "overscroll-contain"
-    );
-
-    const topicRail = screen.getByRole("group", { name: "Explore by topic" });
-    expect(topicRail).toHaveAttribute("data-assistant-rail", "topic");
-    expect(topicRail).toHaveClass("overflow-x-auto");
-    for (const category of assistantCategories) {
-      expect(screen.getByRole("button", { name: category })).toHaveAttribute(
-        "data-assistant-card-variant",
-        "topic"
-      );
-    }
-
-    const firstCategory = assistantCategories[0];
-    const firstCategoryPrompts = assistantPrompts.filter((prompt) =>
-      prompt.categories.includes(firstCategory)
-    );
-    fireEvent.click(screen.getByRole("button", { name: firstCategory }));
-
-    expect(
-      screen.getByRole("button", { name: firstCategory })
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: firstCategory })).toHaveClass(
-      "border-violet-300/50",
-      "bg-violet-400/10"
-    );
-    expect(screen.getByText("Suggested questions")).toBeTruthy();
-    const questionRail = screen.getByRole("group", {
-      name: "Suggested questions",
-    });
-    expect(questionRail).toHaveAttribute("data-assistant-rail", "question");
-    expect(questionRail).toHaveClass("overflow-x-auto");
-    expect(screen.queryByText("Continue exploring")).toBeNull();
-    for (const prompt of firstCategoryPrompts) {
-      expect(
-        screen.getByRole("button", { name: prompt.question })
-      ).toHaveAttribute("aria-pressed", "false");
-      expect(
-        screen.getByRole("button", { name: prompt.question })
-      ).toHaveAttribute("data-assistant-card-variant", "question");
-    }
-
-    const firstPrompt = firstCategoryPrompts[0];
-    fireEvent.click(
-      screen.getByRole("button", { name: firstPrompt.question })
-    );
-    await waitFor(() => expectGuidedAnswer(firstPrompt));
-    expect(
-      screen.getByRole("button", { name: firstPrompt.question })
-    ).toHaveClass("border-cyan-300/50", "bg-cyan-400/10");
-    expect(screen.getByText("Continue exploring")).toBeTruthy();
-    expect(screen.queryByText("Guided answer", { exact: true })).toBeNull();
-
-    const nextPrompt = firstCategoryPrompts[1];
-    fireEvent.click(
-      screen.getByRole("button", { name: nextPrompt.question })
-    );
-    await waitFor(() => expectGuidedAnswer(nextPrompt));
-    expect(
-      screen.getByRole("button", { name: firstCategory })
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: nextPrompt.question })
-    ).toHaveAttribute("aria-pressed", "true");
-
-    const secondCategory = assistantCategories[1];
-    const secondCategoryPrompts = assistantPrompts.filter((prompt) =>
-      prompt.categories.includes(secondCategory)
-    );
-    fireEvent.click(screen.getByRole("button", { name: secondCategory }));
-
-    expect(screen.queryByRole("heading", { name: nextPrompt.question })).toBeNull();
-    expect(screen.queryByText("Continue exploring")).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: firstPrompt.question })
-    ).toBeNull();
-    for (const prompt of secondCategoryPrompts) {
-      expect(
-        screen.getByRole("button", { name: prompt.question })
-      ).toHaveAttribute("aria-pressed", "false");
-    }
+    const transcript = dialog.querySelector("[data-assistant-transcript]");
+    expect(overlay).toHaveClass("fixed", "inset-0", "overflow-hidden");
+    expect(overlay).not.toHaveClass("absolute", "overflow-y-auto");
+    expect(dialog).toHaveClass("overflow-hidden", "max-h-[100dvh]", "sm:max-h-[80vh]", "sm:h-[78vh]");
+    expect(dialog.parentElement).toHaveClass("flex", "h-[100dvh]");
+    expect(modalContent).not.toHaveClass("overflow-y-auto", "overflow-y-scroll");
+    expect(transcript).toHaveClass("overflow-y-auto", "overscroll-y-contain");
+    expect(dialog.querySelector("[data-assistant-curated]")).toBeNull();
 
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => {
@@ -186,60 +143,10 @@ describe("Portfolio Assistant guided modal", () => {
     expect(openButton).toHaveFocus();
 
     fireEvent.click(openButton);
-    expect(screen.getByText("Explore by topic")).toBeTruthy();
+    expect(document.querySelector("[data-assistant-transcript]")?.textContent?.trim()).toBe("");
+    expect(screen.queryByText("Explore by topic")).toBeNull();
     expect(screen.queryByText("Suggested questions")).toBeNull();
     expect(screen.queryByText("Continue exploring")).toBeNull();
-  });
-
-  it("closes through a related link and restores document scrolling", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    renderAssistant();
-    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
-
-    const category = assistantCategories[1];
-    const categoryPrompts = assistantPrompts.filter((prompt) =>
-      prompt.categories.includes(category)
-    );
-    expect(categoryPrompts.length).toBeGreaterThan(1);
-
-    fireEvent.click(screen.getByRole("button", { name: category }));
-    fireEvent.click(
-      screen.getByRole("button", { name: categoryPrompts[1].question })
-    );
-    await waitFor(() => expectGuidedAnswer(categoryPrompts[1]));
-
-    const relatedSignal = categoryPrompts[1].signalIds
-      .map((id) => ({ id, ...signalMap[id] }))
-      .find((signal) => signal.target && signal.target.type !== "project");
-    expect(relatedSignal).toBeTruthy();
-
-    const target = document.createElement("div");
-    if (relatedSignal.target.type === "section") {
-      target.id = relatedSignal.target.id;
-    } else {
-      target.dataset.roleLensId = relatedSignal.target.id;
-    }
-    target.scrollIntoView = vi.fn();
-    document.body.appendChild(target);
-
-    fireEvent.click(
-      screen.getByRole("link", { name: relatedSignal.label })
-    );
-    await waitFor(() => {
-      expect(target.scrollIntoView).toHaveBeenCalledWith({
-        behavior: "smooth",
-        block: "center",
-      });
-    });
-    expect(warn).not.toHaveBeenCalled();
-    expect(document.body.style.overflow).toBe("");
-    expect(document.body.style.position).toBe("");
-    expect(document.body.style.top).toBe("");
-    expect(document.body.style.width).toBe("");
-    expect(document.documentElement.style.overflow).toBe("");
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
-
-    target.remove();
   });
 
   it("freezes the body and restores its styles and scroll position on unmount", () => {
@@ -252,7 +159,7 @@ describe("Portfolio Assistant guided modal", () => {
     document.body.style.width = "75%";
 
     const { unmount } = renderAssistant();
-    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
+    openChat();
 
     expect(document.documentElement.style.overflow).toBe("auto");
     expect(document.body.style.overflow).toBe("scroll");
@@ -281,22 +188,20 @@ describe("Portfolio Assistant guided modal", () => {
       writable: true,
     });
 
-    const openButton = screen.getByRole("button", { name: "Open Assistant" });
+    const openButton = screen.getByRole("button", { name: "Chat" });
     fireEvent.click(openButton);
 
     expect(applicationRoot.inert).toBe(true);
     expect(applicationRoot).toHaveAttribute("inert");
     const closeButton = screen.getByRole("button", { name: "Close" });
-    const lastTopicButton = screen.getByRole("button", {
-      name: assistantCategories[assistantCategories.length - 1],
-    });
+    const textarea = screen.getByRole("textbox", { name: "Your question" });
 
-    lastTopicButton.focus();
+    textarea.focus();
     fireEvent.keyDown(document, { key: "Tab" });
     expect(closeButton).toHaveFocus();
 
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
-    expect(lastTopicButton).toHaveFocus();
+    expect(textarea).toHaveFocus();
 
     fireEvent.click(closeButton);
     expect(applicationRoot.inert).toBe(false);
@@ -309,7 +214,7 @@ describe("Portfolio Assistant guided modal", () => {
     const applicationRoot = document.querySelector("main");
     expect("inert" in applicationRoot).toBe(false);
 
-    const openButton = screen.getByRole("button", { name: "Open Assistant" });
+    const openButton = screen.getByRole("button", { name: "Chat" });
     fireEvent.click(openButton);
     expect(applicationRoot).toHaveAttribute("inert");
     expect(applicationRoot).toHaveAttribute("aria-hidden", "true");
@@ -322,176 +227,105 @@ describe("Portfolio Assistant guided modal", () => {
     expect(applicationRoot).not.toHaveAttribute("aria-hidden");
     expect(openButton).toHaveFocus();
   });
-});
 
-describe("Portfolio Assistant homepage preview rotation", () => {
-  /** @type {Array<{ cb: Function, el?: Element }>} */
-  let ioInstances = [];
+  it("limits the question to 500 characters and ignores empty sends", () => {
+    renderAssistant();
+    openChat();
+    const textarea = screen.getByRole("textbox", { name: "Your question" });
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(send).toBeDisabled();
+    expect(screen.getByText("0/500")).toBeTruthy();
 
-  function firePreviewVisibility(visible) {
-    for (const instance of ioInstances) {
-      instance.cb([
-        {
-          isIntersecting: visible,
-          intersectionRatio: visible ? 1 : 0,
-          target: instance.el,
-        },
-      ]);
-    }
-  }
+    fireEvent.change(textarea, { target: { value: "   " } });
+    expect(send).toBeDisabled();
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
 
-  function previewQuestionText() {
-    const root = document.querySelector("[data-assistant-preview-root]");
-    const paragraphs = root ? [...root.querySelectorAll("p")] : [];
-    // [0] = "Example questions" label; [1] = rotating question.
-    return paragraphs[1]?.textContent ?? "";
-  }
-
-  beforeEach(() => {
-    ioInstances = [];
-    vi.useFakeTimers();
-
-    class MockIO {
-      constructor(cb) {
-        this.cb = cb;
-        ioInstances.push(this);
-      }
-      observe(el) {
-        this.el = el;
-        this.cb([
-          { isIntersecting: true, intersectionRatio: 1, target: el },
-        ]);
-      }
-      unobserve() {}
-      disconnect() {}
-    }
-    vi.stubGlobal("IntersectionObserver", MockIO);
-    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    fireEvent.change(textarea, { target: { value: "a".repeat(640) } });
+    expect(textarea).toHaveValue("a".repeat(500));
+    expect(screen.getByText("500/500")).toBeTruthy();
+    expect(send).toBeEnabled();
   });
 
+  it("sends on Enter, keeps Shift+Enter in the draft, and resets the transcript", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAssistant();
+    openChat();
+    const textarea = screen.getByRole("textbox", { name: "Your question" });
+
+    fireEvent.change(textarea, { target: { value: "First line" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
+    expect(textarea).toHaveValue("First line");
+    expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
+
+    fireEvent.change(textarea, { target: { value: "What is Lorenzo's background?" } });
+    fireEvent.keyDown(textarea, { key: "Enter" });
+
+    expect(screen.getByText("What is Lorenzo's background?")).toBeTruthy();
+    expect(screen.getByText(/temporarily unavailable/)).toBeTruthy();
+    expect(screen.getByText(/not used as context/)).toBeTruthy();
+    expect(screen.queryByText(/Development preview/)).toBeNull();
+    expect(screen.queryByText(/Development-only sample answer/)).toBeNull();
+    expect(textarea).toHaveValue("");
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    expect(document.querySelector("[data-assistant-transcript]")?.textContent?.trim()).toBe("");
+    expect(screen.queryByText("What is Lorenzo's background?")).toBeNull();
+    expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
+  });
+
+  it("explains the assistant without a model name and keeps the chat available when AI is unavailable", () => {
+    renderAssistant();
+    openChat();
+    expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
+    expect(screen.queryByText(/OpenAI AI models/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "About this assistant" }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.textContent).toMatch(/OpenAI AI models/);
+    expect(dialog.textContent).toMatch(/Do not enter personal, confidential, or sensitive information/);
+    expect(dialog.textContent).not.toMatch(/gpt-|luna/i);
+
+    const textarea = screen.getByRole("textbox", { name: "Your question" });
+    fireEvent.change(textarea, { target: { value: "A question" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Your question" })).toBeTruthy();
+    expect(screen.getByText("A question")).toBeTruthy();
+    expect(screen.getByText(/temporarily unavailable/)).toBeTruthy();
+  });
+
+  it("keeps keyboard focus inside the chat dialog", () => {
+    renderAssistant();
+    openChat();
+    const closeButton = screen.getByRole("button", { name: "Close" });
+    const textarea = screen.getByRole("textbox", { name: "Your question" });
+    textarea.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(closeButton).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(textarea).toHaveFocus();
+  });
+});
+
+describe("Portfolio Assistant preview without question rotation", () => {
   afterEach(() => {
     cleanup();
-    document.documentElement.style.overflow = "";
-    document.body.style.overflow = "";
-    document.body.style.paddingRight = "";
-    document.body.style.position = "";
-    document.body.style.top = "";
-    document.body.style.width = "";
-    vi.useRealTimers();
-    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it("rotates every 3600ms while the preview is visible", () => {
-    renderAssistant();
-    expect(document.querySelector("[data-assistant-preview-root]")).toBeTruthy();
-    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
-
-    act(() => {
-      vi.advanceTimersByTime(3600);
-    });
-    expect(previewQuestionText()).toBe(assistantPrompts[1].question);
-
-    act(() => {
-      vi.advanceTimersByTime(3600);
-    });
-    expect(previewQuestionText()).toBe(assistantPrompts[2].question);
-  });
-
-  it("clears the 3600ms interval when the preview leaves the viewport", () => {
-    renderAssistant();
-    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
-
-    act(() => {
-      firePreviewVisibility(false);
-    });
-
-    const paused = previewQuestionText();
-    act(() => {
-      vi.advanceTimersByTime(3600 * 5);
-    });
-    expect(previewQuestionText()).toBe(paused);
-  });
-
-  it("resumes the 3600ms interval when the preview becomes visible again", () => {
+  it("does not render suggested questions or start a preview timer", () => {
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
     renderAssistant();
 
-    act(() => {
-      firePreviewVisibility(false);
-    });
-    const paused = previewQuestionText();
-    act(() => {
-      vi.advanceTimersByTime(3600 * 2);
-    });
-    expect(previewQuestionText()).toBe(paused);
-
-    act(() => {
-      firePreviewVisibility(true);
-    });
-    act(() => {
-      vi.advanceTimersByTime(3600);
-    });
-    expect(previewQuestionText()).not.toBe(paused);
-  });
-
-  it("does not leave a preview interval after unmount", () => {
-    const clearSpy = vi.spyOn(window, "clearInterval");
-    const { unmount } = renderAssistant();
-    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
-
-    unmount();
-    expect(clearSpy).toHaveBeenCalled();
-
-    // Advancing time must not throw or resurrect preview DOM.
-    act(() => {
-      vi.advanceTimersByTime(3600 * 3);
-    });
+    expect(screen.queryByText("Suggested question")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Use example question/ })).toBeNull();
     expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
-  });
+    expect(setIntervalSpy.mock.calls.map((call) => call[1])).not.toContain(3600);
 
-  it("pauses rotation while the document tab is hidden", () => {
-    renderAssistant();
-    expect(previewQuestionText()).toBe(assistantPrompts[0].question);
-
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      get: () => true,
-    });
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-
-    const paused = previewQuestionText();
-    act(() => {
-      vi.advanceTimersByTime(3600 * 3);
-    });
-    expect(previewQuestionText()).toBe(paused);
-
-    Object.defineProperty(document, "hidden", {
-      configurable: true,
-      get: () => false,
-    });
-    act(() => {
-      document.dispatchEvent(new Event("visibilitychange"));
-    });
-    act(() => {
-      vi.advanceTimersByTime(3600);
-    });
-    expect(previewQuestionText()).not.toBe(paused);
-  });
-
-  it("keeps opened Assistant guided behaviour independent of preview rotation", async () => {
-    vi.useRealTimers();
-    renderAssistant();
-
-    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
-    const topic = assistantCategories[0];
-    fireEvent.click(screen.getByRole("button", { name: topic }));
-    const prompt = assistantPrompts.find((item) =>
-      item.categories.includes(topic)
-    );
-    fireEvent.click(screen.getByRole("button", { name: prompt.question }));
-    expectGuidedAnswer(prompt);
+    openChat();
     expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
+    expect(screen.queryByText("Suggested question")).toBeNull();
   });
 });

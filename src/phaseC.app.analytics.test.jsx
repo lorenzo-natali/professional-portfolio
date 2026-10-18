@@ -27,11 +27,6 @@ vi.mock("framer-motion", () => ({
 }));
 
 import App from "./App.jsx";
-import {
-  assistantCategories,
-  assistantPrompts,
-  signalMap,
-} from "./portfolio/portfolioData.js";
 
 function HeroHarness({ sidebarSlot }) {
   return <section id="hero">{sidebarSlot}</section>;
@@ -100,7 +95,7 @@ describe("Phase C App interaction instrumentation", () => {
     });
   });
 
-  it("assistant open and curated prompt emit privacy-safe events only", () => {
+  it("assistant open emits a privacy-safe event", () => {
     render(
       <App
         features={{
@@ -113,74 +108,11 @@ describe("Phase C App interaction instrumentation", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chat" }));
     expect(trackMock).toHaveBeenCalledWith("assistant_open");
-
-    const category = assistantCategories[0];
-    const prompt = assistantPrompts.find((item) =>
-      item.categories.includes(category)
-    );
-    expect(prompt?.id).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: category }));
-    trackMock.mockClear();
-    fireEvent.click(screen.getByRole("button", { name: prompt.question }));
-
-    expect(trackMock).toHaveBeenCalledTimes(1);
-    expect(trackMock).toHaveBeenCalledWith("assistant_curated_question", {
-      prompt_id: prompt.id,
-      category,
-    });
-    const payload = JSON.stringify(trackMock.mock.calls[0]);
-    expect(payload).not.toContain(prompt.question);
-    expect(payload).not.toContain(prompt.answer);
-  });
-
-  it("assistant project signal emits project_view source:assistant once", () => {
-    const entry = Object.entries(signalMap).find(
-      ([, signal]) => signal.target?.type === "project"
-    );
-    expect(entry).toBeTruthy();
-    const [signalId, projectSignal] = entry;
-    expect(projectSignal.target?.id).toBeTruthy();
-
-    const prompt = assistantPrompts.find((item) =>
-      item.signalIds?.includes(signalId)
-    );
-    expect(prompt).toBeTruthy();
-    const category = prompt.categories[0];
-
-    render(
-      <App
-        features={{
-          assistant: true,
-          beyond: false,
-          intro: false,
-          preload: false,
-        }}
-        eagerSectionModules={{ hero: HeroHarness }}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Open Assistant" }));
-    fireEvent.click(screen.getByRole("button", { name: category }));
-    fireEvent.click(screen.getByRole("button", { name: prompt.question }));
-    trackMock.mockClear();
-
-    const continueLink = screen.getByRole("link", {
-      name: projectSignal.label,
-    });
-    fireEvent.click(continueLink);
-
-    const projectViews = trackMock.mock.calls.filter(
-      ([name]) => name === "project_view"
-    );
-    expect(projectViews).toEqual([
-      [
-        "project_view",
-        { project_id: projectSignal.target.id, source: "assistant" },
-      ],
-    ]);
+    expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
+    const payload = JSON.stringify(trackMock.mock.calls);
+    expect(payload).not.toMatch(/What kind of roles/);
   });
 
   it("Beyond CV card emits source:card", () => {

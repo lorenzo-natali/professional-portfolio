@@ -5,6 +5,7 @@ import {
   resolveCorsOrigin,
 } from "./cors.js";
 import { handleAskPost } from "./handleAsk.js";
+import { handleAvailabilityGet } from "./handleAvailability.js";
 import { handleHealthGet } from "./handleHealth.js";
 
 /**
@@ -40,6 +41,22 @@ export default {
         );
       }
       return handleHealthGet(origin, env);
+    }
+
+    if (path === "/availability") {
+      if (request.method !== "GET") {
+        return new Response(
+          JSON.stringify({ ok: false, error: "method_not_allowed" }),
+          {
+            status: 405,
+            headers: corsHeaders(origin, {
+              "Content-Type": "application/json; charset=utf-8",
+              Allow: "GET, OPTIONS",
+            }),
+          },
+        );
+      }
+      return handleAvailabilityGet(request, origin, env);
     }
 
     if (path === "/ask") {

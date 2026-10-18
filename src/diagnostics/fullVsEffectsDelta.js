@@ -23,15 +23,14 @@
 /** @type {ReadonlyArray<FullVsEffectsRow>} */
 export const FULL_VS_EFFECTS_DELTA = Object.freeze([
   {
-    subsystem: "Portfolio Assistant + preview interval",
+    subsystem: "Portfolio Assistant",
     file: "src/App.jsx (PortfolioAssistant)",
     mountedOnHomepage: true,
     startsBeforeUserInteraction: true,
-    longLivedResource:
-      "setInterval 3600ms only while Hero preview in view; custom event listeners on activate",
-    cleanup: "clearInterval / removeEventListener on unmount",
+    longLivedResource: "none while idle; dialog keydown listener only while the chat is open",
+    cleanup: "removeEventListener when the dialog closes or unmounts",
     introducedOrChangedDuringBeyond: false,
-    risk: "medium",
+    risk: "low",
   },
   {
     subsystem: "Portfolio intro / splash + sessionStorage",

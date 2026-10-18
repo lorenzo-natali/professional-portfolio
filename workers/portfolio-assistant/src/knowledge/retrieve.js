@@ -298,6 +298,21 @@ const PHRASE_ALIASES = [
   { phrase: "logical next step", concept: "career_narrative" },
   { phrase: "career heading", concept: "career_narrative" },
   { phrase: "where is your career", concept: "career_narrative" },
+  { phrase: "professional direction", concept: "career_narrative" },
+  { phrase: "future aspirations", concept: "future_aspirations" },
+  { phrase: "long-term career", concept: "future_aspirations" },
+  { phrase: "long term career", concept: "future_aspirations" },
+  { phrase: "career choices", concept: "career_choices" },
+  { phrase: "professional motivations", concept: "career_choices" },
+  { phrase: "professional motivation", concept: "career_choices" },
+  { phrase: "connections between", concept: "experience_connections" },
+  { phrase: "what connects", concept: "experience_connections" },
+  { phrase: "different professional experiences", concept: "experience_connections" },
+  { phrase: "transferable capabilities", concept: "transferable" },
+  { phrase: "transferable skills", concept: "transferable" },
+  { phrase: "technology interests", concept: "technology_risk" },
+  { phrase: "professional development", concept: "development_strategy" },
+  { phrase: "development plans", concept: "development_strategy" },
   { phrase: "are you lorenzo", concept: "identity_probe" },
   { phrase: "talking to lorenzo", concept: "identity_probe" },
   { phrase: "pretend you are lorenzo", concept: "injection" },
@@ -394,6 +409,7 @@ const TOKEN_ALIASES = {
   heading: "career_narrative",
   differentiates: "career_narrative",
   differentiate: "career_narrative",
+  distinctive: "distinctive_profile",
   motivation: "psychology",
   personality: "psychology",
   ambitious: "psychology",
@@ -453,6 +469,11 @@ const CONCEPT_MATCH_TERMS = {
   ai_gov_why: ["ai governance", "rationale", "intersection", "technology", "risk", "controls"],
   audit_why: ["audit foundation", "controls", "governance", "it audit", "internal audit"],
   development_strategy: ["preparing", "transition", "certification", "cisa", "project", "development strategy"],
+  future_aspirations: ["longer-term", "long-term", "trajectory", "aspirations"],
+  career_choices: ["career direction", "rationale", "motivation", "interest"],
+  experience_connections: ["common thread", "common-thread", "foundation", "trajectory"],
+  distinctive_profile: ["differentiator", "hybrid", "intersection", "positioning"],
+  transferable: ["transferable", "capability", "capabilities", "skill"],
 };
 
 /**
@@ -508,6 +529,11 @@ export function analyzeQuery(question) {
     const mapped = TOKEN_ALIASES[token];
     if (mapped) concepts.add(mapped);
   }
+  // "professional motivation(s)" asks about documented career direction.
+  // Bare "motivation" stays a psychological concept for other questions.
+  if (concepts.has("career_choices") && /\bprofessional motivations?\b/.test(normalized)) {
+    concepts.delete("psychology");
+  }
   return { tokens, concepts: [...concepts], phrases, normalized };
 }
 
@@ -534,6 +560,10 @@ export function classifyIntent(question, analysis = analyzeQuery(question)) {
     c.has("ai_gov_why") ||
     c.has("audit_why") ||
     c.has("development_strategy") ||
+    c.has("future_aspirations") ||
+    c.has("career_choices") ||
+    c.has("experience_connections") ||
+    c.has("distinctive_profile") ||
     /\b(career (direction|heading|goals?|path|trajectory)|long[- ]term|professional goals?|next step|common thread|hybrid profile|outside banking|other industr|other sector|why (ai )?governance|why audit|interested in ai|useful for ai|preparing for|logical next|banking professional|technology[- ]risk professional|traditional it auditor|direzione professionale|obiettivi|filo conduttore|profilo (ibrido|professionale)|altri settori|settore bancario|perche|dove vuoi arrivare|come definiresti|vuoi rimanere|ti interessano|ti interessa)\b/.test(
       normalized,
     )
@@ -586,6 +616,7 @@ export function classifyIntent(question, analysis = analyzeQuery(question)) {
     return "regulatory";
   }
   if (
+    c.has("transferable") ||
     /\b(suitable|relevant|strongest|fit|why might|transferable|orientation)\b/.test(normalized) ||
     /\b(adatto|rilevante|punti di forza)\b/.test(normalized)
   ) {
@@ -709,6 +740,40 @@ function scoreItem(item, analysis, intent) {
   if (concepts.includes("banca_profilo") && item.id === "experience-banca-profilo") score += 6;
   if (concepts.includes("dora") && (textNorm.includes("dora") || kwNorm.includes("dora"))) score += 4;
   if (concepts.includes("nis2") && (textNorm.includes("nis2") || kwNorm.includes("nis2"))) score += 4;
+
+  // Keep the narrative that matches the question ahead of alphabetical ties.
+  if (concepts.includes("experience_connections") && item.id === "narrative-common-thread") score += 10;
+  if (concepts.includes("distinctive_profile") && item.id === "narrative-hybrid-positioning") score += 10;
+  if (concepts.includes("future_aspirations") && item.id === "narrative-long-term-direction") score += 10;
+  if (concepts.includes("development_strategy") && item.id === "narrative-development-strategy") score += 6;
+  if (
+    concepts.includes("career_choices") &&
+    (item.id === "narrative-long-term-direction" ||
+      item.id === "narrative-ai-governance-rationale" ||
+      item.id === "narrative-audit-foundation" ||
+      item.id === "narrative-common-thread" ||
+      item.id === "narrative-development-strategy")
+  ) {
+    score += 6;
+  }
+  if (
+    (concepts.includes("audit") ||
+      concepts.includes("audit_why") ||
+      concepts.includes("it_audit") ||
+      concepts.includes("internal_audit")) &&
+    item.id === "narrative-audit-foundation"
+  ) {
+    score += 4;
+  }
+  // "How do projects complement experience?" should still surface the jobs.
+  if (
+    intent === "project" &&
+    concepts.includes("experience") &&
+    /\bcomplement\b/.test(analysis.normalized || "") &&
+    (claimType === "employment_current" || claimType === "employment_past")
+  ) {
+    score += 9;
+  }
 
   // Demote timeline/journey when stronger employment evidence exists for experience intents
   if (
@@ -846,6 +911,255 @@ function intentClaimBoost(intent, claimType, item) {
 }
 
 /**
+ * Chronology questions may keep journey entries. Responsibility questions prefer the employment record.
+ * @param {{ normalized?: string }} analysis
+ */
+function isChronologyQuestion(analysis) {
+  return /\b(chronolog|timeline|journey|career path|career trajectory|career progression|over time)\b/.test(
+    analysis.normalized || "",
+  );
+}
+
+/**
+ * @param {string} id
+ */
+function employerKey(id) {
+  if (id.includes("banca-profilo")) return "banca-profilo";
+  if (id.includes("boc")) return "boc";
+  if (id.includes("prelios")) return "prelios";
+  if (id.includes("toplife")) return "toplife";
+  return "";
+}
+
+/**
+ * @param {{ concepts: string[] }} analysis
+ */
+function narrativeTieRank(item, analysis) {
+  if (item.topic !== "professional_narrative") return 0;
+  const type = item.narrativeType || "";
+  const concepts = new Set(analysis.concepts);
+  if (concepts.has("future_aspirations") && type === "long_term_direction") return 4;
+  if (concepts.has("experience_connections") && type === "common_thread") return 4;
+  if (concepts.has("distinctive_profile") && type === "hybrid_positioning") return 4;
+  if (concepts.has("ai_gov_why") && type === "ai_governance_rationale") return 4;
+  if (concepts.has("development_strategy") && type === "development_strategy") return 4;
+  if (concepts.has("audit_why") && type === "audit_foundation") return 4;
+  if (
+    concepts.has("career_choices") &&
+    ["long_term_direction", "ai_governance_rationale", "audit_foundation", "common_thread", "development_strategy"].includes(
+      type,
+    )
+  ) {
+    return 2;
+  }
+  return 0;
+}
+
+/**
+ * Analytical questions use one intent, but the six slots should still represent
+ * the topics the question actually names when those items score well.
+ * @param {string} intent
+ * @param {{ concepts: string[], normalized: string }} analysis
+ */
+function usesComplementarySelection(intent, analysis) {
+  if (intent === "career_narrative" || intent === "role_fit") return true;
+  return (
+    intent === "project" &&
+    analysis.concepts.includes("experience") &&
+    /\bcomplement\b/.test(analysis.normalized || "")
+  );
+}
+
+/**
+ * Skill questions that ask both what is already shown and what still needs
+ * development. Narrow on purpose so ordinary capability lookups stay ranked as before.
+ * @param {string} intent
+ * @param {{ concepts: string[], normalized?: string }} analysis
+ */
+function isCapabilityReadinessQuestion(intent, analysis) {
+  if (intent !== "skill_or_capability") return false;
+  const normalized = analysis.normalized || "";
+  const concepts = new Set(analysis.concepts);
+  const asksDevelopment = /\b(develop|developing|still need|need to develop)\b/.test(normalized);
+  const asksSkillsOrExperience =
+    concepts.has("experience") || /\b(skills?|strengths|experiences)\b/.test(normalized);
+  const domain =
+    concepts.has("ai_governance") ||
+    concepts.has("technology_risk") ||
+    concepts.has("information_security") ||
+    concepts.has("audit");
+  return asksDevelopment && asksSkillsOrExperience && domain;
+}
+
+/**
+ * Replace redundant role-lens copies with one developing capability, one job,
+ * and one concrete project when those hits are still strong relative to the top score.
+ * @param {Array<{ id: string, topic: string, claimType?: string, score: number }>} ranked
+ * @param {number} limit
+ */
+function selectCapabilityReadiness(ranked, limit) {
+  const selected = [];
+  const used = new Set();
+  const floor = ranked[0] ? ranked[0].score * 0.5 : 0;
+
+  const take = (item) => {
+    if (!item || used.has(item.id) || selected.length >= limit) return false;
+    selected.push(item);
+    used.add(item.id);
+    return true;
+  };
+
+  const best = (pred) => ranked.find((item) => !used.has(item.id) && pred(item) && item.score >= floor);
+
+  take(best((item) => item.claimType === "capability_developing" && item.topic !== "role_lens"));
+  take(
+    best(
+      (item) => item.claimType === "employment_current" || item.claimType === "employment_past",
+    ),
+  );
+  take(best((item) => item.claimType === "project_personal"));
+  take(best((item) => item.topic === "professional_narrative"));
+
+  let roleLenses = 0;
+  for (const item of ranked) {
+    if (selected.length >= limit) break;
+    if (used.has(item.id)) continue;
+    if (item.topic === "role_lens") {
+      if (roleLenses >= 1) continue;
+      roleLenses += 1;
+    }
+    take(item);
+  }
+
+  return selected.slice(0, limit);
+}
+
+/**
+ * @param {Array<{ id: string, topic: string, claimType?: string, score: number }>} ranked
+ * @param {{ concepts: string[], normalized: string }} analysis
+ * @param {string} intent
+ * @param {number} limit
+ */
+function selectComplementary(ranked, analysis, intent, limit) {
+  const concepts = new Set(analysis.concepts);
+  const chronology = isChronologyQuestion(analysis);
+  /** @type {typeof ranked} */
+  const selected = [];
+  const used = new Set();
+
+  const take = (item) => {
+    if (!item || used.has(item.id) || selected.length >= limit) return false;
+    selected.push(item);
+    used.add(item.id);
+    return true;
+  };
+
+  const takeNarratives = (cap) => {
+    let n = 0;
+    for (const item of ranked) {
+      if (n >= cap) break;
+      if (item.topic === "professional_narrative" && take(item)) n += 1;
+    }
+  };
+
+  const explicitProject =
+    concepts.has("project") ||
+    concepts.has("project_cbi") ||
+    concepts.has("codeiak") ||
+    concepts.has("software_dev");
+  const explicitDeveloping =
+    concepts.has("technology_risk") ||
+    concepts.has("ai_governance") ||
+    concepts.has("ai_gov_why") ||
+    concepts.has("information_security") ||
+    concepts.has("development_strategy") ||
+    concepts.has("transferable");
+
+  if (intent === "project") {
+    let n = 0;
+    for (const item of ranked) {
+      if (n >= 2) break;
+      if (item.claimType === "project_personal" && take(item)) n += 1;
+    }
+    take(
+      ranked.find(
+        (item) =>
+          !used.has(item.id) &&
+          (item.claimType === "employment_current" || item.claimType === "employment_past"),
+      ),
+    );
+    takeNarratives(1);
+  } else {
+    takeNarratives(intent === "role_fit" ? 2 : 3);
+    const jobs = ranked.filter(
+      (item) =>
+        !used.has(item.id) &&
+        (item.claimType === "employment_current" || item.claimType === "employment_past"),
+    );
+    const reserveEmployment =
+      intent === "career_narrative" ||
+      concepts.has("experience") ||
+      concepts.has("experience_connections") ||
+      concepts.has("audit") ||
+      concepts.has("internal_audit") ||
+      concepts.has("it_audit") ||
+      concepts.has("technology_risk") ||
+      concepts.has("information_security") ||
+      concepts.has("banking") ||
+      concepts.has("profile");
+    if (reserveEmployment && jobs[0]) take(jobs[0]);
+    const employmentScore = jobs[0]?.score ?? 0;
+    const project = ranked.find((item) => !used.has(item.id) && item.claimType === "project_personal");
+    const developing = ranked.find(
+      (item) =>
+        !used.has(item.id) && item.claimType === "capability_developing" && item.topic !== "role_lens",
+    );
+    if (developing && (explicitDeveloping || developing.score >= employmentScore + 6)) take(developing);
+    if (project && (explicitProject || project.score >= employmentScore + 6)) {
+      const cap = explicitProject ? 2 : 1;
+      let n = 0;
+      for (const item of ranked) {
+        if (n >= cap) break;
+        if (item.claimType === "project_personal" && take(item)) n += 1;
+      }
+    }
+    if (concepts.has("development_strategy")) {
+      take(
+        ranked.find(
+          (item) =>
+            !used.has(item.id) &&
+            (item.claimType === "credential_in_progress" || item.claimType === "credential_planned"),
+        ),
+      );
+    }
+  }
+
+  let roleLenses = selected.filter((item) => item.topic === "role_lens").length;
+  for (const item of ranked) {
+    if (selected.length >= limit) break;
+    if (used.has(item.id)) continue;
+    if (item.topic === "role_lens") {
+      if (roleLenses >= 1) continue;
+      roleLenses += 1;
+    }
+    if (!chronology && item.claimType === "timeline_context") {
+      const key = employerKey(item.id);
+      const employmentAvailable =
+        key &&
+        ranked.some(
+          (candidate) =>
+            (candidate.claimType === "employment_current" || candidate.claimType === "employment_past") &&
+            employerKey(candidate.id) === key,
+        );
+      if (employmentAvailable) continue;
+    }
+    take(item);
+  }
+
+  return selected.slice(0, limit);
+}
+
+/**
  * @param {string} question
  * @param {{ limit?: number, minScore?: number, items?: typeof knowledgeItems }} [options]
  */
@@ -876,6 +1190,8 @@ export function retrieveKnowledge(question, options = {}) {
     .filter((item) => item.score >= minScore)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
+      const tie = narrativeTieRank(b, analysis) - narrativeTieRank(a, analysis);
+      if (tie !== 0) return tie;
       // Current-role: hard prefer employment_current then profile over past
       if (intent === "current_role") {
         const rank = (ct) =>
@@ -886,40 +1202,12 @@ export function retrieveKnowledge(question, options = {}) {
       return a.id.localeCompare(b.id);
     });
 
-  // Career narrative: keep room for supporting facts (avoid 6× narrative-only saturation).
-  if (intent === "career_narrative") {
-    const maxNarrative = Math.min(4, limit);
-    const supportRank = (item) => {
-      if (item.topic === "professional_narrative") return 0;
-      const order = {
-        employment_current: 1,
-        employment_past: 2,
-        capability_demonstrated: 3,
-        capability_developing: 4,
-        project_personal: 5,
-        credential_in_progress: 6,
-        education: 7,
-        profile: 8,
-      };
-      return order[item.claimType] ?? 20;
-    };
-    const narratives = ranked
-      .filter((i) => i.topic === "professional_narrative")
-      .slice(0, maxNarrative);
-    const support = ranked
-      .filter((i) => i.topic !== "professional_narrative")
-      .sort((a, b) => {
-        const d = supportRank(a) - supportRank(b);
-        if (d !== 0) return d;
-        if (b.score !== a.score) return b.score - a.score;
-        return a.id.localeCompare(b.id);
-      });
-    const selected = [...narratives];
-    for (const item of support) {
-      if (selected.length >= limit) break;
-      selected.push(item);
-    }
-    return selected.slice(0, limit);
+  if (isCapabilityReadinessQuestion(intent, analysis)) {
+    return selectCapabilityReadiness(ranked, limit);
+  }
+
+  if (usesComplementarySelection(intent, analysis)) {
+    return selectComplementary(ranked, analysis, intent, limit);
   }
 
   return ranked.slice(0, limit);

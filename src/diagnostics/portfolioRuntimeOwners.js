@@ -38,16 +38,6 @@ export const PORTFOLIO_RUNTIME_OWNERS = Object.freeze([
     notes: "Continuous GPU/compositor work while homepage idle",
   },
   {
-    subsystem: "PortfolioAssistant preview interval",
-    mountedOnHomepage: true,
-    loopListenerObserver:
-      "IntersectionObserver + setInterval 3600ms only while Hero preview visible (and tab visible)",
-    cleanup: "clearInterval + observer.disconnect + visibilitychange remove on unmount",
-    suspectedRisk: "low",
-    owner: "src/App.jsx PortfolioAssistant",
-    notes: "No preview timer while off-screen or document.hidden; modal/drawer unchanged",
-  },
-  {
     subsystem: "ProjectDeck assistant listener",
     mountedOnHomepage: true,
     loopListenerObserver: "window assistant:activate-project",

@@ -9,6 +9,10 @@ import { resolvePublicSignalIds } from "./signalResolve.js";
 export const INSUFFICIENT_EVIDENCE_ANSWER =
   "The public portfolio does not provide enough information to answer that question.";
 
+/** Questions about Lorenzo that the portfolio cannot support. Not used for unrelated or injection asks. */
+export const PORTFOLIO_GAP_ANSWER =
+  "That's not something Lorenzo's public portfolio covers in detail. If you'd like to learn more about his professional approach or experience, the best option is to reach out to him directly.";
+
 export const PRIVATE_INFO_ANSWER = "The public portfolio does not provide that information.";
 
 export const IDENTITY_ANSWER =
@@ -126,7 +130,7 @@ export function evaluatePrivateOrUnsupportedGate(question) {
     if (re.test(q) || re.test(normalized)) {
       return {
         blocked: true,
-        answer: INSUFFICIENT_EVIDENCE_ANSWER,
+        answer: PORTFOLIO_GAP_ANSWER,
         reason: "psychological_inference_blocked",
       };
     }
@@ -136,7 +140,7 @@ export function evaluatePrivateOrUnsupportedGate(question) {
     if (re.test(q) || re.test(normalized)) {
       return {
         blocked: true,
-        answer: INSUFFICIENT_EVIDENCE_ANSWER,
+        answer: PORTFOLIO_GAP_ANSWER,
         reason: "unsupported_employer",
       };
     }
@@ -146,7 +150,7 @@ export function evaluatePrivateOrUnsupportedGate(question) {
     if ((re.test(q) || re.test(normalized)) && /\b(is|are|was|were|e|ciso)\b/i.test(normalized)) {
       return {
         blocked: true,
-        answer: INSUFFICIENT_EVIDENCE_ANSWER,
+        answer: PORTFOLIO_GAP_ANSWER,
         reason: "unsupported_title",
       };
     }
@@ -155,7 +159,7 @@ export function evaluatePrivateOrUnsupportedGate(question) {
   if (/\b(team of\s+\d+|managed a team|team di\s+\d+)\b/i.test(normalized)) {
     return {
       blocked: true,
-      answer: INSUFFICIENT_EVIDENCE_ANSWER,
+      answer: PORTFOLIO_GAP_ANSWER,
       reason: "unsupported_management_claim",
     };
   }
@@ -207,21 +211,9 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
     return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "no_evidence", intent };
   }
 
-  // Injection / capability probes: do not escalate via OpenAI when no substantive portfolio ask
-  if (
-    analysis.concepts.includes("injection") &&
-    !analysis.concepts.some((c) =>
-      [
-        "experience",
-        "audit",
-        "certification",
-        "project",
-        "ai_governance",
-        "current_role",
-        "banking",
-      ].includes(c),
-    )
-  ) {
+  // Clear instruction-manipulation stays local even when the question also
+  // names portfolio topics (experience, audit, projects, current role, …).
+  if (analysis.concepts.includes("injection")) {
     return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "injection_probe", intent };
   }
 
@@ -230,7 +222,7 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
       if (!hasClaim(items, ["employment_current"])) {
         return {
           ok: false,
-          answer: INSUFFICIENT_EVIDENCE_ANSWER,
+          answer: PORTFOLIO_GAP_ANSWER,
           reason: "current_role_missing",
           intent,
         };
@@ -241,24 +233,24 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
       if (analysis.concepts.includes("software_dev") && !hasClaim(items, ["project_personal"])) {
         return {
           ok: false,
-          answer: INSUFFICIENT_EVIDENCE_ANSWER,
+          answer: PORTFOLIO_GAP_ANSWER,
           reason: "software_employment_unsupported",
           intent,
         };
       }
       if (!hasClaim(items, ["project_personal"])) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "project_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "project_missing", intent };
       }
       return { ok: true, intent };
     }
     case "mobility":
       if (!hasClaim(items, ["mobility"])) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "mobility_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "mobility_missing", intent };
       }
       return { ok: true, intent };
     case "language":
       if (!hasClaim(items, ["language", "education"])) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "language_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "language_missing", intent };
       }
       return { ok: true, intent };
     case "certification":
@@ -269,12 +261,12 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
           "credential_planned",
         ])
       ) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "credential_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "credential_missing", intent };
       }
       return { ok: true, intent };
     case "education":
       if (!hasClaim(items, ["education", "training"])) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "education_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "education_missing", intent };
       }
       return { ok: true, intent };
     case "past_experience":
@@ -286,7 +278,7 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
           "capability_demonstrated",
         ])
       ) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "employment_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "employment_missing", intent };
       }
       return { ok: true, intent };
     case "regulatory":
@@ -302,19 +294,19 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
           "career_direction",
         ])
       ) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "regulatory_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "regulatory_missing", intent };
       }
       // Must actually mention the regulatory token when asking for a specific acronym
       if (analysis.concepts.includes("nis2")) {
         const hit = items.some((e) => /nis2/i.test(`${e.text || ""} ${(e.id || "")}`));
         if (!hit) {
-          return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "nis2_missing", intent };
+          return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "nis2_missing", intent };
         }
       }
       if (analysis.concepts.includes("dora")) {
         const hit = items.some((e) => /dora/i.test(e.text || ""));
         if (!hit) {
-          return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "dora_missing", intent };
+          return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "dora_missing", intent };
         }
       }
       return { ok: true, intent };
@@ -332,7 +324,7 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
           "training",
         ])
       ) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "capability_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "capability_missing", intent };
       }
       // "professionally in AI Governance" still allowed through with developing/project types —
       // model policy must not convert to employment; sufficiency only checks presence.
@@ -359,7 +351,7 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
       if (!hasNarrative && !hasSupport) {
         return {
           ok: false,
-          answer: INSUFFICIENT_EVIDENCE_ANSWER,
+          answer: PORTFOLIO_GAP_ANSWER,
           reason: "career_narrative_missing",
           intent,
         };
@@ -368,7 +360,7 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
       if (intent === "career_narrative" && !hasClaim(items, ["career_direction"])) {
         return {
           ok: false,
-          answer: INSUFFICIENT_EVIDENCE_ANSWER,
+          answer: PORTFOLIO_GAP_ANSWER,
           reason: "career_direction_missing",
           intent,
         };
@@ -377,7 +369,7 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
     }
     case "profile_summary":
       if (isProfileNameOnly(items) && items.length < 2 && !hasClaim(items, ["employment_current"])) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "summary_weak", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "summary_weak", intent };
       }
       if (
         !hasClaim(items, [
@@ -390,20 +382,20 @@ export function evaluateEvidenceSufficiency({ question, evidence, intent: intent
           "project_personal",
         ])
       ) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "summary_missing", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "summary_missing", intent };
       }
       return { ok: true, intent };
     case "unknown":
     default: {
       if (isProfileNameOnly(items)) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "name_only", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "name_only", intent };
       }
       // Require a non-trivial score on at least one non-profile item
       const strong = items.some(
         (e) => e.claimType !== "profile" && typeof e.score === "number" && e.score >= 5,
       );
       if (!strong) {
-        return { ok: false, answer: INSUFFICIENT_EVIDENCE_ANSWER, reason: "weak_unknown", intent };
+        return { ok: false, answer: PORTFOLIO_GAP_ANSWER, reason: "weak_unknown", intent };
       }
       return { ok: true, intent };
     }
