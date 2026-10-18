@@ -69,6 +69,27 @@ describe("assistant chat presentation", () => {
     expect(screen.queryByText("Explore related portfolio content")).toBeNull();
   });
 
+  it("formats assistant answers and leaves questions as plain text", () => {
+    const { container } = renderConversation({
+      messages: [
+        { id: "user-md", role: "user", text: "**Not bold** <script>alert(1)</script>" },
+        {
+          id: "assistant-md",
+          role: "assistant",
+          text: "Lorenzo is an **IT Audit Specialist**.",
+        },
+      ],
+    });
+
+    const user = container.querySelector('[data-assistant-message-role="user"]');
+    const assistant = container.querySelector('[data-assistant-message-role="assistant"]');
+    expect(user?.textContent).toContain("**Not bold** <script>alert(1)</script>");
+    expect(user?.querySelector("strong, script")).toBeNull();
+    expect(assistant?.querySelector("strong")?.textContent).toBe("IT Audit Specialist");
+    expect(assistant?.textContent).not.toContain("**");
+    expect(container.querySelector("script")).toBeNull();
+  });
+
   it("does not send on Shift+Enter and does send on Enter", () => {
     const onSend = vi.fn();
     renderConversation({ draft: "A grounded question", onSend });

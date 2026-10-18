@@ -75,4 +75,21 @@ describe("assistant availability indicator", () => {
     dot.focus();
     expect(dot).toHaveFocus();
   });
+
+  it("keeps the preview tooltip above the dot and can open a dialog tooltip downward", () => {
+    const { rerender } = render(<AssistantAvailabilityIndicator />);
+    const above = document.getElementById(indicator("unknown").getAttribute("aria-describedby"));
+    expect(indicator("unknown")).toHaveClass("relative");
+    expect(above.className).toContain("bottom-[calc(100%+8px)]");
+    expect(above.className).toContain("whitespace-nowrap");
+
+    rerender(<AssistantAvailabilityIndicator tooltipPlacement="below" />);
+    const below = document.getElementById(indicator("unknown").getAttribute("aria-describedby"));
+    expect(indicator("unknown")).not.toHaveClass("relative");
+    expect(below.className).toContain("top-full");
+    expect(below.className).toContain("max-w-full");
+    expect(below.className).toContain("whitespace-normal");
+    expect(below.className).not.toContain("bottom-[calc(100%+8px)]");
+    expect(below).toHaveAttribute("aria-hidden", "true");
+  });
 });

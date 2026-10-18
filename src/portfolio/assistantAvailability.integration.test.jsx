@@ -37,6 +37,14 @@ function availabilityDot() {
   return dot;
 }
 
+function chatHeaderDot() {
+  const dot = document
+    .getElementById("portfolio-assistant-modal-title")
+    ?.parentElement?.querySelector("[data-assistant-availability]");
+  if (!dot) throw new Error("missing chat availability dot");
+  return dot;
+}
+
 function futureReset(delayMs) {
   return new Date(Date.now() + delayMs).toISOString();
 }
@@ -83,6 +91,9 @@ describe("assistant availability indicator integration", () => {
       expect(availabilityDot()).toHaveAttribute("aria-label", "Your daily question limit has been reached"),
     );
     expect(availabilityDot()).toHaveClass("bg-amber-400");
+    expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "visitor_limit");
+    expect(chatHeaderDot()).toHaveClass("bg-amber-400");
+    expect(chatHeaderDot()).toHaveAttribute("aria-label", "Your daily question limit has been reached");
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     await waitFor(() => {
@@ -93,6 +104,9 @@ describe("assistant availability indicator integration", () => {
       expect(availabilityDot()).toHaveAttribute("aria-label", "AI Assistant daily capacity reached"),
     );
     expect(availabilityDot()).toHaveClass("bg-red-400/60");
+    expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "global_limit");
+    expect(chatHeaderDot()).toHaveClass("bg-red-400/60");
+    expect(chatHeaderDot()).toHaveAttribute("aria-label", "AI Assistant daily capacity reached");
     expect(call).toBe(3);
   });
 
@@ -130,6 +144,16 @@ describe("assistant availability indicator integration", () => {
     openChat();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(availabilityDot()).toHaveAttribute("aria-label", "AI Assistant status unknown");
+    expect(chatHeaderDot()).toHaveClass("bg-slate-500");
+    expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "unknown");
+    expect(chatHeaderDot()).toHaveAttribute("tabindex", "-1");
+    const chatTooltip = document.getElementById(chatHeaderDot().getAttribute("aria-describedby"));
+    expect(chatTooltip.className).toContain("top-full");
+    expect(chatTooltip.className).toContain("max-w-full");
+    expect(chatTooltip.className).not.toContain("bottom-[calc(100%+8px)]");
+    const previewTooltip = document.getElementById(availabilityDot().getAttribute("aria-describedby"));
+    expect(previewTooltip.className).toContain("bottom-[calc(100%+8px)]");
+    expect(previewTooltip.className).toContain("whitespace-nowrap");
     unmount();
 
     stubEndpoint("   ");
@@ -142,7 +166,7 @@ describe("assistant availability indicator integration", () => {
   it("refreshes when the chat opens and when the tab becomes visible", async () => {
     stubEndpoint(`${ENDPOINT}/`);
     const resetsAt = futureReset(60 * 60 * 1000);
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       availabilityResponse("available", resetsAt),
     );
 
@@ -152,6 +176,9 @@ describe("assistant availability indicator integration", () => {
 
     openChat();
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(chatHeaderDot()).toHaveClass("bg-emerald-400"));
+    expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "available");
+    expect(chatHeaderDot()).toHaveAttribute("aria-label", "AI Assistant available");
 
     Object.defineProperty(document, "visibilityState", {
       configurable: true,

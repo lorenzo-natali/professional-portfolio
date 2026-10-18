@@ -22,29 +22,38 @@ const PRESENTATION = {
 };
 
 /**
- * Inline status dot. Meant to sit immediately after the preview title.
- * @param {{ status?: AssistantAvailabilityStatus }} props
+ * Inline status dot. Meant to sit immediately after a title.
+ * `below` anchors the tooltip to the nearest positioned ancestor so a dialog
+ * can keep it inside its own bounds. The default stays above the dot.
+ * @param {{
+ *   status?: AssistantAvailabilityStatus,
+ *   tabIndex?: number,
+ *   tooltipPlacement?: "above" | "below",
+ * }} props
  */
-export function AssistantAvailabilityIndicator({ status = "unknown" }) {
+export function AssistantAvailabilityIndicator({
+  status = "unknown",
+  tabIndex = 0,
+  tooltipPlacement = "above",
+}) {
   const resolved = status in PRESENTATION ? status : "unknown";
   const presentation = PRESENTATION[resolved];
   const tooltipId = useId();
+  const openBelow = tooltipPlacement === "below";
+  const tooltipClassName = openBelow
+    ? "pointer-events-none absolute left-0 top-full z-20 mt-1.5 hidden w-max max-w-full whitespace-normal text-left rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium leading-4 tracking-normal text-slate-200 normal-case group-hover/availability:block group-focus-visible/availability:block"
+    : "pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium leading-none tracking-normal text-slate-200 normal-case group-hover/availability:block group-focus-visible/availability:block";
 
   return (
     <span
-      tabIndex={0}
+      tabIndex={tabIndex}
       role="img"
       data-assistant-availability={resolved}
       aria-label={presentation.description}
       aria-describedby={tooltipId}
-      className={`group/availability relative inline-block h-1.5 w-1.5 shrink-0 rounded-full align-[0.22em] ml-2 outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-slate-400 ${presentation.dotClassName}`}
+      className={`group/availability inline-block h-1.5 w-1.5 shrink-0 rounded-full align-[0.22em] ml-2 outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-slate-400 ${openBelow ? "" : "relative"} ${presentation.dotClassName}`}
     >
-      <span
-        id={tooltipId}
-        role="tooltip"
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] font-medium leading-none tracking-normal text-slate-200 normal-case group-hover/availability:block group-focus-visible/availability:block"
-      >
+      <span id={tooltipId} role="tooltip" aria-hidden="true" className={tooltipClassName}>
         {presentation.description}
       </span>
     </span>

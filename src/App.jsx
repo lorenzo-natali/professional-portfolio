@@ -547,13 +547,18 @@ function PortfolioAssistant() {
                       transition={{ duration: 0.28, ease: "easeOut" }}
                       onClick={(event) => event.stopPropagation()}
                     >
-                <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-cyan-400/60 px-4 py-3 sm:px-5">
+                <div className="relative z-20 grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 border-b border-cyan-400/60 px-4 py-3 sm:px-5">
                   <img
                     src={publicAsset("profile.png")}
                     alt="Lorenzo Natali"
                     className="row-span-2 h-10 w-10 rounded-full border border-cyan-400/30 object-cover"
                   />
-                  <p id="portfolio-assistant-modal-title" className="text-sm font-semibold text-slate-50">AI Portfolio Assistant</p>
+                  <div className="relative flex min-w-0 items-center">
+                    <p id="portfolio-assistant-modal-title" className="min-w-0 text-sm font-semibold text-slate-50">
+                      AI Portfolio Assistant
+                    </p>
+                    <AssistantAvailabilityIndicator status={availability} tabIndex={-1} tooltipPlacement="below" />
+                  </div>
                   <button
                     ref={closeButtonRef}
                     type="button"

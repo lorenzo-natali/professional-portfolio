@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { AssistantAnswerBody } from "./assistantMarkdown.jsx";
 import {
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_QUESTION_MAX_LENGTH,
@@ -79,7 +80,11 @@ export function AssistantConversation({
                   {DEVELOPMENT_PREVIEW_LABEL}
                 </p>
               ) : null}
-              <p className="whitespace-pre-wrap">{message.text}</p>
+              {isUser ? (
+                <p className="whitespace-pre-wrap">{message.text}</p>
+              ) : (
+                <AssistantAnswerBody text={message.text} />
+              )}
               {related.length > 0 ? (
                 <div className="mt-2.5 border-t border-slate-800/70 pt-2.5">
                   <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
