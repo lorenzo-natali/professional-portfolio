@@ -3,7 +3,7 @@
  * No LLM classifier.
  */
 
-import { analyzeQuery, classifyIntent } from "./retrieve.js";
+import { analyzeQuery, classifyIntent, normalizeQuery } from "./retrieve.js";
 import { resolvePublicSignalIds } from "./signalResolve.js";
 
 export const INSUFFICIENT_EVIDENCE_ANSWER =
@@ -17,6 +17,68 @@ export const PRIVATE_INFO_ANSWER = "The public portfolio does not provide that i
 
 export const IDENTITY_ANSWER =
   "I am an AI Portfolio Assistant using information and professional narrative made available through Lorenzo Natali's public portfolio. You are not communicating directly with Lorenzo.";
+
+const ITALIAN_QUESTION_TOKENS = new Set([
+  "quali",
+  "quale",
+  "qual",
+  "sono",
+  "sei",
+  "competenze",
+  "competenza",
+  "professionali",
+  "professionale",
+  "principali",
+  "principale",
+  "cosa",
+  "dove",
+  "quando",
+  "perche",
+  "esperienza",
+  "esperienze",
+  "ambizioso",
+  "personalita",
+  "personalmente",
+  "motiva",
+  "tua",
+  "tuo",
+]);
+
+const ITALIAN_LOCAL_ANSWERS = new Map([
+  [
+    PORTFOLIO_GAP_ANSWER,
+    "Non è un aspetto che il portfolio pubblico di Lorenzo copre nel dettaglio. Per saperne di più sul suo approccio o sulla sua esperienza professionale, la soluzione migliore è contattarlo direttamente.",
+  ],
+  [
+    INSUFFICIENT_EVIDENCE_ANSWER,
+    "Il portfolio pubblico non contiene informazioni sufficienti per rispondere a questa domanda.",
+  ],
+  [PRIVATE_INFO_ANSWER, "Il portfolio pubblico non fornisce questa informazione."],
+  [
+    IDENTITY_ANSWER,
+    "Sono un assistente AI del portfolio e uso le informazioni e la narrazione professionale disponibili nel portfolio pubblico di Lorenzo Natali. Non stai comunicando direttamente con Lorenzo.",
+  ],
+]);
+
+/**
+ * Deterministic Italian detection for the supported question vocabulary.
+ * Unrecognized questions stay English.
+ * @param {string} question
+ * @returns {"it" | "en"}
+ */
+export function questionLanguage(question) {
+  const tokens = normalizeQuery(question).split(/\s+/).filter(Boolean);
+  return tokens.some((token) => ITALIAN_QUESTION_TOKENS.has(token)) ? "it" : "en";
+}
+
+/**
+ * @param {string} question
+ * @param {string} answer
+ */
+export function localizeWorkerAnswer(question, answer) {
+  if (questionLanguage(question) !== "it") return answer;
+  return ITALIAN_LOCAL_ANSWERS.get(answer) || answer;
+}
 
 const PRIVATE_PATTERNS = [
   /\bsalary\b/i,

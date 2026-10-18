@@ -310,6 +310,9 @@ const PHRASE_ALIASES = [
   { phrase: "different professional experiences", concept: "experience_connections" },
   { phrase: "transferable capabilities", concept: "transferable" },
   { phrase: "transferable skills", concept: "transferable" },
+  { phrase: "competenze professionali", concept: "skills" },
+  { phrase: "professional skills", concept: "skills" },
+  { phrase: "professional competencies", concept: "skills" },
   { phrase: "technology interests", concept: "technology_risk" },
   { phrase: "professional development", concept: "development_strategy" },
   { phrase: "development plans", concept: "development_strategy" },
@@ -400,6 +403,12 @@ const TOKEN_ALIASES = {
   password: "private_info",
   passwords: "private_info",
   secrets: "injection",
+  competenze: "skills",
+  competenza: "skills",
+  skills: "skills",
+  skill: "skills",
+  competencies: "skills",
+  competency: "skills",
   lorenzo: "person_name",
   natali: "person_name",
   pharma: "cross_sector",
@@ -474,6 +483,7 @@ const CONCEPT_MATCH_TERMS = {
   experience_connections: ["common thread", "common-thread", "foundation", "trajectory"],
   distinctive_profile: ["differentiator", "hybrid", "intersection", "positioning"],
   transferable: ["transferable", "capability", "capabilities", "skill"],
+  skills: ["skills", "skill", "capability", "capabilities", "competencies", "competency"],
 };
 
 /**
@@ -621,6 +631,12 @@ export function classifyIntent(question, analysis = analyzeQuery(question)) {
     /\b(adatto|rilevante|punti di forza)\b/.test(normalized)
   ) {
     return "role_fit";
+  }
+  if (
+    c.has("skills") ||
+    /\b(skills?|competenc(?:y|ies)|competenze|competenza)\b/.test(normalized)
+  ) {
+    return "skill_or_capability";
   }
   // Audit/banking experience questions should surface employment before abstract lenses.
   if (
@@ -1160,6 +1176,32 @@ function selectComplementary(ranked, analysis, intent, limit) {
 }
 
 /**
+ * General skills wording has no domain token, so narrative name-matches can
+ * fill the six slots. Keep one skill record and one capability record.
+ * @param {Array<{ id: string, claimType?: string, score: number }>} ranked
+ * @param {number} limit
+ */
+function selectSkillEvidence(ranked, limit) {
+  /** @type {typeof ranked} */
+  const selected = [];
+  const seen = new Set();
+  const take = (item) => {
+    if (!item || seen.has(item.id) || selected.length >= limit) return;
+    seen.add(item.id);
+    selected.push(item);
+  };
+  take(ranked.find((item) => item.claimType === "skill"));
+  take(
+    ranked.find(
+      (item) =>
+        item.claimType === "capability_demonstrated" || item.claimType === "capability_developing",
+    ),
+  );
+  for (const item of ranked) take(item);
+  return selected.slice(0, limit);
+}
+
+/**
  * @param {string} question
  * @param {{ limit?: number, minScore?: number, items?: typeof knowledgeItems }} [options]
  */
@@ -1208,6 +1250,10 @@ export function retrieveKnowledge(question, options = {}) {
 
   if (usesComplementarySelection(intent, analysis)) {
     return selectComplementary(ranked, analysis, intent, limit);
+  }
+
+  if (analysis.concepts.includes("skills")) {
+    return selectSkillEvidence(ranked, limit);
   }
 
   return ranked.slice(0, limit);

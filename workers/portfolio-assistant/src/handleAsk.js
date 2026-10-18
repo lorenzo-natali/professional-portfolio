@@ -3,6 +3,7 @@ import {
   evaluateEvidenceSufficiency,
   evaluatePrivateOrUnsupportedGate,
   INSUFFICIENT_EVIDENCE_ANSWER,
+  localizeWorkerAnswer,
   toPublicEvidence,
 } from "./knowledge/gates.js";
 import { retrieveKnowledge } from "./knowledge/retrieve.js";
@@ -31,13 +32,14 @@ function jsonError(status, allowOrigin, payload) {
 
 /**
  * @param {string | null} allowOrigin
+ * @param {string} question
  * @param {string} answer
  */
-function localAnswer(allowOrigin, answer) {
+function localAnswer(allowOrigin, question, answer) {
   return new Response(
     JSON.stringify({
       ok: true,
-      answer,
+      answer: localizeWorkerAnswer(question, answer),
       evidence: [],
     }),
     {
@@ -98,12 +100,12 @@ export async function handleAskPost(request, allowOrigin, env, deps = {}) {
 
   const privateGate = evaluatePrivateOrUnsupportedGate(result.question);
   if (privateGate.blocked) {
-    return localAnswer(allowOrigin, privateGate.answer);
+    return localAnswer(allowOrigin, result.question, privateGate.answer);
   }
 
   const retrieved = retrieveKnowledge(result.question);
   if (retrieved.length === 0) {
-    return localAnswer(allowOrigin, INSUFFICIENT_EVIDENCE_ANSWER);
+    return localAnswer(allowOrigin, result.question, INSUFFICIENT_EVIDENCE_ANSWER);
   }
 
   const sufficiency = evaluateEvidenceSufficiency({
@@ -111,7 +113,7 @@ export async function handleAskPost(request, allowOrigin, env, deps = {}) {
     evidence: retrieved,
   });
   if (!sufficiency.ok) {
-    return localAnswer(allowOrigin, sufficiency.answer);
+    return localAnswer(allowOrigin, result.question, sufficiency.answer);
   }
 
   const quota = await consumeAskQuota({ request, env });

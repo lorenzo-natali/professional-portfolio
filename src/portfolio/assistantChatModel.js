@@ -25,6 +25,9 @@ export const ASSISTANT_GLOBAL_LIMIT_MESSAGE =
 
 export const ASSISTANT_BURST_MESSAGE = "Please wait a few seconds and try again.";
 
+/** Covers POST /ask fetch and response.json. Longer than the Worker OpenAI timeout. */
+export const ASSISTANT_ASK_TIMEOUT_MS = 25000;
+
 /** Shown only when a message is explicitly marked development-only. */
 export const DEVELOPMENT_PREVIEW_LABEL =
   "Development preview — not a live AI response";

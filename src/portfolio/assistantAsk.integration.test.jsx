@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App.jsx";
 import {
+  ASSISTANT_ASK_TIMEOUT_MS,
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_GLOBAL_LIMIT_MESSAGE,
@@ -103,6 +104,7 @@ describe("assistant chat POST /ask", () => {
     cleanup();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("shows a grounded answer and only public portfolio links", async () => {
@@ -283,6 +285,19 @@ describe("assistant chat POST /ask", () => {
     },
   );
 
+  it("treats an empty HTTP 200 as an error", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({
+      ask: () => new Response("", { status: 200, headers: { "Content-Type": "application/json" } }),
+    });
+    renderAssistant();
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveClass("bg-emerald-400"));
+    send("What is Lorenzo's current role?");
+    expect(await screen.findByRole("alert")).toHaveTextContent(ASSISTANT_ERROR_MESSAGE);
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+  });
+
   it("treats a malformed success payload as an error", async () => {
     vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
     mockWorker({
@@ -408,5 +423,155 @@ describe("assistant chat POST /ask", () => {
     expect(askBody(asks[0])).toEqual({ question: "First question about Lorenzo?" });
     expect(askBody(asks[1])).toEqual({ question: "Second question about projects?" });
     expect(Object.keys(askBody(asks[1]))).toEqual(["question"]);
+  });
+
+  it("leaves loading when fetch does not settle within the deadline", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({
+      ask: () =>
+        new Promise((_resolve, reject) => {
+          const signal = asks.at(-1)?.init?.signal;
+          const abort = () => reject(new DOMException("The operation was aborted.", "AbortError"));
+          if (signal?.aborted) abort();
+          else signal?.addEventListener("abort", abort, { once: true });
+        }),
+    });
+    renderAssistant();
+    openChat();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    send("What is Lorenzo's current role?");
+    expect(screen.getByText("Preparing a response…")).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ASSISTANT_ASK_TIMEOUT_MS - 1);
+    });
+    expect(screen.getByText("Preparing a response…")).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    expect(screen.getByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeTruthy();
+    expect(asks).toHaveLength(1);
+  });
+
+  it("leaves loading when response.json() does not settle within the deadline", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    /** @type {() => void} */
+    let releaseJson = () => {};
+    mockWorker({
+      ask: () => ({
+        status: 200,
+        json: () =>
+          new Promise((resolve) => {
+            releaseJson = () => resolve({ ok: true, answer: "LATE_JSON_ANSWER", evidence: [] });
+          }),
+      }),
+    });
+    renderAssistant();
+    openChat();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    send("What is Lorenzo's current role?");
+    expect(screen.getByText("Preparing a response…")).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ASSISTANT_ASK_TIMEOUT_MS);
+    });
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    expect(screen.getByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeTruthy();
+
+    releaseJson();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("LATE_JSON_ANSWER")).toBeNull();
+    expect(screen.getByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeTruthy();
+  });
+
+  it("does not let a late response overwrite the timeout state", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    /** @type {(value: Response) => void} */
+    let releaseAsk = () => {};
+    mockWorker({
+      ask: () =>
+        new Promise((resolve) => {
+          releaseAsk = resolve;
+        }),
+    });
+    renderAssistant();
+    openChat();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    send("What is Lorenzo's current role?");
+    expect(screen.getByText("Preparing a response…")).toBeTruthy();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ASSISTANT_ASK_TIMEOUT_MS);
+    });
+    expect(screen.getByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeTruthy();
+
+    releaseAsk(askResponse({ ok: true, answer: "LATE_AFTER_TIMEOUT", evidence: [] }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.queryByText("LATE_AFTER_TIMEOUT")).toBeNull();
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    expect(screen.getByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeTruthy();
+  });
+
+  it("does not show a timeout after New conversation or close", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({
+      ask: () =>
+        new Promise((_resolve, reject) => {
+          const signal = asks.at(-1)?.init?.signal;
+          const abort = () => reject(new DOMException("The operation was aborted.", "AbortError"));
+          if (signal?.aborted) abort();
+          else signal?.addEventListener("abort", abort, { once: true });
+        }),
+    });
+    renderAssistant();
+    openChat();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    send("What is Lorenzo's current role?");
+    expect(screen.getByText("Preparing a response…")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "New conversation" }));
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+    expect(screen.queryByText("What is Lorenzo's current role?")).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ASSISTANT_ASK_TIMEOUT_MS);
+    });
+    expect(screen.queryByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeNull();
+    expect(screen.queryByText(ASSISTANT_ERROR_MESSAGE)).toBeNull();
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
+
+    send("What is Lorenzo's background?");
+    expect(screen.getByText("Preparing a response…")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ASSISTANT_ASK_TIMEOUT_MS);
+    });
+    openChat();
+    expect(screen.queryByText(ASSISTANT_UNAVAILABLE_MESSAGE)).toBeNull();
+    expect(screen.queryByText(ASSISTANT_ERROR_MESSAGE)).toBeNull();
+    expect(screen.queryByText("Preparing a response…")).toBeNull();
   });
 });

@@ -25,6 +25,7 @@ import { interpretAskResult } from "./portfolio/assistantAsk.js";
 import { resolveAssistantEndpoint, useAssistantAvailability } from "./portfolio/useAssistantAvailability.js";
 import { AssistantConversation } from "./portfolio/AssistantConversation.jsx";
 import {
+  ASSISTANT_ASK_TIMEOUT_MS,
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_GLOBAL_LIMIT_MESSAGE,
@@ -156,16 +157,25 @@ function PortfolioAssistant() {
   const restoreFocusOnCloseRef = useRef(false);
   const askSeqRef = useRef(0);
   const askAbortRef = useRef(/** @type {AbortController | null} */ (null));
+  const askDeadlineRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
   const sendingRef = useRef(false);
   const { status: availability, refresh: refreshAvailability } = useAssistantAvailability(isDrawerOpen);
 
+  const clearAskDeadline = useCallback(() => {
+    if (askDeadlineRef.current != null) {
+      window.clearTimeout(askDeadlineRef.current);
+      askDeadlineRef.current = null;
+    }
+  }, []);
+
   const cancelAsk = useCallback(() => {
+    clearAskDeadline();
     askSeqRef.current += 1;
     sendingRef.current = false;
     const controller = askAbortRef.current;
     askAbortRef.current = null;
     controller?.abort();
-  }, []);
+  }, [clearAskDeadline]);
 
   const openAssistant = (prefill) => {
     cancelAsk();
@@ -218,6 +228,7 @@ function PortfolioAssistant() {
     }
 
     sendingRef.current = true;
+    clearAskDeadline();
     askAbortRef.current?.abort();
     const seq = ++askSeqRef.current;
     const controller = new AbortController();
@@ -225,6 +236,19 @@ function PortfolioAssistant() {
     setMessages((current) => [...current, { id: `user-${seq}`, role: "user", text }]);
     setDraft("");
     setReply({ phase: "loading", text: "" });
+
+    const deadlineId = window.setTimeout(() => {
+      if (askDeadlineRef.current === deadlineId) askDeadlineRef.current = null;
+      if (seq !== askSeqRef.current) return;
+      askSeqRef.current += 1;
+      sendingRef.current = false;
+      const active = askAbortRef.current;
+      askAbortRef.current = null;
+      active?.abort();
+      setReply({ phase: "unavailable", text: "" });
+      void refreshAvailability();
+    }, ASSISTANT_ASK_TIMEOUT_MS);
+    askDeadlineRef.current = deadlineId;
 
     const applyReply = (next) => {
       if (seq !== askSeqRef.current) return;
@@ -278,11 +302,15 @@ function PortfolioAssistant() {
           void refreshAvailability();
         }
       } catch (error) {
-        if (error?.name === "AbortError" || seq !== askSeqRef.current) return;
+        if (seq !== askSeqRef.current) return;
+        if (error?.name === "AbortError") return;
         applyReply({ phase: "unavailable", text: "" });
         void refreshAvailability();
       } finally {
-        if (seq === askSeqRef.current) sendingRef.current = false;
+        if (seq === askSeqRef.current) {
+          clearAskDeadline();
+          sendingRef.current = false;
+        }
       }
     })();
   };
