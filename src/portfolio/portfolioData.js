@@ -2,9 +2,9 @@ import {
   Brain,
   BriefcaseBusiness,
   Database,
-  Languages,
   Lock,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 
 export const publicAsset = (path) => `${import.meta.env.BASE_URL}${path}`;
@@ -41,10 +41,10 @@ export const expertise = [
     text: "Growing focus on AI governance, risk, auditability and traceability, mapped to frameworks such as the EU AI Act, NIST AI RMF and ISO/IEC 42001, supported by hands-on experimentation with local LLM/VLM workflows and AI systems.",
   },
   {
-    id: "capability-international-cross-cultural",
-    title: "International & Cross-Cultural Work",
-    icon: Languages,
-    text: "Academic and professional background supporting audit, risk and governance work across multilingual and cross-cultural environments.",
+    id: "capability-ai-strategy-adoption",
+    title: "AI Strategy & Adoption",
+    icon: Sparkles,
+    text: "Exploring AI-driven opportunities to improve workflows and operational efficiency, with a focus on evaluating secure, auditable and regulatory-aligned solutions, including local and on-premises AI deployments.",
   },
 ];
 
@@ -312,6 +312,7 @@ export const stackStreams = [
       "pandas",
       "SQL",
       "Advanced Excel",
+      "Power BI",
       "SAP",
       "HFM / Oracle",
       "Data Analysis",
@@ -324,6 +325,7 @@ export const stackStreams = [
       "Structured Data Extraction",
       "GitHub",
       "Cursor",
+      "Cline Desktop",
     ],
   },
 ];
@@ -525,7 +527,18 @@ export const lensRelevance = {
     radar: [],
     education: ["education-altis-ey"],
     additionalTraining: [],
-    streamItems: ["Internal Audit", "Internal Controls", "SOX Principles", "ITGC"],
+    streamItems: [
+      "Internal Audit",
+      "Internal Controls",
+      "SOX Principles",
+      "ITGC",
+      "Advanced Excel",
+      "SQL",
+      "Python",
+      "pandas",
+      "Data Analysis",
+      "Power BI",
+    ],
   },
   "Technology Risk": {
     capabilities: ["capability-technology-risk"],
@@ -557,7 +570,11 @@ export const lensRelevance = {
     streamItems: ["ISO/IEC 27001", "NIST CSF", "COBIT", "ITGC", "NIS2"],
   },
   "AI Governance": {
-    capabilities: ["capability-ai-governance", "capability-technology-risk"],
+    capabilities: [
+      "capability-ai-governance",
+      "capability-ai-strategy-adoption",
+      "capability-technology-risk",
+    ],
     credentials: ["credential-aair"],
     experiences: [],
     projects: ["project-ai-audit-workflow", "project-codeiak"],
@@ -567,7 +584,15 @@ export const lensRelevance = {
       "additional-training-digital-banking-eidas-ai-act",
       "additional-training-gdpr-banking",
     ],
-    streamItems: ["EU AI Act", "ISO/IEC 42001", "NIST AI RMF", "Local LLMs", "AI Agents", "LLM Evaluation"],
+    streamItems: [
+      "EU AI Act",
+      "ISO/IEC 42001",
+      "NIST AI RMF",
+      "Local LLMs",
+      "AI Agents",
+      "LLM Evaluation",
+      "Cline Desktop",
+    ],
   },
   "Banking Risk": {
     capabilities: ["capability-banking-risk", "capability-audit-control"],
@@ -580,7 +605,20 @@ export const lensRelevance = {
       "additional-training-digital-banking-eidas-ai-act",
       "additional-training-gdpr-banking",
     ],
-    streamItems: ["IFRS 9 / ECL", "Credit Risk", "ICAAP / ILAAP", "Pillar III", "Basel III / IV", "CRD VI"],
+    streamItems: [
+      "IFRS 9 / ECL",
+      "Credit Risk",
+      "ICAAP / ILAAP",
+      "Pillar III",
+      "Basel III / IV",
+      "CRD VI",
+      "Advanced Excel",
+      "SQL",
+      "Python",
+      "pandas",
+      "Data Analysis",
+      "Power BI",
+    ],
   },
 };
 

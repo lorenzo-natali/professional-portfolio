@@ -135,8 +135,7 @@ function capabilityClaimType(cap) {
   if (id === "capability-audit-control" || id === "capability-banking-risk") {
     return "capability_demonstrated";
   }
-  if (id === "capability-international-cross-cultural") return "capability_demonstrated";
-  // Technology risk mixes audit exposure + growing focus — underclaim as developing.
+  // Technology risk, AI Governance, AI Strategy & Adoption, InfoSec: developing / emerging.
   return "capability_developing";
 }
 

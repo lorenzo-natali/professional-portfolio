@@ -23,11 +23,6 @@ export default function CapabilitiesSection({ selectedLens = "Overview" }) {
                   <Icon className="h-5 w-5 shrink-0 text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.18)] transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:rotate-3 group-hover:scale-110" />
                   <h3 className="text-lg font-semibold text-slate-50">{item.title}</h3>
                 </div>
-                {item.id === "capability-international-cross-cultural" && (
-                  <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/55">
-                    Transversal capability
-                  </p>
-                )}
                 <p className="mt-4 leading-7 text-slate-300">{item.text}</p>
               </SurfaceCard>
             </motion.div>

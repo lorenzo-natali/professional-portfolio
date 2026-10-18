@@ -37,4 +37,67 @@ describe("lensRelevance streamItems ↔ stackStreams consistency", () => {
     expect(infoSec).toContain("ISO/IEC 27001");
     expect(infoSec).toContain("NIST CSF");
   });
+
+  it("places Power BI and Cline Desktop once in Technology, Security & AI only", () => {
+    const techItems = stackStreams.find((s) => s.label === "Technology, Security & AI")?.items ?? [];
+    const riskItems = stackStreams.find((s) => s.label === "Risk & Regulatory")?.items ?? [];
+
+    expect(techItems.filter((item) => item === "Power BI")).toHaveLength(1);
+    expect(techItems.filter((item) => item === "Cline Desktop")).toHaveLength(1);
+    expect(techItems.indexOf("Power BI")).toBe(techItems.indexOf("Advanced Excel") + 1);
+    expect(techItems.indexOf("Cline Desktop")).toBe(techItems.indexOf("Cursor") + 1);
+    expect(riskItems).not.toContain("Power BI");
+    expect(riskItems).not.toContain("Cline Desktop");
+  });
+
+  it("maps Cline Desktop to AI Governance only, like adjacent AI tooling", () => {
+    expect(streamItemsFor("AI Governance")).toContain("Cline Desktop");
+    expect(streamItemsFor("AI Governance")).toContain("AI Agents");
+    expect(streamItemsFor("AI Governance")).toContain("Local LLMs");
+    expect(streamItemsFor("IT Audit")).not.toContain("Cline Desktop");
+    expect(streamItemsFor("Technology Risk")).not.toContain("Cline Desktop");
+    expect(streamItemsFor("Information Security Governance")).not.toContain("Cline Desktop");
+    expect(streamItemsFor("Banking Risk")).not.toContain("Cline Desktop");
+    // Precedent: Cursor is an AI-assisted IDE and remains unmapped.
+    expect(streamItemsFor("AI Governance")).not.toContain("Cursor");
+  });
+
+  it("maps the six analytical tools to Banking Risk and IT Audit only", () => {
+    const analyticalTools = [
+      "Advanced Excel",
+      "SQL",
+      "Python",
+      "pandas",
+      "Data Analysis",
+      "Power BI",
+    ];
+
+    for (const tool of analyticalTools) {
+      expect(streamItemsFor("Banking Risk")).toContain(tool);
+      expect(streamItemsFor("IT Audit")).toContain(tool);
+      expect(streamItemsFor("AI Governance")).not.toContain(tool);
+      expect(streamItemsFor("Information Security Governance")).not.toContain(tool);
+      expect(streamItemsFor("Technology Risk")).not.toContain(tool);
+      expect(streamItemsFor("Overview")).not.toContain(tool);
+    }
+
+    for (const lens of ["Banking Risk", "IT Audit"]) {
+      for (const tool of analyticalTools) {
+        expect(streamItemsFor(lens).filter((item) => item === tool)).toHaveLength(1);
+      }
+    }
+  });
+
+  it("keeps Cline Desktop and AI Strategy & Adoption on AI Governance only", () => {
+    expect(streamItemsFor("AI Governance")).toContain("Cline Desktop");
+    expect(lensRelevance["AI Governance"].capabilities).toContain(
+      "capability-ai-strategy-adoption"
+    );
+    expect(lensRelevance["IT Audit"].capabilities).not.toContain(
+      "capability-ai-strategy-adoption"
+    );
+    expect(lensRelevance["Banking Risk"].capabilities).not.toContain(
+      "capability-ai-strategy-adoption"
+    );
+  });
 });
