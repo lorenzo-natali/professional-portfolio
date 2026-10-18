@@ -191,6 +191,51 @@ describe("retrieval V2 topical coverage", () => {
   });
 });
 
+describe("current employment on professional background questions", () => {
+  const ITALIAN_BACKGROUND =
+    "Qual è il background professionale di Lorenzo in IT governance, cybersecurity e technology risk management?";
+  const PROFESSIONAL_EXPERIENCE =
+    "Qual è l'esperienza professionale di Lorenzo in internal audit, IT governance, information security e technology risk?";
+
+  it("includes Banca Profilo for an Italian background question about IT governance, cybersecurity, and technology risk", () => {
+    const hits = retrieveKnowledge(ITALIAN_BACKGROUND);
+    expect(classifyIntent(ITALIAN_BACKGROUND)).toBe("skill_or_capability");
+    expect(hits).toHaveLength(6);
+    expect(hits.find((hit) => hit.id === "experience-banca-profilo")?.claimType).toBe(
+      "employment_current",
+    );
+  });
+
+  it("includes the current employment record for a professional experience question about internal audit and information security", () => {
+    const hits = retrieveKnowledge(PROFESSIONAL_EXPERIENCE);
+    expect(classifyIntent(PROFESSIONAL_EXPERIENCE)).toBe("professional_experience");
+    expect(hits.some((hit) => hit.id === "experience-banca-profilo" && hit.claimType === "employment_current")).toBe(
+      true,
+    );
+    expect(hits.length).toBeLessThanOrEqual(6);
+  });
+
+  it("keeps Banca Profilo when Bank of China is also retrieved", () => {
+    const hits = retrieveKnowledge(PROFESSIONAL_EXPERIENCE);
+    expect(hits.some((hit) => hit.id === "experience-boc")).toBe(true);
+    expect(hits.some((hit) => hit.id === "experience-banca-profilo")).toBe(true);
+    expect(hits.length).toBeLessThanOrEqual(6);
+  });
+
+  it("does not force current employment into a pure AI governance question", () => {
+    const question = "Has Lorenzo worked professionally in AI Governance?";
+    const hits = retrieveKnowledge(question);
+    expect(hits.some((hit) => hit.claimType === "employment_current")).toBe(false);
+    expect(hits.length).toBeLessThanOrEqual(6);
+  });
+
+  it("does not force current employment into a pure skills question", () => {
+    const hits = retrieveKnowledge("Quali sono le principali competenze professionali di Lorenzo Natali?");
+    expect(hits.some((hit) => hit.claimType === "employment_current")).toBe(false);
+    expect(hits.length).toBeLessThanOrEqual(6);
+  });
+});
+
 describe("unsupported / private / adversarial gates — zero OpenAI", () => {
   it.each([
     ["Has Lorenzo worked at Goldman Sachs?", "unsupported_employer"],

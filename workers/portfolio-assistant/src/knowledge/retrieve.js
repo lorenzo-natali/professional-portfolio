@@ -1202,6 +1202,51 @@ function selectSkillEvidence(ranked, limit) {
 }
 
 /**
+ * Explicit background, work-experience, or trajectory wording.
+ * Domain terms alone do not qualify: a pure skills, certification, or AI-governance
+ * question must not gain an employment record from this safeguard.
+ * @param {{ normalized?: string }} analysis
+ */
+function asksProfessionalContext(analysis) {
+  return /\b(?:professional background|background professionale|work experience|working experience|professional experience|esperienza professionale|esperienze professionali|esperienza lavorativa|esperienze lavorative|career trajectory|professional trajectory|traiettoria professionale|percorso professionale)\b/.test(
+    analysis.normalized || "",
+  );
+}
+
+/**
+ * @param {{ claimType?: string }} item
+ */
+function isEmploymentClaim(item) {
+  return item.claimType === "employment_current" || item.claimType === "employment_past";
+}
+
+/**
+ * Keep the current role inside the evidence limit when a background question
+ * would otherwise fill every slot with higher-scoring capability or narrative items.
+ * @param {Array<{ id: string, claimType?: string, score: number }>} selected
+ * @param {Array<{ id: string, claimType?: string, score: number }>} ranked
+ * @param {number} limit
+ */
+function reserveCurrentEmployment(selected, ranked, limit) {
+  const current = ranked.find((item) => item.claimType === "employment_current");
+  const next = selected.slice(0, limit);
+  if (!current || next.some((item) => item.id === current.id)) return next;
+  if (next.length < limit) {
+    next.push(current);
+    return next;
+  }
+
+  let replaceAt = -1;
+  for (let index = 0; index < next.length; index += 1) {
+    if (isEmploymentClaim(next[index])) continue;
+    if (replaceAt === -1 || next[index].score < next[replaceAt].score) replaceAt = index;
+  }
+  if (replaceAt === -1) return next;
+  next[replaceAt] = current;
+  return next;
+}
+
+/**
  * @param {string} question
  * @param {{ limit?: number, minScore?: number, items?: typeof knowledgeItems }} [options]
  */
@@ -1244,19 +1289,21 @@ export function retrieveKnowledge(question, options = {}) {
       return a.id.localeCompare(b.id);
     });
 
+  let selected;
   if (isCapabilityReadinessQuestion(intent, analysis)) {
-    return selectCapabilityReadiness(ranked, limit);
+    selected = selectCapabilityReadiness(ranked, limit);
+  } else if (usesComplementarySelection(intent, analysis)) {
+    selected = selectComplementary(ranked, analysis, intent, limit);
+  } else if (analysis.concepts.includes("skills")) {
+    selected = selectSkillEvidence(ranked, limit);
+  } else {
+    selected = ranked.slice(0, limit);
   }
 
-  if (usesComplementarySelection(intent, analysis)) {
-    return selectComplementary(ranked, analysis, intent, limit);
+  if (asksProfessionalContext(analysis)) {
+    return reserveCurrentEmployment(selected, ranked, limit);
   }
-
-  if (analysis.concepts.includes("skills")) {
-    return selectSkillEvidence(ranked, limit);
-  }
-
-  return ranked.slice(0, limit);
+  return selected;
 }
 
 export { STOPWORDS, PHRASE_ALIASES, TOKEN_ALIASES };
