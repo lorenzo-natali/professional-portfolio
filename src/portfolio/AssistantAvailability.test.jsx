@@ -60,36 +60,27 @@ describe("assistant availability indicator", () => {
     expect(screen.queryByRole("img", { name: DESCRIPTIONS.available })).toBeNull();
   });
 
-  it("exposes the status through a screen-reader name and a hover or keyboard tooltip", () => {
-    render(<AssistantAvailabilityIndicator />);
+  it("keeps an accessible name without a hover or focus tooltip", () => {
+    const { rerender } = render(<AssistantAvailabilityIndicator />);
     const dot = indicator("unknown");
-    const tooltip = document.getElementById(dot.getAttribute("aria-describedby"));
 
-    expect(tooltip).toHaveAttribute("role", "tooltip");
-    expect(tooltip).toHaveAttribute("aria-hidden", "true");
-    expect(tooltip).toHaveTextContent(DESCRIPTIONS.unknown);
-    expect(tooltip.className).toContain("hidden");
-    expect(tooltip.className).toContain("group-hover/availability:block");
-    expect(tooltip.className).toContain("group-focus-visible/availability:block");
+    expect(dot).toHaveAttribute("aria-label", DESCRIPTIONS.unknown);
+    expect(dot).not.toHaveAttribute("title");
+    expect(dot).not.toHaveAttribute("aria-describedby");
+    expect(dot.className).not.toMatch(/group-hover|group-focus/);
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(screen.queryByText(DESCRIPTIONS.unknown)).toBeNull();
 
     dot.focus();
     expect(dot).toHaveFocus();
-  });
+    expect(screen.queryByRole("tooltip")).toBeNull();
 
-  it("keeps the preview tooltip above the dot and can open a dialog tooltip downward", () => {
-    const { rerender } = render(<AssistantAvailabilityIndicator />);
-    const above = document.getElementById(indicator("unknown").getAttribute("aria-describedby"));
-    expect(indicator("unknown")).toHaveClass("relative");
-    expect(above.className).toContain("bottom-[calc(100%+8px)]");
-    expect(above.className).toContain("whitespace-nowrap");
-
-    rerender(<AssistantAvailabilityIndicator tooltipPlacement="below" />);
-    const below = document.getElementById(indicator("unknown").getAttribute("aria-describedby"));
-    expect(indicator("unknown")).not.toHaveClass("relative");
-    expect(below.className).toContain("top-full");
-    expect(below.className).toContain("max-w-full");
-    expect(below.className).toContain("whitespace-normal");
-    expect(below.className).not.toContain("bottom-[calc(100%+8px)]");
-    expect(below).toHaveAttribute("aria-hidden", "true");
+    rerender(<AssistantAvailabilityIndicator status="visitor_limit" spacious />);
+    const headerDot = indicator("visitor_limit");
+    expect(headerDot.querySelector("[data-assistant-status-dot]")).toHaveClass("bg-amber-400", "h-1.5", "w-1.5");
+    expect(headerDot).toHaveClass("h-11", "w-5");
+    expect(headerDot).not.toHaveAttribute("title");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(screen.queryByText(DESCRIPTIONS.visitor_limit)).toBeNull();
   });
 });

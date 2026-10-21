@@ -677,7 +677,6 @@ function PortfolioAssistant() {
                     <AssistantAvailabilityIndicator
                       status={availability}
                       tabIndex={-1}
-                      tooltipPlacement="below"
                       spacious
                     />
                   </div>

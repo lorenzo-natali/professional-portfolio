@@ -148,13 +148,11 @@ describe("assistant availability indicator integration", () => {
     expect(chatHeaderDot().querySelector("[data-assistant-status-dot]")).toHaveClass("bg-slate-500");
     expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "unknown");
     expect(chatHeaderDot()).toHaveAttribute("tabindex", "-1");
-    const chatTooltip = document.getElementById(chatHeaderDot().getAttribute("aria-describedby"));
-    expect(chatTooltip.className).toContain("top-full");
-    expect(chatTooltip.className).toContain("max-w-full");
-    expect(chatTooltip.className).not.toContain("bottom-[calc(100%+8px)]");
-    const previewTooltip = document.getElementById(availabilityDot().getAttribute("aria-describedby"));
-    expect(previewTooltip.className).toContain("bottom-[calc(100%+8px)]");
-    expect(previewTooltip.className).toContain("whitespace-nowrap");
+    expect(chatHeaderDot()).not.toHaveAttribute("title");
+    expect(chatHeaderDot()).not.toHaveAttribute("aria-describedby");
+    expect(availabilityDot()).not.toHaveAttribute("title");
+    expect(availabilityDot()).not.toHaveAttribute("aria-describedby");
+    expect(document.querySelector("[role='tooltip']")).toBeNull();
     unmount();
 
     stubEndpoint("   ");
