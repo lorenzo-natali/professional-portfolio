@@ -5,14 +5,23 @@
 
 export const ASSISTANT_QUESTION_MAX_LENGTH = 500;
 
+/** Show the character counter once the draft reaches this length. */
+export const ASSISTANT_COUNTER_REVEAL_AT = 400;
+
+export const ASSISTANT_WELCOME_MESSAGE =
+  "Hi! I’m here to help you learn more about Lorenzo’s professional background, expertise, and projects. What would you like to know?";
+
+/** Canonical disclaimer. The joined string stays in sync with the three paragraphs. */
+export const ASSISTANT_ABOUT_PARAGRAPHS = [
+  "This AI assistant is powered by OpenAI and uses information from Lorenzo's professional portfolio to answer questions about his experience, expertise and projects.",
+  "Responses are AI-generated and may contain inaccuracies, so important information should be verified against the portfolio. To help ensure fair access, the assistant has a limited daily capacity; please focus on the questions most relevant to you.",
+  "Do not share personal, confidential or sensitive information.",
+];
+
+export const ASSISTANT_ABOUT_TEXT = ASSISTANT_ABOUT_PARAGRAPHS.join(" ");
+
 export const ASSISTANT_UNAVAILABLE_MESSAGE =
   "AI Assistant is temporarily unavailable.";
-
-export const ASSISTANT_HEADER_SUBTITLE =
-  "Powered by OpenAI · Based on Lorenzo's portfolio · AI responses may contain inaccuracies · Do not enter personal, confidential, or sensitive information.";
-
-export const ASSISTANT_ABOUT_NOTE =
-  "This AI assistant has a limited daily capacity. To make the most of it, consider focusing on two or three questions that matter most to you.";
 
 export const ASSISTANT_ERROR_MESSAGE =
   "The assistant could not complete that request.";

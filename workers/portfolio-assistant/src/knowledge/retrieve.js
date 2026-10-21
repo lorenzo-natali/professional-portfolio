@@ -756,6 +756,30 @@ function scoreItem(item, analysis, intent) {
   if (concepts.includes("banca_profilo") && item.id === "experience-banca-profilo") score += 6;
   if (concepts.includes("dora") && (textNorm.includes("dora") || kwNorm.includes("dora"))) score += 4;
   if (concepts.includes("nis2") && (textNorm.includes("nis2") || kwNorm.includes("nis2"))) score += 4;
+  if (
+    item.claimType === "employment_current" &&
+    asksPersonalExperience(analysis.normalized) &&
+    employmentMatchesAskedTopic(analysis, textNorm)
+  ) {
+    score += 10;
+  }
+  if (
+    item.claimType === "employment_past" &&
+    /\b(previous|past|earlier|differ)\b/.test(analysis.normalized || "") &&
+    employmentMatchesAskedTopic(analysis, textNorm)
+  ) {
+    score += 12;
+  }
+  if (
+    item.claimType === "employment_current" &&
+    /\biso\/iec 42006\b/.test(analysis.normalized || "") &&
+    textNorm.includes("42006")
+  ) {
+    score += 8;
+  }
+  if (item.id === "radar-domain-index") {
+    score += asksCompleteRadarList(analysis.normalized) ? 30 : -8;
+  }
 
   // Keep the narrative that matches the question ahead of alphabetical ties.
   if (concepts.includes("experience_connections") && item.id === "narrative-common-thread") score += 10;
@@ -1199,6 +1223,35 @@ function selectSkillEvidence(ranked, limit) {
   );
   for (const item of ranked) take(item);
   return selected.slice(0, limit);
+}
+
+function asksPersonalExperience(normalized) {
+  const n = normalized || "";
+  const definitionOnly =
+    /\b(what is|what are|what does|what do|define|definition|cover|covers|represent|represents|mean|means)\b/.test(n) &&
+    !/\b(experience|experienced|worked|working|audited|auditing|performed|performing|contributed|contribution|professionally|professional|currently|current|previous|doing)\b/.test(n);
+  if (definitionOnly) return false;
+  return /\b(experience|experienced|worked|professionally|professional|audited|auditing|performed|performing|contributed|contribution|at work|currently|doing|work)\b/.test(n);
+}
+
+function employmentMatchesAskedTopic(analysis, textNorm) {
+  const n = analysis.normalized || "";
+  const concepts = analysis.concepts || [];
+  if (concepts.includes("ai_governance") && (textNorm.includes("ai governance") || textNorm.includes("ai policy"))) {
+    return true;
+  }
+  if (/\bai policy\b/.test(n) && textNorm.includes("ai policy")) return true;
+  if (concepts.includes("dora") && textNorm.includes("dora")) return true;
+  if (/\boperational resilience\b/.test(n) && textNorm.includes("operational resilience")) return true;
+  return false;
+}
+
+function asksCompleteRadarList(normalized) {
+  const n = normalized || "";
+  if (/\b(describe|description)\b/.test(n) && !/\b(all|every|seven|list)\b/.test(n)) return false;
+  const collective = /\b(all|every|seven|list|name|which)\b/.test(n);
+  const target = /\b(radar|risk exposure|risk areas|chart)\b/.test(n);
+  return collective && target;
 }
 
 /**

@@ -1,14 +1,28 @@
+import { useLayoutEffect, useRef } from "react";
 import { Send } from "lucide-react";
 import { AssistantAnswerBody } from "./assistantMarkdown.jsx";
 import {
+  ASSISTANT_COUNTER_REVEAL_AT,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_QUESTION_MAX_LENGTH,
   ASSISTANT_UNAVAILABLE_MESSAGE,
+  ASSISTANT_WELCOME_MESSAGE,
   DEVELOPMENT_PREVIEW_LABEL,
   canSendAssistantQuestion,
   clampAssistantQuestion,
   resolveVerifiedSignals,
 } from "./assistantChatModel.js";
+
+const COMPOSER_MAX_HEIGHT = 128;
+const COMPOSER_MIN_HEIGHT = 48;
+const STICK_THRESHOLD = 48;
+
+/**
+ * @param {HTMLElement} element
+ */
+function scrollTranscriptToEnd(element) {
+  element.scrollTop = element.scrollHeight;
+}
 
 /**
  * Chat presentation for the Portfolio Assistant modal.
@@ -39,8 +53,12 @@ export function AssistantConversation({
   errorMessage = ASSISTANT_ERROR_MESSAGE,
   composerRef,
 }) {
+  const transcriptRef = useRef(null);
+  const stickRef = useRef(true);
+  const previousCountRef = useRef(messages.length);
   const locked = status === "loading";
   const sendable = canSendAssistantQuestion(draft) && !locked;
+  const showCounter = draft.length >= ASSISTANT_COUNTER_REVEAL_AT;
 
   const onComposerKeyDown = (event) => {
     if (event.key !== "Enter" || event.shiftKey) return;
@@ -49,96 +67,130 @@ export function AssistantConversation({
     onSend();
   };
 
+  const onTranscriptScroll = () => {
+    const element = transcriptRef.current;
+    if (!element) return;
+    const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+    stickRef.current = distance <= STICK_THRESHOLD;
+  };
+
+  useLayoutEffect(() => {
+    const field = composerRef?.current;
+    if (!field) return;
+    field.style.height = "0px";
+    const next = Math.min(Math.max(field.scrollHeight, COMPOSER_MIN_HEIGHT), COMPOSER_MAX_HEIGHT);
+    field.style.height = `${next}px`;
+  }, [composerRef, draft]);
+
+  useLayoutEffect(() => {
+    const element = transcriptRef.current;
+    if (!element) return;
+    const previousCount = previousCountRef.current;
+    const last = messages[messages.length - 1];
+    const userJustSent = messages.length > previousCount && last?.role === "user";
+    previousCountRef.current = messages.length;
+    if (!userJustSent && !stickRef.current) return;
+    scrollTranscriptToEnd(element);
+    stickRef.current = true;
+  }, [messages, status]);
+
   return (
     <div data-assistant-panel="chat" className="flex min-h-0 flex-1 flex-col">
       <div
+        ref={transcriptRef}
         data-assistant-transcript
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions"
-        aria-busy={locked}
-        className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5"
+        onScroll={onTranscriptScroll}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5"
       >
-        {messages.map((message) => {
-          const related =
-            message.role === "assistant"
-              ? resolveVerifiedSignals(message.signalIds, signalMap)
-              : [];
-          const isUser = message.role === "user";
-          return (
-            <article
-              key={message.id}
-              data-assistant-message-role={message.role}
-              className={`w-fit max-w-[85%] break-words rounded-lg border px-3 py-2.5 text-sm leading-6 ${
-                isUser
-                  ? "ml-auto border-slate-700 bg-slate-900/50 text-slate-200"
-                  : "mr-auto border-cyan-400/15 bg-slate-900/25 text-slate-300"
-              }`}
-            >
-              {message.developmentOnly ? (
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  {DEVELOPMENT_PREVIEW_LABEL}
-                </p>
-              ) : null}
-              {isUser ? (
-                <p className="whitespace-pre-wrap break-words">{message.text}</p>
-              ) : (
-                <AssistantAnswerBody text={message.text} />
-              )}
-              {related.length > 0 ? (
-                <div className="mt-2.5 border-t border-slate-800/70 pt-2.5">
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Explore related portfolio content
+        <div data-assistant-welcome className="mb-4 max-w-[42rem]">
+          <p className="text-sm leading-6 text-cyan-300">{ASSISTANT_WELCOME_MESSAGE}</p>
+        </div>
+
+        <div
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+          aria-busy={locked}
+          className="space-y-3"
+        >
+          {messages.map((message) => {
+            const related =
+              message.role === "assistant"
+                ? resolveVerifiedSignals(message.signalIds, signalMap)
+                : [];
+            const isUser = message.role === "user";
+            return (
+              <article
+                key={message.id}
+                data-assistant-message-role={message.role}
+                className={`w-fit max-w-[min(85%,42rem)] break-words rounded-lg border px-3 py-2.5 text-sm leading-6 ${
+                  isUser
+                    ? "ml-auto border-slate-700 bg-slate-900/50 text-slate-200"
+                    : "mr-auto border-cyan-400/15 bg-slate-900/25 text-slate-300"
+                }`}
+              >
+                {message.developmentOnly ? (
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    {DEVELOPMENT_PREVIEW_LABEL}
                   </p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-2">
-                    {related.map((signal) => (
-                      <a
-                        key={signal.id}
-                        href={signal.href}
-                        onClick={(event) => onSignalClick?.(event, signal)}
-                        className="text-xs font-medium text-cyan-200/80 underline decoration-cyan-400/25 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/60"
-                      >
-                        {signal.label}
-                      </a>
-                    ))}
+                ) : null}
+                {isUser ? (
+                  <p className="whitespace-pre-wrap break-words">{message.text}</p>
+                ) : (
+                  <AssistantAnswerBody text={message.text} />
+                )}
+                {related.length > 0 ? (
+                  <div className="mt-2.5 border-t border-slate-800/70 pt-2.5">
+                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                      Explore related portfolio content
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-2">
+                      {related.map((signal) => (
+                        <a
+                          key={signal.id}
+                          href={signal.href}
+                          onClick={(event) => onSignalClick?.(event, signal)}
+                          className="text-xs font-medium text-cyan-200/80 underline decoration-cyan-400/25 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/60"
+                        >
+                          {signal.label}
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </article>
-          );
-        })}
+                ) : null}
+              </article>
+            );
+          })}
 
-        {status === "loading" ? (
-          <p role="status" className="text-sm leading-6 text-slate-500">
-            Preparing a response…
-          </p>
-        ) : null}
+          {status === "loading" ? (
+            <p role="status" className="text-sm leading-6 text-slate-400">
+              Preparing a response…
+            </p>
+          ) : null}
 
-        {status === "unavailable" ? (
-          <p role="status" className="max-w-xl text-sm leading-6 text-slate-400">
-            {unavailableMessage || ASSISTANT_UNAVAILABLE_MESSAGE}
-          </p>
-        ) : null}
+          {status === "unavailable" ? (
+            <p role="status" className="max-w-xl text-sm leading-6 text-slate-300">
+              {unavailableMessage || ASSISTANT_UNAVAILABLE_MESSAGE}
+            </p>
+          ) : null}
 
-        {status === "error" ? (
-          <p role="alert" className="max-w-xl text-sm leading-6 text-slate-400">
-            {errorMessage}
-          </p>
-        ) : null}
+          {status === "error" ? (
+            <p role="alert" className="max-w-xl text-sm leading-6 text-slate-300">
+              {errorMessage}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      <div
-        data-assistant-composer
-        className="shrink-0 border-t border-cyan-400/60 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5"
-      >
+      <div data-assistant-composer className="shrink-0 px-3 py-2 sm:px-4">
         <label htmlFor="assistant-question" className="sr-only">
           Your question
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex items-end gap-1 rounded-xl border border-slate-800 bg-slate-950/35 py-1 pl-1 pr-1 focus-within:border-cyan-300/50 focus-within:ring-2 focus-within:ring-cyan-400/30">
           <textarea
             ref={composerRef}
             id="assistant-question"
-            rows={2}
+            rows={1}
             maxLength={ASSISTANT_QUESTION_MAX_LENGTH}
             value={draft}
             disabled={locked}
@@ -148,19 +200,23 @@ export function AssistantConversation({
             aria-describedby="assistant-question-count"
             onChange={(event) => onDraftChange(clampAssistantQuestion(event.target.value))}
             onKeyDown={onComposerKeyDown}
-            className="max-h-32 min-h-[2.75rem] w-full min-w-0 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-800 bg-slate-950/35 px-3 py-2.5 text-[16px] leading-6 text-slate-200 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400/35 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+            className="max-h-32 min-h-12 w-full min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-[16px] leading-6 text-slate-200 placeholder:text-slate-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
           />
           <button
             type="button"
             onClick={onSend}
             disabled={!sendable}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-3 py-2.5 text-sm font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-transparent disabled:text-slate-600"
+            aria-label="Send"
+            data-assistant-send
+            className="mb-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-400/10 text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-slate-600"
           >
             <Send className="h-4 w-4" aria-hidden="true" />
-            Send
           </button>
         </div>
-        <p id="assistant-question-count" className="mt-1.5 text-right text-[11px] leading-4 text-slate-500">
+        <p
+          id="assistant-question-count"
+          className={showCounter ? "mt-1.5 text-right text-[11px] leading-4 text-slate-300" : "sr-only"}
+        >
           {draft.length}/{ASSISTANT_QUESTION_MAX_LENGTH}
         </p>
       </div>

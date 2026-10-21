@@ -26,7 +26,7 @@ export const expertise = [
     id: "capability-technology-risk",
     title: "Technology & ICT Risk",
     icon: Database,
-    text: "Audit exposure to IT systems, access controls and technology-enabled control environments, with a growing focus on ITGC, DORA, operational resilience and ICT third-party risk.",
+    text: "Hands-on experience in risk-based IT auditing, assessing ICT governance, technology-related controls and digital operational resilience. Direct execution of audit engagements covering DORA Pillar I, ICT change and incident management, and ICT outsourcing, with a focus on regulatory compliance and third-party technology risk.",
   },
   {
     id: "capability-information-security",
@@ -38,7 +38,7 @@ export const expertise = [
     id: "capability-ai-governance",
     title: "AI Governance",
     icon: Brain,
-    text: "Growing focus on AI governance, risk, auditability and traceability, mapped to frameworks such as the EU AI Act, NIST AI RMF and ISO/IEC 42001, supported by hands-on experimentation with local LLM/VLM workflows and AI systems.",
+    text: "Hands-on experience in AI governance and policy development within a regulated banking environment, focusing on AI risk management, accountability, transparency and regulatory alignment. Familiarity with the EU AI Act, NIST AI RMF and ISO/IEC 23894, 42001 and 42005, alongside AI assurance and transparency frameworks.",
   },
   {
     id: "capability-ai-strategy-adoption",
@@ -54,13 +54,24 @@ export const experiences = [
     role: "IT Audit Specialist",
     company: "Banca Profilo · Milan",
     period: "September 2026 – Present",
-    upcoming: true,
-    upcomingNote:
-      "I am joining Banca Profilo at the outset of its 2026–2028 Industrial Plan, during a significant transformation of its business and technology model, with a focus on Internal Audit, control environment and technology governance.",
-    reference: {
-      label: "2026–2028 Industrial Plan ↗",
-      href: "https://www.bancaprofilo.it/wp-content/uploads/2026/02/BP_Piano-Industriale_26-28_esteso.pdf",
-    },
+    intro:
+      "Working within Banca Profilo's Internal Audit function, with a focus on IT governance, ICT risk management, digital operational resilience and technology-related internal controls. My activities encompass risk-based IT audits, ICT third-party risk and AI governance, combining regulatory assurance with the assessment of emerging technology risks.",
+    points: [
+      "Performing risk-based IT audits focused on ICT governance, technology risk management and internal control effectiveness.",
+      "Conducting IT audit engagements on DORA Pillar I, as well as ICT change and incident management processes, assessing regulatory compliance, governance arrangements and digital operational resilience.",
+      "Executing ICT outsourcing audits within the Bank's fiduciary business, assessing third-party technology risks, outsourcing governance and associated internal controls.",
+      "Contributing to the development of the Bank's AI Policy, drawing on the EU AI Act, NIST AI RMF and international AI governance standards.",
+    ],
+    details: [
+      "Performing risk-based IT audit activities covering ICT governance, technology risk management and the design and effectiveness of internal controls within a regulated banking environment.",
+      "Conducting audit engagements on DORA Pillar I, assessing ICT risk management governance, regulatory requirements, control frameworks and their implementation within the Bank.",
+      "Assessing ICT change management and incident management processes through risk-owner interviews, documentation review and control testing, evaluating their alignment with digital operational resilience requirements.",
+      "Executing ICT outsourcing audits within the Bank's fiduciary business, assessing third-party technology risks, outsourcing governance and related internal controls.",
+      "Contributing to the development and structuring of the Bank's internal AI Policy, with a focus on AI governance, risk management, accountability and regulatory compliance.",
+      "Analysing the EU AI Act and its implications for banking and payment services, alongside the NIST AI Risk Management Framework (AI RMF) and relevant international AI governance standards.",
+      "Reviewing ISO/IEC 23894:2023 (AI Risk Management), ISO/IEC 42001:2023 (AI Management Systems) and ISO/IEC 42005:2025 (AI System Impact Assessment), focusing on their relevance to AI governance, risk assessment and organisational oversight.",
+      "Examining ISO/IEC 42006:2025 (AI Management System Audit and Certification Requirements) and the European Commission's Code of Practice on Transparency of AI-generated Content, considering their implications for AI assurance and transparency obligations.",
+    ],
   },
   {
     id: "experience-boc",
@@ -270,20 +281,16 @@ export const stackStreams = [
     items: [
       "Internal Audit",
       "Internal Controls",
-      "SOX Principles",
       "Risk Assessment",
       "Credit Risk",
       "IFRS 9 / ECL",
-      "Banking Regulatory Frameworks",
       "ECB Supervision",
       "Basel III / IV",
-      "CRD VI",
-      "Third-Country Branch",
+      "CRD VI / Third-Country Branches",
       "RAF",
       "ICAAP / ILAAP",
       "Pillar III",
       "AML / KYC",
-      "ESG Reporting",
     ],
   },
   {
@@ -300,32 +307,28 @@ export const stackStreams = [
       "NIS2",
       "EBA ICT & Security Risk",
       "EBA Outsourcing Guidelines",
-      "Operational Resilience",
       "ICT Third-Party Risk",
-      "Business Impact Analysis",
-      "Business Continuity Planning",
-      "Disaster Recovery",
+      "BIA / BCP / DRP",
       "EU AI Act",
-      "ISO/IEC 42001",
       "NIST AI RMF",
-      "Python",
-      "pandas",
+      "ISO/IEC 23894",
+      "ISO/IEC 42001",
+      "ISO/IEC 42005",
+      "ISO/IEC 42006",
+      "AI Transparency / Article 50",
+      "Python / pandas",
       "SQL",
       "Advanced Excel",
       "Power BI",
       "SAP",
       "HFM / Oracle",
-      "Data Analysis",
       "Local LLMs",
       "Hugging Face",
       "RAG Workflows",
       "AI Agents",
       "LLM Evaluation",
-      "Audit Traceability",
       "Structured Data Extraction",
       "GitHub",
-      "Cursor",
-      "Cline Desktop",
     ],
   },
 ];
@@ -358,7 +361,7 @@ export const radarDomains = [
     x: 78.15,
     y: 27.55,
     explanation:
-      "Applied analysis and review of credit risk drivers, corporate and syndicated loan portfolios, IFRS 9 / ECL methodologies and PD/LGD risk parameters, and their impact on provisioning within regulated banking environments.",
+      "Internal audit review of credit risk drivers, corporate and syndicated loan portfolios, IFRS 9 / ECL methodologies and PD/LGD parameters, and their effect on provisioning in a regulated bank.",
     signals: ["Corporate credit & syndicated loans", "IFRS 9 / ECL", "PD & LGD risk parameters", "Financial covenants & credit-risk drivers"],
     sections: ["Experience", "Expertise"],
   },
@@ -382,8 +385,13 @@ export const radarDomains = [
     x: 65.62,
     y: 82.44,
     explanation:
-      "Direct exposure to IT governance, information security controls and access controls within technology-related control environments, with a developing focus on IT general controls (ITGC), ICT third-party risk and broader technology risk.",
-    signals: ["IT governance & information security controls", "IT systems & access controls", "IT general controls (ITGC)", "ICT third-party risk"],
+      "Risk-based IT auditing of ICT governance, technology-related controls and third-party technology risk in a regulated bank. Current engagements include DORA Pillar I, ICT change and incident management, and ICT outsourcing within the fiduciary business.",
+    signals: [
+      "Risk-based IT auditing",
+      "DORA Pillar I",
+      "ICT change and incident management",
+      "ICT outsourcing and third-party risk",
+    ],
     sections: ["Experience", "Expertise", "Credentials"],
   },
   {
@@ -406,8 +414,13 @@ export const radarDomains = [
     x: 14.9,
     y: 58.01,
     explanation:
-      "Direct professional exposure to digital operational resilience under DORA, including the BIA, BCP and DRP framework, risk dependencies, supporting controls and third-party/outsourcing dependencies.",
-    signals: ["DORA", "BIA / BCP / DRP", "Risk dependencies & supporting controls", "Third-party / outsourcing dependencies"],
+      "Audit experience in digital operational resilience, covering ICT change and incident management under DORA, alongside the assessment of business impact analysis, business continuity and disaster recovery arrangements, related controls and third-party dependencies.",
+    signals: [
+      "DORA and operational resilience",
+      "ICT change and incident management",
+      "BIA / BCP / DRP review",
+      "Third-party and outsourcing dependencies",
+    ],
     sections: ["Experience", "Expertise"],
   },
   {
@@ -418,9 +431,14 @@ export const radarDomains = [
     x: 21.85,
     y: 27.55,
     explanation:
-      "An emerging professional direction in AI governance — AI risk, auditability and traceability of AI-enabled workflows — supported by projects, hands-on experimentation and framework knowledge of the EU AI Act, NIST AI RMF and ISO/IEC 42001, rather than direct professional AI-governance experience.",
-    signals: ["Cognitive Behavior Intelligence platform", "Local LLM/VLM experimentation", "EU AI Act, NIST AI RMF, ISO/IEC 42001", "Auditability & traceability"],
-    sections: ["Project Deck", "Credentials", "Expertise"],
+      "Professional experience contributing to AI governance and policy development within a regulated banking environment, with a focus on AI risk management, accountability, transparency and regulatory alignment. Familiarity with the EU AI Act, NIST AI RMF and ISO/IEC 23894, 42001 and 42005, complemented by practical AI projects focused on local models and auditability.",
+    signals: [
+      "AI Policy development contribution",
+      "EU AI Act & NIST AI RMF",
+      "ISO/IEC 23894, 42001 & 42005",
+      "AI transparency & assurance frameworks",
+    ],
+    sections: ["Experience", "Expertise", "Project Deck"],
   },
 ];
 
@@ -530,14 +548,13 @@ export const lensRelevance = {
     streamItems: [
       "Internal Audit",
       "Internal Controls",
-      "SOX Principles",
       "ITGC",
       "Advanced Excel",
       "SQL",
-      "Python",
-      "pandas",
-      "Data Analysis",
+      "Python / pandas",
       "Power BI",
+      "Risk Assessment",
+      "DORA",
     ],
   },
   "Technology Risk": {
@@ -550,13 +567,12 @@ export const lensRelevance = {
     additionalTraining: ["additional-training-digital-banking-eidas-ai-act"],
     streamItems: [
       "DORA",
-      "Operational Resilience",
       "ICT Third-Party Risk",
-      "Business Impact Analysis",
-      "Business Continuity Planning",
-      "Disaster Recovery",
+      "BIA / BCP / DRP",
       "ITGC",
       "COBIT",
+      "EBA ICT & Security Risk",
+      "EBA Outsourcing Guidelines",
     ],
   },
   "Information Security Governance": {
@@ -573,10 +589,9 @@ export const lensRelevance = {
     capabilities: [
       "capability-ai-governance",
       "capability-ai-strategy-adoption",
-      "capability-technology-risk",
     ],
     credentials: ["credential-aair"],
-    experiences: [],
+    experiences: ["experience-banca-profilo"],
     projects: ["project-ai-audit-workflow", "project-codeiak"],
     radar: [],
     education: [],
@@ -588,10 +603,13 @@ export const lensRelevance = {
       "EU AI Act",
       "ISO/IEC 42001",
       "NIST AI RMF",
+      "ISO/IEC 23894",
+      "ISO/IEC 42005",
+      "ISO/IEC 42006",
+      "AI Transparency / Article 50",
       "Local LLMs",
       "AI Agents",
       "LLM Evaluation",
-      "Cline Desktop",
     ],
   },
   "Banking Risk": {
@@ -611,13 +629,14 @@ export const lensRelevance = {
       "ICAAP / ILAAP",
       "Pillar III",
       "Basel III / IV",
-      "CRD VI",
+      "CRD VI / Third-Country Branches",
       "Advanced Excel",
       "SQL",
-      "Python",
-      "pandas",
-      "Data Analysis",
+      "Python / pandas",
       "Power BI",
+      "RAF",
+      "AML / KYC",
+      "ECB Supervision",
     ],
   },
 };
@@ -661,7 +680,7 @@ export const assistantPrompts = [
     categories: ["Profile & Career Direction"],
     question: "What is the strongest part of your profile?",
     answer:
-      "My strongest point is the combination of banking risk exposure, audit and control discipline, and a growing specialization in technology governance.\n\nI have developed a practical foundation across credit risk, regulatory frameworks, internal controls and operational resilience, while progressively expanding toward IT Audit, Technology Risk, Information Security Governance and AI-related risks. This allows me to approach technology not in isolation, but through the lens of risk, controls and governance.",
+      "My strongest point is the combination of banking risk exposure, audit and control discipline, and current IT audit work in a regulated bank.\n\nThat current work covers ICT governance, DORA, ICT outsourcing and a contribution to AI policy development, built on earlier experience in credit risk, regulatory frameworks, internal controls and operational resilience. I approach technology through risk, controls and governance.",
     signalIds: ["exp-boc", "cap-banking-risk", "cap-internal-audit"],
   },
   {
@@ -677,7 +696,7 @@ export const assistantPrompts = [
     categories: ["Profile & Career Direction"],
     question: "What makes your profile different from a standard internal audit profile?",
     answer:
-      "My background in internal audit is combined with a deliberate move toward technology and emerging risk domains.\n\nBeyond traditional audit and banking risk, I am developing capabilities in IT and technology risk, information security governance, operational resilience and AI governance, supported by technical experimentation with Python, data analysis and AI systems.\n\nWhat differentiates my direction is the attempt to connect financial risk, technology, controls and governance rather than treating them as separate disciplines.",
+      "My background in internal audit is combined with a deliberate move toward technology and emerging risk domains.\n\nMy current IT audit work covers ICT governance, DORA, ICT outsourcing and a contribution to AI policy development, alongside personal technical experimentation with Python and AI systems.\n\nWhat differentiates my direction is the attempt to connect financial risk, technology, controls and governance rather than treating them as separate disciplines.",
     signalIds: ["project-codeiak", "cap-technology-risk", "cap-ai-governance"],
   },
   {
@@ -685,7 +704,7 @@ export const assistantPrompts = [
     categories: ["Profile & Career Direction"],
     question: "Where do you want your career to develop?",
     answer:
-      "My career direction builds from banking risk and internal audit toward IT Audit, Technology Risk and Information Security Governance, with AI Governance as an emerging specialization.\n\nOver time, I aim to develop a profile capable of connecting financial risk, technology, information security, controls and AI within complex regulated organizations. I see financial institutions as a particularly strong fit, while remaining open to other highly regulated sectors where technology and governance are becoming increasingly interconnected.",
+      "My career direction builds from banking risk and internal audit toward IT Audit, Technology Risk and Information Security Governance. AI Governance is a longer-term specialization beyond the policy contribution already part of my current Internal Audit role.\n\nOver time, I aim to develop a profile capable of connecting financial risk, technology, information security, controls and AI within complex regulated organizations. I see financial institutions as a particularly strong fit, while remaining open to other highly regulated sectors where technology and governance are becoming increasingly interconnected.",
     signalIds: ["role-lens", "risk-radar", "cap-technology-risk"],
   },
   {
@@ -701,7 +720,7 @@ export const assistantPrompts = [
     categories: ["Audit, Banking & Financial Risk"],
     question: "What is your experience in internal audit?",
     answer:
-      "I previously worked in Internal Audit at Bank of China – Milan Branch, within an international banking environment. My current role is IT Audit Specialist at Banca Profilo in Milan.\n\nAt Bank of China, my experience included audit activities across corporate credit and syndicated loans, credit risk, regulatory and supervisory frameworks, AML/KYC, internal controls, IT governance and operational resilience. I contributed to control assessment, working papers and audit reporting, identifying risk areas, control weaknesses and opportunities for improvement.",
+      "I previously worked in Internal Audit at Bank of China – Milan Branch, within an international banking environment. My current role is IT Audit Specialist at Banca Profilo in Milan.\n\nAt Banca Profilo I perform risk-based IT audits covering ICT governance, internal controls, DORA Pillar I, ICT change and incident management, and ICT outsourcing. The work includes risk-owner interviews, documentation review and control testing. I execute the audit work and prepare the documentation. I do not manage the Internal Audit function.\n\nAt Bank of China, my experience included audit activities across corporate credit and syndicated loans, credit risk, regulatory and supervisory frameworks, AML/KYC, internal controls, IT governance and operational resilience. I contributed to control assessment, working papers and audit reporting, identifying risk areas, control weaknesses and opportunities for improvement.",
     signalIds: ["exp-boc", "exp-banca-profilo", "cap-internal-audit", "radar-internal-audit"],
   },
   {
@@ -733,24 +752,24 @@ export const assistantPrompts = [
     categories: ["Technology Risk & Operational Resilience"],
     question: "What is your experience with Technology Risk and IT controls?",
     answer:
-      "My exposure to Technology Risk comes primarily through internal audit, where I have worked on IT governance, information security controls, access controls and technology-related control environments within a regulated banking context.\n\nI am progressively developing this foundation toward a broader understanding of IT controls, ICT risk, operational resilience and technology governance, supported by my CISA preparation and planned CRISC path.",
-    signalIds: ["exp-boc", "cap-technology-risk", "cred-cisa"],
+      "My current work as IT Audit Specialist at Banca Profilo is risk-based IT auditing of ICT governance, technology-related controls and third-party technology risk. Engagements include DORA Pillar I, ICT change and incident management, and ICT outsourcing in the Bank's fiduciary business.\n\nEarlier internal audit work at Bank of China covered IT governance and information security controls. I am preparing for CISA, and CRISC remains planned. I assess these controls. I do not own second-line ICT risk management.",
+    signalIds: ["exp-banca-profilo", "cap-technology-risk", "cred-cisa"],
   },
   {
     id: "assistant-operational-resilience-dora",
     categories: ["Technology Risk & Operational Resilience"],
     question: "What is your exposure to DORA and operational resilience?",
     answer:
-      "My professional exposure includes DORA-related operational resilience, particularly through the review of Business Impact Analysis (BIA), Business Continuity Plans (BCP) and Disaster Recovery Plans (DRP), including risk dependencies and supporting controls.\n\nThis experience has strengthened my understanding of how technology, business continuity, governance and internal controls interact to support the resilience of critical operations.",
-    signalIds: ["exp-boc", "cap-technology-risk", "radar-operational-resilience"],
+      "At Banca Profilo I execute IT audit engagements on DORA Pillar I, assessing ICT risk-management governance and controls, ICT change and incident management, and ICT outsourcing and third-party technology risk in the Bank's fiduciary business. This is audit assessment, not ownership of a DORA compliance programme.\n\nPreviously, at Bank of China, I reviewed operational resilience arrangements across business impact analysis, business continuity and disaster recovery, including risk dependencies and supporting controls.",
+    signalIds: ["exp-banca-profilo", "exp-boc", "radar-operational-resilience"],
   },
   {
     id: "assistant-ict-third-party-risk",
     categories: ["Technology Risk & Operational Resilience"],
     question: "What is your exposure to ICT third-party risk?",
     answer:
-      "My exposure to ICT third-party risk is developing within the broader context of DORA, outsourcing and operational resilience.\n\nI am particularly interested in how financial institutions identify critical ICT dependencies, assess provider-related risks, establish appropriate contractual and monitoring controls, and maintain accountability when technology services are outsourced. I see this as an increasingly important area at the intersection of Technology Risk, governance and operational resilience.",
-    signalIds: ["cap-technology-risk", "radar-operational-resilience", "exp-boc"],
+      "At Banca Profilo I execute ICT outsourcing audits in the Bank's fiduciary business, assessing third-party technology risks, outsourcing governance and the related internal controls.\n\nAt Bank of China I reviewed third-party and outsourcing dependencies within the business impact, business continuity and disaster recovery arrangements. I assess these arrangements. I do not manage the outsourcing programme.",
+    signalIds: ["exp-banca-profilo", "cap-technology-risk", "exp-boc"],
   },
   {
     id: "assistant-why-technology-risk",
@@ -773,8 +792,8 @@ export const assistantPrompts = [
     categories: ["Information Security & AI Governance"],
     question: "What is your exposure to AI Governance?",
     answer:
-      "My focus on AI Governance is emerging through independent study, framework analysis and applied projects, rather than direct professional experience in a dedicated AI Governance role.\n\nI am developing knowledge around AI risk, controls, accountability, auditability and traceability, with reference to frameworks including the EU AI Act, ISO/IEC 42001 and NIST AI RMF. I am particularly interested in how organizations can govern the gap between formal AI policies, expected controls and the way AI systems are actually used.",
-    signalIds: ["project-cbi", "cap-ai-governance", "cred-aair"],
+      "My current role is IT Audit Specialist at Banca Profilo. Within Internal Audit, I contribute to AI governance and policy development in a regulated bank, focusing on AI risk management, accountability, transparency and regulatory alignment. The work draws on the EU AI Act, NIST AI RMF and ISO/IEC 23894, 42001 and 42005.\n\nI do not own the Bank's AI Policy, manage enterprise AI governance, or certify AI management systems. AAIR remains planned. Personal projects such as Cognitive Behavior Intelligence and CodeIAK complement this contribution with technical experimentation. They do not replace it.",
+    signalIds: ["exp-banca-profilo", "cap-ai-governance", "project-cbi"],
   },
   {
     id: "assistant-why-ai-governance",
@@ -797,7 +816,7 @@ export const assistantPrompts = [
     categories: ["Information Security & AI Governance"],
     question: "What perspective do you bring to AI Governance?",
     answer:
-      "I approach AI Governance primarily from a risk, controls and assurance perspective, complemented by hands-on experimentation with AI technologies.\n\nMy audit background leads me to focus on questions such as whether risks are identifiable, controls are effective, responsibilities are clear and decisions can be traced to reliable evidence. At the same time, working with local LLMs, AI agents and model evaluation helps me develop a practical understanding of the systems being governed rather than approaching AI Governance only from a regulatory perspective.",
+      "I approach AI Governance from a risk, controls and assurance perspective. In my current Internal Audit role I contribute to AI policy development. That is a contribution, not ownership of the policy or a formal AI Governance management position.\n\nSeparate personal work with local LLMs, AI agents and model evaluation helps me understand the systems being governed. It does not replace the professional policy contribution, and I do not hold a completed AI governance certification.",
     signalIds: ["project-codeiak", "cap-ai-governance", "cap-internal-audit"],
   },
   {
@@ -837,7 +856,7 @@ export const assistantPrompts = [
     categories: ["Projects & Technical Skills"],
     question: "What tools and technologies do you work with?",
     answer:
-      "My core tools include Python, pandas and Advanced Excel for analysis and automation, alongside enterprise systems such as SAP and HFM/Oracle from my professional experience.\n\nThrough personal projects, I also work with local LLMs, AI agents, multi-model orchestration, LLM evaluation and structured data extraction, using GitHub and AI-assisted development tools to build and experiment with practical AI workflows.",
+      "My core tools include Python, pandas and Advanced Excel for analysis and automation, alongside enterprise systems such as SAP and HFM/Oracle from my professional experience.\n\nThrough personal projects, I also work with local LLMs, AI agents, multi-model orchestration, LLM evaluation and structured data extraction, using GitHub to build and experiment with practical AI workflows.",
     signalIds: ["project-codeiak", "project-cbi", "cap-technology-risk"],
   },
   {
@@ -853,7 +872,7 @@ export const assistantPrompts = [
     categories: ["Professional Development"],
     question: "Why are you preparing for CISA?",
     answer:
-      "I am preparing for CISA because it directly supports my development toward IT Audit, information systems governance and technology-related controls.\n\nIt builds naturally on my internal audit background while strengthening the information systems dimension of my profile. I see CISA as the first formal step in consolidating the transition from broader banking audit toward more specialized technology-oriented risk and assurance roles.",
+      "I am preparing for CISA because it supports my current IT Audit work on information systems governance, technology-related controls and audit evidence.\n\nIt builds on my internal audit background. I do not yet hold CISA. CRISC, AAIR and FRM remain later steps on the roadmap.",
     signalIds: ["cred-cisa", "cap-technology-risk", "radar-technology"],
   },
   {
@@ -877,7 +896,7 @@ export const assistantPrompts = [
     categories: ["Professional Development"],
     question: "Why are you interested in an AI risk certification such as AAIR?",
     answer:
-      "AI Governance and AI Risk are emerging areas in my professional direction, and AAIR represents a way to develop a more structured understanding of the risks, controls and governance challenges associated with AI systems.\n\nI see it as complementary to CISA and CRISC: as organizations increasingly integrate AI into business and decision-making processes, technology risk and assurance professionals will need to understand how traditional governance and control principles evolve in response to AI-specific risks.",
+      "My current Internal Audit role already includes a contribution to AI policy development. AAIR is a planned certification, not one I hold. It is a way to structure that work further around AI risk, controls and governance, with reference to the EU AI Act, NIST AI RMF and ISO/IEC 42001.\n\nI see it as complementary to CISA and CRISC: CISA is in progress, while CRISC and AAIR remain planned.",
     signalIds: ["cred-aair", "cap-ai-governance", "radar-ai-governance"],
   },
   {
@@ -901,8 +920,8 @@ export const assistantPrompts = [
     categories: ["Recruiter Concerns"],
     question: "What makes you ready to move into Technology Risk or AI Governance roles?",
     answer:
-      "My readiness is built on a solid foundation in internal audit, risk, controls and regulated banking. Technology Risk is a natural extension of that foundation, applying the same control and assurance thinking to IT systems, resilience and third-party dependencies.\n\nAI Governance is an emerging specialization I am actively developing through framework knowledge, applied projects and hands-on technical experimentation. This makes me well suited to roles where my existing foundation can create value now, while I continue to develop deeper specialization and take on progressively greater responsibility.",
-    signalIds: ["exp-boc", "cred-cisa", "cap-ai-governance"],
+      "My current role is IT Audit Specialist, with audit work on ICT governance, DORA, ICT outsourcing and a contribution to the Bank's AI Policy. Technology Risk applies that same assurance approach to technology controls and third-party dependencies.\n\nAI Governance is part of that current contribution and also a longer-term direction. Personal projects add technical familiarity. They do not replace the professional policy work, and AAIR remains a planned certification.",
+    signalIds: ["exp-banca-profilo", "cred-cisa", "cap-ai-governance"],
   },
   {
     id: "assistant-profile-too-broad",

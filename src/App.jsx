@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { MessageSquare } from "lucide-react";
+import { Info, MessageSquare, X } from "lucide-react";
 import {
   DEFAULT_APP_FEATURES,
   resolveAppFeatures,
@@ -34,8 +34,8 @@ import {
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_GLOBAL_LIMIT_MESSAGE,
-  ASSISTANT_ABOUT_NOTE,
-  ASSISTANT_HEADER_SUBTITLE,
+  ASSISTANT_ABOUT_PARAGRAPHS,
+  ASSISTANT_ABOUT_TEXT,
   ASSISTANT_VISITOR_LIMIT_MESSAGE,
   canSendAssistantQuestion,
   clampAssistantQuestion,
@@ -153,10 +153,14 @@ function PortfolioAssistant() {
       text: "",
     }),
   );
-  const [howOpen, setHowOpen] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const openButtonRef = useRef(null);
   const composerRef = useRef(null);
   const closeButtonRef = useRef(null);
+  const disclaimerButtonRef = useRef(null);
+  const disclaimerCloseRef = useRef(null);
+  const disclaimerOpenRef = useRef(false);
+  disclaimerOpenRef.current = disclaimerOpen;
   const dialogRef = useRef(null);
   const assistantFrameRef = useRef(null);
   const questionRailRef = useRef(null);
@@ -169,6 +173,9 @@ function PortfolioAssistant() {
   const messagesRef = useRef(messages);
   const pendingMessageIdRef = useRef(/** @type {string | null} */ (null));
   const { status: availability, refresh: refreshAvailability } = useAssistantAvailability(isDrawerOpen);
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -223,7 +230,7 @@ function PortfolioAssistant() {
     setSelectedPrompt(null);
     setSelectedCategory(null);
     setPanel("chat");
-    setHowOpen(false);
+    setDisclaimerOpen(false);
     setReply({ phase: "idle", text: "" });
     setDraft(typeof prefill === "string" ? clampAssistantQuestion(prefill) : "");
     setIsDrawerOpen(true);
@@ -415,6 +422,11 @@ function PortfolioAssistant() {
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        if (disclaimerOpenRef.current) {
+          setDisclaimerOpen(false);
+          disclaimerButtonRef.current?.focus();
+          return;
+        }
         closeAssistant(true);
         return;
       }
@@ -422,9 +434,12 @@ function PortfolioAssistant() {
       if (event.key !== "Tab") return;
       const dialog = dialogRef.current;
       if (!dialog) return;
+      const focusRoot = disclaimerOpenRef.current
+        ? dialog.querySelector("[data-assistant-disclaimer]") ?? dialog
+        : dialog;
 
       const focusableElements = Array.from(
-        dialog.querySelectorAll(
+        focusRoot.querySelectorAll(
           'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         )
       ).filter(
@@ -481,6 +496,17 @@ function PortfolioAssistant() {
       window.scrollTo(0, savedScrollY);
     };
   }, [closeAssistant, isDrawerOpen]);
+
+  useEffect(() => {
+    if (!isDrawerOpen || !disclaimerOpen) return undefined;
+    disclaimerCloseRef.current?.focus();
+    return undefined;
+  }, [disclaimerOpen, isDrawerOpen]);
+
+  const closeDisclaimer = useCallback(() => {
+    setDisclaimerOpen(false);
+    disclaimerButtonRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!isDrawerOpen) return undefined;
@@ -605,9 +631,10 @@ function PortfolioAssistant() {
                 <motion.div
                   data-assistant-overlay="scroll"
                   className="fixed inset-0 z-50 overflow-hidden bg-slate-950/75 backdrop-blur-sm"
-                  initial={{ opacity: 0 }}
+                  initial={reduceMotion ? false : { opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+                  transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
                   onClick={() => closeAssistant(true)}
                 >
                   <div
@@ -620,58 +647,60 @@ function PortfolioAssistant() {
                       aria-modal="true"
                       aria-labelledby="portfolio-assistant-modal-title"
                       aria-describedby="portfolio-assistant-modal-description"
-                      className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-400/75 bg-slate-950 sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:flex-none"
+                      data-assistant-motion={reduceMotion ? "reduced" : "animated"}
+                      className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-400/75 bg-slate-950 sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:flex-none"
                       style={{
                         boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
                       }}
-                      initial={{ y: 18, scale: 0.98 }}
+                      initial={reduceMotion ? false : { y: 18, scale: 0.98 }}
                       animate={{ y: 0, scale: 1 }}
-                      exit={{ y: 18, scale: 0.98 }}
-                      transition={{ duration: 0.28, ease: "easeOut" }}
+                      exit={reduceMotion ? { opacity: 1 } : { y: 18, scale: 0.98 }}
+                      transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: "easeOut" }}
                       onClick={(event) => event.stopPropagation()}
                     >
-                <div className="relative z-20 grid max-h-[40%] min-h-0 shrink grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 overflow-y-auto border-b border-cyan-400/60 px-4 py-3 sm:max-h-none sm:shrink-0 sm:overflow-visible sm:px-5">
+                <p id="portfolio-assistant-modal-description" className="sr-only">
+                  {ASSISTANT_ABOUT_TEXT}
+                </p>
+                <div
+                  data-assistant-header
+                  className="relative z-20 flex min-h-14 shrink-0 items-center gap-2 border-b border-cyan-400/40 px-3 sm:px-4"
+                >
                   <img
                     src={publicAsset("profile.png")}
-                    alt="Lorenzo Natali"
-                    className="row-span-2 h-10 w-10 rounded-full border border-cyan-400/30 object-cover"
+                    alt=""
+                    className="h-10 w-10 shrink-0 rounded-full border border-cyan-400/30 object-cover"
                   />
-                  <div className="relative flex min-w-0 items-center">
-                    <p id="portfolio-assistant-modal-title" className="min-w-0 text-sm font-semibold text-slate-50">
+                  <div className="flex min-w-0 flex-1 items-center">
+                    <p id="portfolio-assistant-modal-title" className="min-w-0 truncate text-sm font-semibold text-slate-50">
                       AI Portfolio Assistant
                     </p>
-                    <AssistantAvailabilityIndicator status={availability} tabIndex={-1} tooltipPlacement="below" />
+                    <AssistantAvailabilityIndicator
+                      status={availability}
+                      tabIndex={-1}
+                      tooltipPlacement="below"
+                      spacious
+                    />
                   </div>
+                  <button
+                    ref={disclaimerButtonRef}
+                    type="button"
+                    aria-label="About this assistant"
+                    aria-expanded={disclaimerOpen}
+                    aria-controls="assistant-disclaimer"
+                    onClick={() => setDisclaimerOpen(true)}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                  >
+                    <Info className="h-5 w-5" aria-hidden="true" />
+                  </button>
                   <button
                     ref={closeButtonRef}
                     type="button"
+                    aria-label="Close"
                     onClick={() => closeAssistant(true)}
-                    className="row-span-2 shrink-0 self-center rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100"
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                   >
-                    Close
+                    <X className="h-5 w-5" aria-hidden="true" />
                   </button>
-                  <div className="col-start-2 min-w-0">
-                    <p id="portfolio-assistant-modal-description" className="text-[11px] leading-4 text-slate-500">
-                      {ASSISTANT_HEADER_SUBTITLE}
-                    </p>
-                    <button
-                      type="button"
-                      aria-expanded={howOpen}
-                      aria-controls="assistant-how-it-works"
-                      onClick={() => setHowOpen((open) => !open)}
-                      className="mt-1 text-left text-[11px] font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35"
-                    >
-                      About this assistant
-                    </button>
-                    {howOpen ? (
-                      <p
-                        id="assistant-how-it-works"
-                        className="mt-2 max-w-3xl text-[11px] font-medium leading-4 text-slate-500"
-                      >
-                        {ASSISTANT_ABOUT_NOTE}
-                      </p>
-                    ) : null}
-                  </div>
                 </div>
 
                 <div data-assistant-modal-content className="flex min-h-0 flex-1 flex-col">
@@ -821,6 +850,44 @@ function PortfolioAssistant() {
                     </div>
                   )}
                 </div>
+                {disclaimerOpen ? (
+                  <div
+                    id="assistant-disclaimer"
+                    data-assistant-disclaimer
+                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 px-4"
+                    onClick={closeDisclaimer}
+                  >
+                    <div
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="assistant-disclaimer-title"
+                      className="flex max-h-[85%] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-cyan-400/40 bg-slate-950"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3">
+                        <h2 id="assistant-disclaimer-title" className="min-w-0 text-base font-semibold text-slate-100">
+                          About this assistant
+                        </h2>
+                        <button
+                          ref={disclaimerCloseRef}
+                          type="button"
+                          aria-label="Close"
+                          onClick={closeDisclaimer}
+                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                        >
+                          <X className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="min-h-0 overflow-y-auto px-5 pb-5">
+                        <div className="space-y-3 text-sm leading-6 text-slate-300">
+                          {ASSISTANT_ABOUT_PARAGRAPHS.map((paragraph) => (
+                            <p key={paragraph}>{paragraph}</p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
                     </motion.div>
                   </div>
                 </motion.div>

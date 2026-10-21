@@ -49,6 +49,24 @@ describe("CapabilitiesSection Expertise cards", () => {
     expect(screen.getByRole("heading", { name: "AI Strategy & Adoption" })).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "International & Cross-Cultural Work" })).toBeNull();
     expect(screen.queryByText("Transversal capability")).toBeNull();
+
+    expect(screen.getByText(expertise.find((item) => item.id === "capability-technology-risk").text)).toBeTruthy();
+    expect(screen.getByText(expertise.find((item) => item.id === "capability-ai-governance").text)).toBeTruthy();
+    expect(expertise.find((item) => item.id === "capability-technology-risk").text).toBe(
+      "Hands-on experience in risk-based IT auditing, assessing ICT governance, technology-related controls and digital operational resilience. Direct execution of audit engagements covering DORA Pillar I, ICT change and incident management, and ICT outsourcing, with a focus on regulatory compliance and third-party technology risk."
+    );
+    expect(expertise.find((item) => item.id === "capability-ai-governance").text).toBe(
+      "Hands-on experience in AI governance and policy development within a regulated banking environment, focusing on AI risk management, accountability, transparency and regulatory alignment. Familiarity with the EU AI Act, NIST AI RMF and ISO/IEC 23894, 42001 and 42005, alongside AI assurance and transparency frameworks."
+    );
+    expect(expertise.find((item) => item.id === "capability-audit-control").text).toBe(
+      "Risk-based internal audit, control testing, working papers and analytical reporting to assess control design, effectiveness, risk exposure and governance structures."
+    );
+    expect(expertise.find((item) => item.id === "capability-banking-risk").text).toBe(
+      "Audit and analysis across corporate credit, credit risk and IFRS 9/ECL within a regulated banking environment, alongside supervisory frameworks including RAF, ICAAP/ILAAP, Pillar III, Basel III/IV and CRD VI third-country branch requirements."
+    );
+    expect(expertise.find((item) => item.id === "capability-information-security").text).toBe(
+      "Developing focus on information security governance and control frameworks — ISO/IEC 27001, NIST CSF and COBIT — connecting security controls with audit, assurance and technology risk."
+    );
   });
 
   it("maps AI Strategy & Adoption to AI Governance only", () => {
@@ -88,6 +106,7 @@ describe("CapabilitiesSection Expertise cards", () => {
     );
     expectHighlighted(surface(container, "capability-ai-strategy-adoption"));
     expectHighlighted(surface(container, "capability-ai-governance"));
+    expectDimmed(surface(container, "capability-technology-risk"));
 
     rerender(<CapabilitiesSection selectedLens="IT Audit" />);
     expectDimmed(surface(container, "capability-ai-strategy-adoption"));

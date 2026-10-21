@@ -8,8 +8,9 @@ import {
 } from "@testing-library/react";
 import App from "./App.jsx";
 import {
-  ASSISTANT_ABOUT_NOTE,
-  ASSISTANT_HEADER_SUBTITLE,
+  ASSISTANT_ABOUT_PARAGRAPHS,
+  ASSISTANT_ABOUT_TEXT,
+  ASSISTANT_WELCOME_MESSAGE,
 } from "./portfolio/assistantChatModel.js";
 
 function HeroHarness({ sidebarSlot }) {
@@ -104,10 +105,13 @@ describe("Portfolio Assistant guided modal", () => {
     const openButton = screen.getByRole("button", { name: "Chat" });
     fireEvent.click(openButton);
 
-    expect(screen.getByText(ASSISTANT_HEADER_SUBTITLE)).toBeTruthy();
+    expect(document.getElementById("portfolio-assistant-modal-description")).toHaveClass("sr-only");
+    expect(document.getElementById("portfolio-assistant-modal-description")).toHaveTextContent(ASSISTANT_ABOUT_TEXT);
+    expect(document.querySelector("[data-assistant-header]")?.textContent).not.toMatch(/Powered by OpenAI/);
     expect(screen.queryByRole("heading", { name: "What would you like to know about Lorenzo?" })).toBeNull();
     expect(screen.queryByRole("button", { name: "What is Lorenzo's professional background?" })).toBeNull();
-    expect(document.querySelector("[data-assistant-transcript]")?.textContent?.trim()).toBe("");
+    expect(document.querySelector("[data-assistant-transcript] [role='log']")?.textContent?.trim()).toBe("");
+    expect(screen.getByText(ASSISTANT_WELCOME_MESSAGE)).toBeTruthy();
     expect(screen.getByRole("textbox", { name: "Your question" })).toHaveAttribute(
       "placeholder",
       "Ask me something..."
@@ -146,7 +150,8 @@ describe("Portfolio Assistant guided modal", () => {
     expect(openButton).toHaveFocus();
 
     fireEvent.click(openButton);
-    expect(document.querySelector("[data-assistant-transcript]")?.textContent?.trim()).toBe("");
+    expect(document.querySelector("[data-assistant-transcript] [role='log']")?.textContent?.trim()).toBe("");
+    expect(screen.getByText(ASSISTANT_WELCOME_MESSAGE)).toBeTruthy();
     expect(screen.queryByText("Explore by topic")).toBeNull();
     expect(screen.queryByText("Suggested questions")).toBeNull();
     expect(screen.queryByText("Continue exploring")).toBeNull();
@@ -197,11 +202,12 @@ describe("Portfolio Assistant guided modal", () => {
     expect(applicationRoot.inert).toBe(true);
     expect(applicationRoot).toHaveAttribute("inert");
     const closeButton = screen.getByRole("button", { name: "Close" });
+    const aboutButton = screen.getByRole("button", { name: "About this assistant" });
     const textarea = screen.getByRole("textbox", { name: "Your question" });
 
     textarea.focus();
     fireEvent.keyDown(document, { key: "Tab" });
-    expect(closeButton).toHaveFocus();
+    expect(aboutButton).toHaveFocus();
 
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(textarea).toHaveFocus();
@@ -237,16 +243,19 @@ describe("Portfolio Assistant guided modal", () => {
     const textarea = screen.getByRole("textbox", { name: "Your question" });
     const send = screen.getByRole("button", { name: "Send" });
     expect(send).toBeDisabled();
-    expect(screen.getByText("0/500")).toBeTruthy();
+    expect(document.getElementById("assistant-question-count")).toHaveClass("sr-only");
 
     fireEvent.change(textarea, { target: { value: "   " } });
     expect(send).toBeDisabled();
     fireEvent.keyDown(textarea, { key: "Enter" });
     expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
 
+    fireEvent.change(textarea, { target: { value: "a".repeat(399) } });
+    expect(document.getElementById("assistant-question-count")).toHaveClass("sr-only");
     fireEvent.change(textarea, { target: { value: "a".repeat(640) } });
     expect(textarea).toHaveValue("a".repeat(500));
-    expect(screen.getByText("500/500")).toBeTruthy();
+    expect(document.getElementById("assistant-question-count")).toHaveTextContent("500/500");
+    expect(document.getElementById("assistant-question-count")).not.toHaveClass("sr-only");
     expect(send).toBeEnabled();
   });
 
@@ -265,6 +274,8 @@ describe("Portfolio Assistant guided modal", () => {
     fireEvent.keyDown(textarea, { key: "Enter" });
 
     expect(screen.getByText("What is Lorenzo's background?")).toBeTruthy();
+    expect(screen.getAllByText(ASSISTANT_WELCOME_MESSAGE)).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Current Role" })).toBeNull();
     expect(screen.getByText(/temporarily unavailable/)).toBeTruthy();
     expect(screen.queryByText(/not used as context/)).toBeNull();
     expect(screen.queryByRole("button", { name: "New conversation" })).toBeNull();
@@ -272,10 +283,13 @@ describe("Portfolio Assistant guided modal", () => {
     expect(screen.queryByText(/Development-only sample answer/)).toBeNull();
     expect(textarea).toHaveValue("");
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("portfolio-assistant-conversation-v1") ?? "").not.toContain(ASSISTANT_WELCOME_MESSAGE);
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     openChat();
     expect(screen.getByText("What is Lorenzo's background?")).toBeTruthy();
+    expect(screen.getAllByText(ASSISTANT_WELCOME_MESSAGE)).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Current Role" })).toBeNull();
     expect(screen.queryByText(/Preparing a response/)).toBeNull();
     expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
   });
@@ -284,18 +298,42 @@ describe("Portfolio Assistant guided modal", () => {
     renderAssistant();
     openChat();
     expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
-    expect(screen.getByText(ASSISTANT_HEADER_SUBTITLE)).toBeTruthy();
-    const about = screen.getByRole("button", { name: "About this assistant" });
-    expect(about).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
+    expect(document.getElementById("portfolio-assistant-modal-description")).toHaveTextContent(ASSISTANT_ABOUT_TEXT);
+    expect(document.getElementById("portfolio-assistant-modal-description")).toHaveClass("sr-only");
+    expect(document.querySelector("[data-assistant-disclaimer]")).toBeNull();
+    expect(document.getElementById("assistant-how-it-works")).toBeNull();
+    expect(ASSISTANT_ABOUT_PARAGRAPHS.join(" ")).toBe(ASSISTANT_ABOUT_TEXT);
+    fireEvent.click(screen.getByRole("button", { name: "About this assistant" }));
+    const about = document.querySelector("[data-assistant-disclaimer]");
+    const aboutDialog = about.querySelector("[role='dialog']");
+    expect(aboutDialog).toHaveAccessibleName("About this assistant");
+    expect(about.querySelector("#assistant-disclaimer-title")).toHaveTextContent("About this assistant");
+    expect(about.querySelector("#assistant-disclaimer-title")).not.toHaveClass("sr-only");
+    const paragraphs = [...about.querySelectorAll("h2 ~ div p, .space-y-3 p")];
+    expect(paragraphs.map((node) => node.textContent)).toEqual(ASSISTANT_ABOUT_PARAGRAPHS);
+    for (const paragraph of ASSISTANT_ABOUT_PARAGRAPHS) {
+      expect(about.textContent.split(paragraph).length - 1).toBe(1);
+    }
+    expect(about.textContent).not.toContain("AI Assistant status unknown");
+    expect(about.querySelector("[class*='pr-16']")).toBeNull();
+    const aboutClose = about.querySelector("button");
+    expect(aboutClose).toHaveAccessibleName("Close");
+    expect(aboutClose.className).toContain("h-11");
+    expect(aboutClose.className).toContain("w-11");
+    expect(aboutClose).toHaveFocus();
+    fireEvent.click(aboutClose);
+    expect(document.querySelector("[data-assistant-disclaimer]")).toBeNull();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "About this assistant" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "About this assistant" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.querySelector("[data-assistant-disclaimer]")).toBeNull();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "About this assistant" })).toHaveFocus();
     expect(screen.queryByText(/OpenAI AI models/)).toBeNull();
     expect(screen.queryByText(/Please refer to the portfolio sections/)).toBeNull();
     expect(screen.queryByRole("button", { name: "A quick note" })).toBeNull();
-    fireEvent.click(about);
-    const disclosure = document.getElementById("assistant-how-it-works");
-    expect(about).toHaveAttribute("aria-expanded", "true");
-    expect(disclosure?.textContent).toBe(ASSISTANT_ABOUT_NOTE);
-    expect(disclosure?.textContent).not.toMatch(/OpenAI AI models|portfolio sections|personal, confidential/);
+    expect(screen.getByRole("dialog").querySelector("[data-assistant-availability]")).toBeTruthy();
     expect(screen.getByRole("dialog").textContent).not.toMatch(/gpt-|luna/i);
 
     const textarea = screen.getByRole("textbox", { name: "Your question" });
@@ -307,14 +345,51 @@ describe("Portfolio Assistant guided modal", () => {
     expect(screen.getByText(/temporarily unavailable/)).toBeTruthy();
   });
 
+  it("omits starter boxes and keeps the welcome out of storage", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAssistant();
+    openChat();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelectorAll("[data-assistant-welcome]")).toHaveLength(1);
+    expect(dialog.querySelector("[data-assistant-starters]")).toBeNull();
+    const labels = [...dialog.querySelectorAll("button")].map((button) => button.textContent.trim());
+    expect(labels).not.toContain("Current Role");
+    expect(labels).not.toContain("DORA & IT Audit");
+    expect(labels).not.toContain("AI Governance");
+    expect(labels).not.toContain("Projects");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("portfolio-assistant-conversation-v1") ?? "").not.toContain(ASSISTANT_WELCOME_MESSAGE);
+    expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
+  });
+
+  it("skips dialog entrance movement when reduced motion is requested", () => {
+    const original = window.matchMedia;
+    window.matchMedia = (query) => ({
+      matches: String(query).includes("prefers-reduced-motion"),
+      media: String(query),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    });
+    try {
+      renderAssistant();
+      openChat();
+      expect(screen.getByRole("dialog")).toHaveAttribute("data-assistant-motion", "reduced");
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
   it("keeps keyboard focus inside the chat dialog", () => {
     renderAssistant();
     openChat();
-    const closeButton = screen.getByRole("button", { name: "Close" });
+    const aboutButton = screen.getByRole("button", { name: "About this assistant" });
     const textarea = screen.getByRole("textbox", { name: "Your question" });
     textarea.focus();
     fireEvent.keyDown(document, { key: "Tab" });
-    expect(closeButton).toHaveFocus();
+    expect(aboutButton).toHaveFocus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(textarea).toHaveFocus();
   });

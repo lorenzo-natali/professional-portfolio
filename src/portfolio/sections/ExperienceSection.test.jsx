@@ -57,27 +57,61 @@ describe("ExperienceSection bounded viewport", () => {
     expect(screen.getByText("September 2026 – Present")).toBeTruthy();
   });
 
-  it("renders upcoming experiences without unpublished responsibility copy", () => {
+  it("renders Banca Profilo as an active experience with summary and expandable details", () => {
     const profilo = experiences.find((exp) => exp.id === "experience-banca-profilo");
-    expect(profilo.upcoming).toBe(true);
-    expect(profilo.intro).toBeUndefined();
-    expect(profilo.points).toBeUndefined();
-    expect(profilo.details).toBeUndefined();
+    const boc = experiences.find((exp) => exp.id === "experience-boc");
+    expect(experiences[0].id).toBe("experience-banca-profilo");
+    expect(experiences[1].id).toBe("experience-boc");
+    expect(profilo.upcoming).toBeFalsy();
+    expect(profilo.upcomingNote).toBeUndefined();
+    expect(profilo.points).toEqual([
+      "Performing risk-based IT audits focused on ICT governance, technology risk management and internal control effectiveness.",
+      "Conducting IT audit engagements on DORA Pillar I, as well as ICT change and incident management processes, assessing regulatory compliance, governance arrangements and digital operational resilience.",
+      "Executing ICT outsourcing audits within the Bank's fiduciary business, assessing third-party technology risks, outsourcing governance and associated internal controls.",
+      "Contributing to the development of the Bank's AI Policy, drawing on the EU AI Act, NIST AI RMF and international AI governance standards.",
+    ]);
+    expect(profilo.details[0]).toBe(
+      "Performing risk-based IT audit activities covering ICT governance, technology risk management and the design and effectiveness of internal controls within a regulated banking environment."
+    );
+    expect(profilo.details.slice(1, 4)).toEqual([
+      "Conducting audit engagements on DORA Pillar I, assessing ICT risk management governance, regulatory requirements, control frameworks and their implementation within the Bank.",
+      "Assessing ICT change management and incident management processes through risk-owner interviews, documentation review and control testing, evaluating their alignment with digital operational resilience requirements.",
+      "Executing ICT outsourcing audits within the Bank's fiduciary business, assessing third-party technology risks, outsourcing governance and related internal controls.",
+    ]);
+    expect(profilo.details).toHaveLength(8);
+    expect(profilo.details[4]).toMatch(/Bank's internal AI Policy/);
+    expect(boc.role).toBe("Internal Auditor");
+    expect(boc.company).toBe("Bank of China · Milan · 中国银行米兰分行");
+    expect(boc.period).toBe("Oct 2025 – Sep 2026");
+    expect(boc.points).toHaveLength(4);
+    expect(boc.details).toHaveLength(7);
 
     const { container } = render(<ExperienceHarness />);
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings[0].textContent).toBe("IT Audit Specialist");
+    expect(headings[1].textContent).toBe("Internal Auditor");
+
     const article = container.querySelector(
       '[data-role-lens-id="experience-banca-profilo"]'
     );
-    expect(within(article).getByText(profilo.upcomingNote)).toBeTruthy();
-    expect(
-      within(article).getByRole("link", { name: profilo.reference.label })
-    ).toBeTruthy();
-    expect(within(article).queryByText("Summary")).toBeNull();
-    expect(within(article).queryByText("Details")).toBeNull();
-    expect(
-      within(article).queryByRole("button", { name: "View details" })
-    ).toBeNull();
-    expect(article.textContent).not.toMatch(/Tinaba|risk-based internal audits/i);
+    expect(within(article).getByText(profilo.intro)).toBeTruthy();
+    expect(within(article).queryByText(/I am joining Banca Profilo/)).toBeNull();
+    expect(within(article).getByText("Summary")).toBeTruthy();
+    for (const point of profilo.points) {
+      expect(within(article).getByText(point)).toBeTruthy();
+    }
+    expect(within(article).queryByRole("link", { name: /Industrial Plan/i })).toBeNull();
+    expect(article.innerHTML).not.toMatch(/bancaprofilo\.it/);
+
+    fireEvent.click(within(article).getByRole("button", { name: "View details" }));
+    expect(within(article).getByText("Details")).toBeTruthy();
+    for (const detail of profilo.details) {
+      expect(within(article).getByText(detail)).toBeTruthy();
+    }
+    const bocArticle = container.querySelector('[data-role-lens-id="experience-boc"]');
+    expect(within(bocArticle).getByText(boc.points[0])).toBeTruthy();
+    expect(within(bocArticle).getByText("Oct 2025 – Sep 2026")).toBeTruthy();
+    expect(within(bocArticle).queryByText(boc.details[0])).toBeNull();
   });
 
   it("keeps optional intro visible for non-upcoming experiences when expanded", async () => {
@@ -99,24 +133,6 @@ describe("ExperienceSection bounded viewport", () => {
       `[data-role-lens-id="${withIntro.id}"]`
     );
     expect(within(article).getByText(withIntro.intro)).toBeTruthy();
-  });
-
-  it("renders an optional external reference on upcoming cards", () => {
-    const profilo = experiences.find((exp) => exp.id === "experience-banca-profilo");
-    const { container } = render(<ExperienceHarness />);
-    const article = container.querySelector(
-      '[data-role-lens-id="experience-banca-profilo"]'
-    );
-    const note = within(article).getByText(profilo.upcomingNote);
-    const link = within(article).getByRole("link", {
-      name: profilo.reference.label,
-    });
-    expect(link).toHaveAttribute("href", profilo.reference.href);
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
-    expect(
-      note.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
   });
 
   it("renders a single bounded experience list viewport with all roles", () => {

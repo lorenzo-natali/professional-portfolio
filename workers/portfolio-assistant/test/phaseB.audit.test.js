@@ -82,7 +82,7 @@ describe("quota day-scoping and burst TTL", () => {
 
 describe("knowledge pack grounding snapshot", () => {
   it("contains only public-derived topics and no assistant/draft ids", () => {
-    expect(knowledgeItems).toHaveLength(70);
+    expect(knowledgeItems).toHaveLength(71);
     const ids = knowledgeItems.map((i) => i.id);
     expect(ids.some((id) => id.includes("assistant-"))).toBe(false);
     expect(ids.some((id) => id.includes("draft"))).toBe(false);

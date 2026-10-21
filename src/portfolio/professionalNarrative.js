@@ -147,7 +147,7 @@ export const professionalNarrative = Object.freeze([
     id: "narrative-ai-governance-rationale",
     narrativeType: "ai_governance_rationale",
     text:
-      "Interest in AI Governance comes from the intersection of technology, risk, controls, governance and regulation. AI Governance is framed as a coherent evolution of the existing trajectory rather than an unrelated move into AI. Personal AI/software projects provide hands-on technical exposure; the professional background provides the risk/control perspective. Project exposure is not professional AI Governance employment.",
+      "Interest in AI Governance comes from the intersection of technology, risk, controls, governance and regulation. AI Governance is framed as a coherent evolution of the existing trajectory rather than an unrelated move into AI. Current professional experience includes a contribution, within Internal Audit, to AI governance and policy development at a regulated bank. That contribution is not ownership of the bank's AI policy or enterprise-wide AI governance authority. Personal AI/software projects provide separate hands-on technical exposure and are not themselves professional AI Governance employment.",
     keywords: [
       "why ai governance",
       "interested in ai governance",

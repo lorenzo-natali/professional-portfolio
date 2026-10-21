@@ -135,11 +135,14 @@ describe("retrieval V2 topical coverage", () => {
     expect(pipeline("Has he worked with NIS2?").openai).toBe(true);
   });
 
-  it("keeps AI Governance typed as developing/direction/project — not employment", () => {
+  it("retrieves AI Governance direction records that include the professional policy contribution", () => {
     const hits = retrieveKnowledge("Has Lorenzo worked professionally in AI Governance?");
-    expect(hits.some((h) => h.claimType === "employment_current" && /ai governance/i.test(h.text))).toBe(
-      false,
+    const blob = hits.map((hit) => hit.text).join(" ");
+    expect(hits.some((h) => h.id === "experience-banca-profilo" && h.claimType === "employment_current")).toBe(
+      true,
     );
+    expect(blob).toMatch(/policy development/i);
+    expect(blob).not.toMatch(/rather than direct professional/i);
     expect(
       hits.some((h) =>
         ["capability_developing", "career_direction", "project_personal"].includes(h.claimType),
@@ -222,10 +225,12 @@ describe("current employment on professional background questions", () => {
     expect(hits.length).toBeLessThanOrEqual(6);
   });
 
-  it("does not force current employment into a pure AI governance question", () => {
+  it("includes current employment for professional AI governance experience", () => {
     const question = "Has Lorenzo worked professionally in AI Governance?";
     const hits = retrieveKnowledge(question);
-    expect(hits.some((hit) => hit.claimType === "employment_current")).toBe(false);
+    expect(hits.some((hit) => hit.id === "experience-banca-profilo" && hit.claimType === "employment_current")).toBe(
+      true,
+    );
     expect(hits.length).toBeLessThanOrEqual(6);
   });
 

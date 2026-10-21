@@ -6,12 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App.jsx";
 import { ASSISTANT_CONVERSATION_STORAGE_KEY } from "./assistantConversationStore.js";
 import {
-  ASSISTANT_ABOUT_NOTE,
+  ASSISTANT_ABOUT_TEXT,
   ASSISTANT_ASK_TIMEOUT_MS,
   ASSISTANT_BURST_MESSAGE,
   ASSISTANT_ERROR_MESSAGE,
   ASSISTANT_GLOBAL_LIMIT_MESSAGE,
-  ASSISTANT_HEADER_SUBTITLE,
   ASSISTANT_UNAVAILABLE_MESSAGE,
   ASSISTANT_VISITOR_LIMIT_MESSAGE,
 } from "./assistantChatModel.js";
@@ -145,18 +144,14 @@ describe("assistant chat POST /ask", () => {
     expect(askBody(asks[0])).toEqual({ question: "What is Lorenzo's audit background?" });
     expect(String(asks[0].url)).toBe(`${ENDPOINT}/ask`);
 
-    expect(screen.getByText(ASSISTANT_HEADER_SUBTITLE)).toBeTruthy();
-    const about = screen.getByRole("button", { name: "About this assistant" });
-    expect(about).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
+    expect(document.getElementById("portfolio-assistant-modal-description")).toHaveTextContent(ASSISTANT_ABOUT_TEXT);
+    expect(screen.getByRole("button", { name: "About this assistant" })).toBeTruthy();
+    expect(document.querySelector("[data-assistant-disclaimer]")).toBeNull();
+    expect(document.getElementById("assistant-how-it-works")).toBeNull();
     expect(screen.queryByRole("button", { name: "A quick note" })).toBeNull();
-    fireEvent.click(about);
-    const disclosure = document.getElementById("assistant-how-it-works");
-    expect(disclosure?.textContent).toBe(ASSISTANT_ABOUT_NOTE);
-    expect(disclosure?.textContent).not.toMatch(/OpenAI AI models|portfolio sections|personal, confidential/);
-    fireEvent.click(about);
-    expect(about).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
+    expect(screen.getByRole("dialog").textContent).not.toContain("Powered by OpenAI ·");
+    expect(screen.getByRole("dialog").textContent).not.toContain("two or three questions");
+    expect(screen.getByRole("dialog").textContent).not.toMatch(/OpenAI AI models|portfolio sections/);
   });
 
   it("shows a local refusal when evidence is empty", async () => {

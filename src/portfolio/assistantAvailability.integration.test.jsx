@@ -4,7 +4,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../App.jsx";
-import { ASSISTANT_ABOUT_NOTE, ASSISTANT_HEADER_SUBTITLE } from "./assistantChatModel.js";
+import { ASSISTANT_ABOUT_TEXT } from "./assistantChatModel.js";
 import { useAssistantAvailability } from "./useAssistantAvailability.js";
 
 const ENDPOINT = "https://assistant.example";
@@ -93,7 +93,7 @@ describe("assistant availability indicator integration", () => {
     );
     expect(availabilityDot()).toHaveClass("bg-amber-400");
     expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "visitor_limit");
-    expect(chatHeaderDot()).toHaveClass("bg-amber-400");
+    expect(chatHeaderDot().querySelector("[data-assistant-status-dot]")).toHaveClass("bg-amber-400");
     expect(chatHeaderDot()).toHaveAttribute("aria-label", "Your daily question limit has been reached");
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
@@ -106,7 +106,7 @@ describe("assistant availability indicator integration", () => {
     );
     expect(availabilityDot()).toHaveClass("bg-red-400/60");
     expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "global_limit");
-    expect(chatHeaderDot()).toHaveClass("bg-red-400/60");
+    expect(chatHeaderDot().querySelector("[data-assistant-status-dot]")).toHaveClass("bg-red-400/60");
     expect(chatHeaderDot()).toHaveAttribute("aria-label", "AI Assistant daily capacity reached");
     expect(call).toBe(3);
   });
@@ -145,7 +145,7 @@ describe("assistant availability indicator integration", () => {
     openChat();
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(availabilityDot()).toHaveAttribute("aria-label", "AI Assistant status unknown");
-    expect(chatHeaderDot()).toHaveClass("bg-slate-500");
+    expect(chatHeaderDot().querySelector("[data-assistant-status-dot]")).toHaveClass("bg-slate-500");
     expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "unknown");
     expect(chatHeaderDot()).toHaveAttribute("tabindex", "-1");
     const chatTooltip = document.getElementById(chatHeaderDot().getAttribute("aria-describedby"));
@@ -177,7 +177,9 @@ describe("assistant availability indicator integration", () => {
 
     openChat();
     await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(chatHeaderDot()).toHaveClass("bg-emerald-400"));
+    await waitFor(() =>
+      expect(chatHeaderDot().querySelector("[data-assistant-status-dot]")).toHaveClass("bg-emerald-400"),
+    );
     expect(chatHeaderDot()).toHaveAttribute("data-assistant-availability", "available");
     expect(chatHeaderDot()).toHaveAttribute("aria-label", "AI Assistant available");
 
@@ -285,15 +287,14 @@ describe("assistant availability indicator integration", () => {
     renderAssistant();
     openChat();
 
-    expect(screen.getByText(ASSISTANT_HEADER_SUBTITLE)).toBeTruthy();
-    const about = screen.getByRole("button", { name: "About this assistant" });
-    expect(about).toHaveAttribute("aria-expanded", "false");
+    expect(document.getElementById("portfolio-assistant-modal-description")).toHaveTextContent(ASSISTANT_ABOUT_TEXT);
+    expect(screen.getByRole("button", { name: "About this assistant" })).toBeTruthy();
+    expect(document.querySelector("[data-assistant-disclaimer]")).toBeNull();
     expect(screen.queryByRole("button", { name: "A quick note" })).toBeNull();
-    expect(screen.queryByText(ASSISTANT_ABOUT_NOTE)).toBeNull();
-    fireEvent.click(about);
-    const disclosure = document.getElementById("assistant-how-it-works");
-    expect(disclosure?.textContent).toBe(ASSISTANT_ABOUT_NOTE);
-    expect(disclosure?.textContent).not.toMatch(/OpenAI AI models|portfolio sections|personal, confidential/);
+    expect(document.getElementById("assistant-how-it-works")).toBeNull();
+    expect(screen.getByRole("dialog").textContent).not.toContain("Powered by OpenAI ·");
+    expect(screen.getByRole("dialog").textContent).not.toContain("two or three questions");
+    expect(screen.getByRole("dialog").textContent).not.toMatch(/OpenAI AI models|portfolio sections/);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Your question" }), {
       target: { value: "What is Lorenzo's background?" },

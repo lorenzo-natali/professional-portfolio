@@ -4,6 +4,7 @@ import { AssistantConversation } from "./AssistantConversation.jsx";
 import { developmentConversationFixture } from "./assistantChatFixtures.js";
 import {
   ASSISTANT_ERROR_MESSAGE,
+  ASSISTANT_WELCOME_MESSAGE,
   resolveVerifiedSignals,
 } from "./assistantChatModel.js";
 import { signalMap } from "./portfolioData.js";
@@ -88,6 +89,122 @@ describe("assistant chat presentation", () => {
     expect(assistant?.querySelector("strong")?.textContent).toBe("IT Audit Specialist");
     expect(assistant?.textContent).not.toContain("**");
     expect(container.querySelector("script")).toBeNull();
+  });
+
+  it("keeps message bubbles on their sides and caps them at 85% and 42rem", () => {
+    const { container } = renderConversation({
+      messages: [
+        { id: "user-short", role: "user", text: "Hi" },
+        {
+          id: "assistant-long",
+          role: "assistant",
+          text: "Lorenzo is an IT Audit Specialist at Banca Profilo.\n\n- Risk-based IT audits\n- DORA Pillar I",
+        },
+      ],
+    });
+    const user = container.querySelector('[data-assistant-message-role="user"]');
+    const assistant = container.querySelector('[data-assistant-message-role="assistant"]');
+    const welcome = container.querySelector("[data-assistant-welcome]");
+    expect(user.className).toContain("w-fit");
+    expect(user.className).toContain("max-w-[min(85%,42rem)]");
+    expect(user.className).toContain("ml-auto");
+    expect(user.className).not.toContain("mr-auto");
+    expect(user.className).not.toMatch(/text-center|text-right/);
+    expect(assistant.className).toContain("w-fit");
+    expect(assistant.className).toContain("max-w-[min(85%,42rem)]");
+    expect(assistant.className).toContain("mr-auto");
+    expect(assistant.className).not.toContain("ml-auto");
+    expect(assistant.className).not.toMatch(/text-center|text-right/);
+    expect(user.querySelector("p").className).not.toMatch(/text-center|text-right/);
+    expect(assistant.querySelector("ul")).toBeTruthy();
+    expect(assistant.querySelector("li").textContent).toContain("Risk-based IT audits");
+    expect(welcome.className).toContain("max-w-[42rem]");
+    expect(welcome.className).not.toContain("min(85%");
+    expect(welcome.querySelector("p").className).toContain("text-cyan-300");
+  });
+
+  it("keeps an unboxed welcome first and does not show starter boxes", () => {
+    const onSend = vi.fn();
+    const { rerender, props } = renderConversation({ onSend });
+    const welcome = document.querySelector("[data-assistant-welcome]");
+    expect(welcome?.textContent).toContain(ASSISTANT_WELCOME_MESSAGE);
+    expect(welcome?.textContent).not.toContain("AI Portfolio Assistant");
+    expect(welcome?.className ?? "").not.toMatch(/border|bg-/);
+    expect(welcome?.querySelector("[class*='border'], [class*='bg-']")).toBeNull();
+    expect(document.querySelector("[role='log']")?.textContent).not.toContain(ASSISTANT_WELCOME_MESSAGE);
+    expect(document.querySelector("[data-assistant-transcript]")?.firstElementChild).toBe(welcome);
+    expect(document.querySelector("[data-assistant-starters]")).toBeNull();
+    for (const label of ["Current Role", "DORA & IT Audit", "AI Governance", "Projects"]) {
+      expect(screen.queryByRole("button", { name: label })).toBeNull();
+    }
+    expect(onSend).not.toHaveBeenCalled();
+
+    rerender(
+      <AssistantConversation
+        {...props}
+        messages={[
+          { id: "user-1", role: "user", text: "What is Lorenzo's current professional role?" },
+          { id: "assistant-1", role: "assistant", text: "Lorenzo is an IT Audit Specialist." },
+        ]}
+      />
+    );
+    const restoredWelcome = document.querySelector("[data-assistant-welcome]");
+    const userMessage = document.querySelector("[data-assistant-message-role='user']");
+    expect(document.querySelectorAll("[data-assistant-welcome]")).toHaveLength(1);
+    expect(screen.getByText(ASSISTANT_WELCOME_MESSAGE)).toBeTruthy();
+    expect(document.querySelector("[data-assistant-transcript]")?.firstElementChild).toBe(restoredWelcome);
+    expect(restoredWelcome.compareDocumentPosition(userMessage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector("[role='log']")?.textContent).not.toContain(ASSISTANT_WELCOME_MESSAGE);
+  });
+
+  it("grows the textarea with content and reveals the counter near the limit", () => {
+    const composerRef = { current: null };
+    const { rerender, props } = renderConversation({ draft: "", composerRef });
+    const textarea = screen.getByRole("textbox", { name: "Your question" });
+    composerRef.current = textarea;
+    Object.defineProperty(textarea, "scrollHeight", { configurable: true, get: () => 96 });
+    rerender(<AssistantConversation {...props} draft={"Line\n".repeat(4)} composerRef={composerRef} />);
+    expect(textarea.style.height).toBe("96px");
+    expect(document.getElementById("assistant-question-count")).toHaveClass("sr-only");
+
+    Object.defineProperty(textarea, "scrollHeight", { configurable: true, get: () => 240 });
+    rerender(<AssistantConversation {...props} draft={"a".repeat(400)} composerRef={composerRef} />);
+    expect(textarea.style.height).toBe("128px");
+    expect(document.getElementById("assistant-question-count")).toHaveTextContent("400/500");
+    expect(document.getElementById("assistant-question-count")).not.toHaveClass("sr-only");
+  });
+
+  it("scrolls new user messages into view and leaves a reader of earlier messages in place", () => {
+    const messages = [
+      { id: "user-1", role: "user", text: "Earlier question" },
+      { id: "assistant-1", role: "assistant", text: "Earlier answer" },
+    ];
+    const { rerender, props } = renderConversation({ messages });
+    const scroller = document.querySelector("[data-assistant-transcript]");
+    Object.defineProperty(scroller, "scrollHeight", { configurable: true, value: 800 });
+    Object.defineProperty(scroller, "clientHeight", { configurable: true, value: 200 });
+    scroller.scrollTop = 0;
+    fireEvent.scroll(scroller);
+
+    rerender(
+      <AssistantConversation
+        {...props}
+        messages={[...messages, { id: "assistant-2", role: "assistant", text: "A later answer" }]}
+      />
+    );
+    expect(scroller.scrollTop).toBe(0);
+
+    rerender(
+      <AssistantConversation
+        {...props}
+        messages={[
+          ...messages,
+          { id: "assistant-2", role: "assistant", text: "A later answer" },
+          { id: "user-2", role: "user", text: "A new question" },
+        ]}
+      />
+    );
+    expect(scroller.scrollTop).toBe(800);
   });
 
   it("does not send on Shift+Enter and does send on Enter", () => {

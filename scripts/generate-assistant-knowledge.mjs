@@ -180,6 +180,23 @@ function push(items, item) {
   });
 }
 
+function formatLensMappings(lensName, lensRelevance) {
+  const groups = lensRelevance?.[lensName];
+  const parts = [];
+  if (groups && typeof groups === "object") {
+    for (const [group, values] of Object.entries(groups)) {
+      if (!Array.isArray(values) || values.length === 0) continue;
+      parts.push(`${group}: ${values.join(", ")}`);
+    }
+  }
+  const neutral =
+    lensName === "Overview"
+      ? " Overview applies no selective highlighting. Choosing a Role Lens does not alter radar content."
+      : "";
+  if (!parts.length) return neutral || " Overview applies no selective highlighting.";
+  return ` Highlighted elements — ${parts.join(". ")}.${neutral}`;
+}
+
 /**
  * @returns {Promise<{ body: string, items: object[], notes: string[] }>}
  */
@@ -233,6 +250,7 @@ async function buildPack() {
         `${exp.role} at ${exp.company} (${exp.period}).`,
         exp.upcomingNote ? toThirdPersonSafe(exp.upcomingNote) : null,
         exp.note ? toThirdPersonSafe(exp.note) : null,
+        exp.intro ? toThirdPersonSafe(exp.intro) : null,
         ...bullets.map(toThirdPersonSafe),
       ].filter(Boolean);
 
@@ -360,12 +378,27 @@ async function buildPack() {
         claimType,
         domain: domain.title,
         status: domain.maturity,
-        text: `${domain.title} (${domain.maturity}; ${domain.category}). ${toThirdPersonSafe(domain.explanation)} Focus areas: ${(domain.signals || []).join("; ")}.`,
+        text: `${domain.title} (${domain.maturity}; ${domain.category}). ${toThirdPersonSafe(domain.explanation)} Focus areas: ${(domain.signals || []).join("; ")}.${
+          domain.sections?.length
+            ? ` Related portfolio sections: ${domain.sections.join(", ")}.`
+            : ""
+        }`,
         keywordSources: [domain.title, domain.maturity, ...(domain.signals || [])],
         keywords: ["risk", "radar", "domain"],
         signalIds: [domain.id],
       });
     }
+
+    push(items, {
+      id: "radar-domain-index",
+      topic: "radar_catalog",
+      claimType: "timeline_context",
+      text: `The Risk Exposure radar contains exactly seven domains, in this order: ${data.radarDomains
+        .map((domain, index) => `${index + 1}. ${domain.title}`)
+        .join("; ")}.`,
+      keywordSources: ["risk exposure", "radar domains", "seven domains"],
+      keywords: ["radar", "domains"],
+    });
 
     for (const lens of data.roleLenses) {
       const lensId = `role-lens-${String(lens.name).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
@@ -374,7 +407,7 @@ async function buildPack() {
         topic: "role_lens",
         claimType: "career_direction",
         domain: lens.label || lens.name,
-        text: `Role lens "${lens.label || lens.name}": ${toThirdPersonSafe(lens.explanation)} Signals: ${(lens.signals || []).join("; ")}.`,
+        text: `Role lens "${lens.label || lens.name}" (identifier: ${lens.name}): ${toThirdPersonSafe(lens.explanation)} Signals: ${(lens.signals || []).join("; ")}.${formatLensMappings(lens.name, data.lensRelevance)}`,
         keywordSources: [lens.name, lens.label, "role lens", "career direction", ...(lens.signals || [])],
         // Avoid ultra-short "fit" pollution.
         keywords: ["lens", "orientation"],
