@@ -299,6 +299,32 @@ const PHRASE_ALIASES = [
   { phrase: "career heading", concept: "career_narrative" },
   { phrase: "where is your career", concept: "career_narrative" },
   { phrase: "professional direction", concept: "career_narrative" },
+  { phrase: "technology risk manager", concept: "role_boundary" },
+  { phrase: "ict risk manager", concept: "role_boundary" },
+  { phrase: "incident management", concept: "ict_incident" },
+  { phrase: "ict incident", concept: "ict_incident" },
+  { phrase: "incidenti ict", concept: "ict_incident" },
+  { phrase: "gestione degli incidenti", concept: "ict_incident" },
+  { phrase: "change management", concept: "ict_change" },
+  { phrase: "ict change", concept: "ict_change" },
+  { phrase: "cambiamenti ict", concept: "ict_change" },
+  { phrase: "gestione dei cambiamenti", concept: "ict_change" },
+  { phrase: "ict outsourcing", concept: "ict_outsourcing" },
+  { phrase: "esternalizzazione ict", concept: "ict_outsourcing" },
+  { phrase: "third-party ict", concept: "third_party" },
+  { phrase: "third party ict", concept: "third_party" },
+  { phrase: "third-party", concept: "third_party" },
+  { phrase: "terze parti", concept: "third_party" },
+  { phrase: "rischio di terze parti", concept: "third_party" },
+  { phrase: "fornitori terzi", concept: "third_party" },
+  { phrase: "ai policy", concept: "ai_policy" },
+  { phrase: "policy ai", concept: "ai_policy" },
+  { phrase: "politica ai", concept: "ai_policy" },
+  { phrase: "operational resilience", concept: "operational_resilience" },
+  { phrase: "resilienza operativa", concept: "operational_resilience" },
+  { phrase: "audit informatico", concept: "it_audit" },
+  { phrase: "regolamento dora", concept: "dora" },
+  { phrase: "certificazione in corso", concept: "certification" },
   { phrase: "future aspirations", concept: "future_aspirations" },
   { phrase: "long-term career", concept: "future_aspirations" },
   { phrase: "long term career", concept: "future_aspirations" },
@@ -456,6 +482,13 @@ const CONCEPT_MATCH_TERMS = {
   aair: ["aair"],
   frm: ["frm"],
   dora: ["dora"],
+  ict_incident: ["incident management", "incident"],
+  ict_change: ["change management", "ict change"],
+  ict_outsourcing: ["outsourcing", "ict outsourcing"],
+  third_party: ["third-party", "third party", "outsourcing"],
+  ai_policy: ["ai policy"],
+  operational_resilience: ["operational resilience"],
+  role_boundary: ["not a role already held", "career direction"],
   nis2: ["nis2"],
   cobit: ["cobit"],
   nist: ["nist"],
@@ -516,12 +549,64 @@ export function tokenize(text) {
 }
 
 /**
+ * Narrow Italian/English equivalents. Values are English pack tokens, not broad concepts.
+ * Generic words such as "gestione" are intentionally absent.
+ */
+const TOKEN_EXPANSIONS = {
+  incidenti: ["incident"],
+  incidente: ["incident"],
+  incidents: ["incident"],
+  cambiamenti: ["change"],
+  cambiamento: ["change"],
+  esternalizzazione: ["outsourcing"],
+  verifiche: ["audit"],
+  verifica: ["audit"],
+  verificato: ["audit"],
+  verificati: ["audit"],
+  verificata: ["audit"],
+  verificate: ["audit"],
+  svolto: ["performed"],
+  svolte: ["performed"],
+  svolta: ["performed"],
+  proprietario: ["ownership"],
+  responsabile: ["ownership"],
+  own: ["ownership"],
+  owned: ["ownership"],
+};
+
+/**
+ * @param {string[]} tokens
+ */
+function expandTokens(tokens) {
+  /** @type {string[]} */
+  const out = [];
+  const seen = new Set();
+  const add = (token) => {
+    if (!token || STOPWORDS.has(token) || seen.has(token)) return;
+    if (token.length < 3 && !SHORT_TOKEN_ALLOW.has(token)) return;
+    seen.add(token);
+    out.push(token);
+  };
+  for (const token of tokens) {
+    add(token);
+    if (token.includes("-")) {
+      for (const part of token.split("-")) add(part);
+    }
+    const extras = TOKEN_EXPANSIONS[token];
+    if (extras) {
+      for (const extra of extras) add(extra);
+    }
+  }
+  return out;
+}
+
+/**
  * @param {string} question
  * @returns {{ tokens: string[], concepts: string[], phrases: string[], normalized: string }}
  */
 export function analyzeQuery(question) {
   const normalized = normalizeQuery(question);
-  const tokens = tokenize(question);
+  const tokens = expandTokens(tokenize(question));
   /** @type {Set<string>} */
   const concepts = new Set();
   /** @type {string[]} */
@@ -1231,7 +1316,7 @@ function asksPersonalExperience(normalized) {
     /\b(what is|what are|what does|what do|define|definition|cover|covers|represent|represents|mean|means)\b/.test(n) &&
     !/\b(experience|experienced|worked|working|audited|auditing|performed|performing|contributed|contribution|professionally|professional|currently|current|previous|doing)\b/.test(n);
   if (definitionOnly) return false;
-  return /\b(experience|experienced|worked|professionally|professional|audited|auditing|performed|performing|contributed|contribution|at work|currently|doing|work)\b/.test(n);
+  return /\b(experience|experienced|esperienza|esperienze|worked|professionally|professional|audited|auditing|performed|performing|contributed|contribution|at work|currently|doing|work|assess|assessed|assessing|verifiche|verifica|verificato|verificati|verificata|verificate|svolte|svolto|svolta)\b/.test(n);
 }
 
 function employmentMatchesAskedTopic(analysis, textNorm) {
@@ -1242,7 +1327,27 @@ function employmentMatchesAskedTopic(analysis, textNorm) {
   }
   if (/\bai policy\b/.test(n) && textNorm.includes("ai policy")) return true;
   if (concepts.includes("dora") && textNorm.includes("dora")) return true;
-  if (/\boperational resilience\b/.test(n) && textNorm.includes("operational resilience")) return true;
+  if (
+    (concepts.includes("operational_resilience") || /\boperational resilience\b/.test(n)) &&
+    textNorm.includes("operational resilience")
+  ) {
+    return true;
+  }
+  if ((concepts.includes("ict_incident") || /\bincident/.test(n)) && textNorm.includes("incident")) return true;
+  if (
+    (concepts.includes("ict_change") || /\b(change management|ict change|cambiamenti)\b/.test(n)) &&
+    (textNorm.includes("change management") || textNorm.includes("ict change"))
+  ) {
+    return true;
+  }
+  if (
+    (concepts.includes("ict_outsourcing") || concepts.includes("third_party") || /\b(outsourcing|third[- ]party|terze parti)\b/.test(n)) &&
+    (textNorm.includes("outsourcing") || textNorm.includes("third-party") || textNorm.includes("third party"))
+  ) {
+    return true;
+  }
+  if ((concepts.includes("nist") || /\bnist\b/.test(n)) && textNorm.includes("nist")) return true;
+  if ((concepts.includes("ai_policy") || /\bai policy\b/.test(n)) && textNorm.includes("ai policy")) return true;
   return false;
 }
 
@@ -1300,6 +1405,255 @@ function reserveCurrentEmployment(selected, ranked, limit) {
 }
 
 /**
+ * Concrete activities a visitor can ask Lorenzo to have performed.
+ * Generic domains such as "AI governance" are intentionally excluded.
+ * @param {{ concepts?: string[], tokens?: string[], normalized?: string }} analysis
+ */
+function activityKeys(analysis) {
+  const concepts = new Set(analysis.concepts || []);
+  const tokens = new Set(analysis.tokens || []);
+  const n = analysis.normalized || "";
+  /** @type {Set<string>} */
+  const keys = new Set();
+  if (concepts.has("dora") || tokens.has("dora")) keys.add("dora");
+  if (concepts.has("ict_incident") || tokens.has("incident") || tokens.has("incidenti")) keys.add("incident");
+  if (
+    concepts.has("ict_change") ||
+    (tokens.has("change") && (tokens.has("ict") || tokens.has("management") || /\bcambiamenti\b/.test(n)))
+  ) {
+    keys.add("change");
+  }
+  if (concepts.has("ict_outsourcing") || tokens.has("outsourcing") || tokens.has("esternalizzazione")) {
+    keys.add("outsourcing");
+  }
+  if (
+    concepts.has("third_party") ||
+    tokens.has("third-party") ||
+    (tokens.has("third") && tokens.has("party")) ||
+    /\bterze parti\b/.test(n)
+  ) {
+    keys.add("third_party");
+  }
+  if (concepts.has("nist") || tokens.has("nist")) keys.add("nist");
+  if (concepts.has("ai_policy") || /\bai policy\b/.test(n)) keys.add("ai_policy");
+  if (
+    concepts.has("operational_resilience") ||
+    (tokens.has("operational") && tokens.has("resilience")) ||
+    tokens.has("resilienza")
+  ) {
+    keys.add("operational_resilience");
+  }
+  return [...keys];
+}
+
+/**
+ * @param {{ text?: string }} item
+ * @param {string[]} keys
+ */
+function containsTerm(text, term) {
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(text);
+}
+
+function matchesActivity(item, keys, normalized = "") {
+  const text = normalizeQuery(item.text || "");
+  const asksAiRmf = /\bai rmf\b/.test(normalized) || /\bnist ai\b/.test(normalized);
+  return keys.some((key) => {
+    if (key === "dora") return containsTerm(text, "dora");
+    if (key === "incident") return containsTerm(text, "incident");
+    if (key === "change") return containsTerm(text, "change management") || containsTerm(text, "ict change");
+    if (key === "outsourcing" || key === "third_party") {
+      return containsTerm(text, "outsourcing") || containsTerm(text, "third-party") || containsTerm(text, "third party");
+    }
+    if (key === "nist") {
+      if (asksAiRmf) return containsTerm(text, "ai rmf") || containsTerm(text, "nist ai");
+      return containsTerm(text, "nist");
+    }
+    if (key === "ai_policy") return containsTerm(text, "ai policy");
+    if (key === "operational_resilience") return containsTerm(text, "operational resilience");
+    return false;
+  });
+}
+
+/**
+ * @param {string} normalized
+ */
+function namedEmployers(normalized) {
+  const n = normalized || "";
+  return {
+    boc: /\bbank of china\b/.test(n),
+    profilo: /\bbanca profilo\b/.test(n),
+  };
+}
+
+/**
+ * @param {Array<{ score: number, claimType?: string, id: string }>} items
+ * @param {{ concepts: string[], normalized: string }} analysis
+ * @param {string} intent
+ */
+function sortRanked(items, analysis, intent) {
+  return items.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const tie = narrativeTieRank(b, analysis) - narrativeTieRank(a, analysis);
+    if (tie !== 0) return tie;
+    if (intent === "current_role") {
+      const rank = (ct) =>
+        ct === "employment_current" ? 0 : ct === "profile" ? 1 : ct === "employment_past" ? 9 : 5;
+      const d = rank(a.claimType) - rank(b.claimType);
+      if (d !== 0) return d;
+    }
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/**
+ * When the visitor asks what Lorenzo performed, prefer the employer record
+ * that states the activity over keyword-heavy radar, lens, and skill copies.
+ * A named past employer stays ahead of the current job. The current job still
+ * receives the activity boost so both records can be shown together.
+ * @param {Array<{ id: string, topic: string, claimType?: string, text?: string, score: number }>} scored
+ * @param {{ concepts?: string[], tokens?: string[], normalized?: string }} analysis
+ * @param {string} intent
+ */
+function adjustActivityRanking(scored, analysis, intent) {
+  const keys = activityKeys(analysis);
+  if (!asksPersonalExperience(analysis.normalized) || !keys.length) return scored;
+  const normalized = analysis.normalized || "";
+  const employmentHit = scored.some((item) => isEmploymentClaim(item) && matchesActivity(item, keys, normalized));
+  if (!employmentHit) return scored;
+  const named = namedEmployers(analysis.normalized || "");
+  const asksComparison = /\b(previous|past|earlier|differ\w*|prima|confronto)\b/.test(
+    analysis.normalized || "",
+  );
+  return scored.map((item) => {
+    let score = item.score;
+    const matches = isEmploymentClaim(item) && matchesActivity(item, keys, normalized);
+    if (matches && item.claimType === "employment_current") {
+      score += 14;
+      if (intent === "regulatory") score += 5;
+      const text = normalizeQuery(item.text || "");
+      if (keys.includes("dora") && text.includes("dora pillar")) score += 6;
+    } else if (matches && item.claimType === "employment_past") {
+      if (named.boc && !named.profilo) score += 16;
+      else if (asksComparison) score += 8;
+      else if (!named.profilo) score += 4;
+    } else if (
+      employmentHit &&
+      (item.topic === "radar_domain" || item.topic === "role_lens" || item.topic === "skill")
+    ) {
+      score -= 8;
+    }
+    return score === item.score ? item : { ...item, score };
+  });
+}
+
+/**
+ * Drop weak filler once a performed activity is already covered by employment.
+ * Matching employment records are kept even when they sit below the relative floor.
+ * @param {Array<{ id: string, topic: string, claimType?: string, text?: string, score: number }>} selected
+ * @param {{ concepts?: string[], tokens?: string[], normalized?: string }} analysis
+ */
+function isCapabilityClaim(item) {
+  return item.claimType === "capability_developing" || item.claimType === "capability_demonstrated";
+}
+
+function trimActivityFiller(selected, ranked, analysis, limit) {
+  const keys = activityKeys(analysis);
+  const normalized = analysis.normalized || "";
+  if (!asksPersonalExperience(normalized) || !keys.length) return selected;
+  const top = selected[0]?.score ?? 0;
+  const floor = Math.max(MIN_RETRIEVAL_SCORE, top * 0.58);
+  /** @type {typeof selected} */
+  const kept = [];
+  let radars = 0;
+  let capabilities = 0;
+  for (const item of selected) {
+    if (isEmploymentClaim(item) && matchesActivity(item, keys, normalized)) {
+      kept.push(item);
+      continue;
+    }
+    if (item.score < floor) continue;
+    if (item.topic === "role_lens" || item.topic === "skill" || item.claimType === "skill" || item.claimType === "timeline_context") continue;
+    if (item.topic === "radar_domain") {
+      if (radars >= 1) continue;
+      radars += 1;
+      kept.push(item);
+      continue;
+    }
+    if (isCapabilityClaim(item)) {
+      if (capabilities >= 1) continue;
+      capabilities += 1;
+    }
+    kept.push(item);
+  }
+  const have = new Set(kept.map((item) => item.id));
+  const bestCapability = ranked.find(
+    (item) => item.topic !== "radar_domain" && isCapabilityClaim(item) && matchesActivity(item, keys, normalized) && !have.has(item.id),
+  );
+  const bestRadar = ranked.find((item) => item.topic === "radar_domain" && matchesActivity(item, keys, normalized) && !have.has(item.id));
+  for (const extra of [bestCapability, bestRadar]) {
+    if (!extra || kept.length >= limit) continue;
+    if (extra.topic === "radar_domain" && radars >= 1) continue;
+    if (isCapabilityClaim(extra) && capabilities >= 1) continue;
+    kept.push(extra);
+  }
+  return kept.length ? kept : selected.slice(0, 1);
+}
+
+/**
+ * @param {{ normalized?: string, concepts?: string[] }} analysis
+ */
+function boundaryPinIds(analysis) {
+  const n = analysis.normalized || "";
+  /** @type {string[]} */
+  const ids = [];
+  const ownership =
+    /\b(own|owned|ownership|proprietario|responsabile)\b/.test(n) &&
+    /\b(policy|ai governance|intelligenza artificiale)\b/.test(n);
+  if (ownership) {
+    ids.push("narrative-ai-governance-rationale", "experience-banca-profilo");
+  }
+  const directionContrast =
+    /\b(technology risk manager|ict risk manager)\b/.test(n) ||
+    (/\b(current|currently|attuale|attualmente)\b/.test(n) &&
+      /\b(direction|direzione)\b/.test(n) &&
+      /\b(technology risk|ict risk|rischio tecnologico)\b/.test(n));
+  if (directionContrast) {
+    ids.push("narrative-long-term-direction", "experience-banca-profilo");
+  }
+  return ids;
+}
+
+/**
+ * @param {Array<{ id: string, score: number }>} selected
+ * @param {Array<{ id: string, score: number }>} ranked
+ * @param {{ normalized?: string, concepts?: string[] }} analysis
+ * @param {number} limit
+ */
+function ensureBoundaryEvidence(selected, ranked, analysis, limit) {
+  const pins = boundaryPinIds(analysis)
+    .map((id) => ranked.find((item) => item.id === id))
+    .filter(Boolean);
+  if (!pins.length) return selected;
+  const next = selected.slice(0, limit);
+  const pinIds = new Set(pins.map((item) => item.id));
+  for (const pin of pins) {
+    if (!pin || next.some((item) => item.id === pin.id)) continue;
+    if (next.length < limit) {
+      next.push(pin);
+      continue;
+    }
+    let replaceAt = -1;
+    for (let index = 0; index < next.length; index += 1) {
+      if (pinIds.has(next[index].id)) continue;
+      if (replaceAt === -1 || next[index].score < next[replaceAt].score) replaceAt = index;
+    }
+    if (replaceAt >= 0) next[replaceAt] = pin;
+  }
+  return next;
+}
+
+/**
  * @param {string} question
  * @param {{ limit?: number, minScore?: number, items?: typeof knowledgeItems }} [options]
  */
@@ -1310,37 +1664,28 @@ export function retrieveKnowledge(question, options = {}) {
   const analysis = analyzeQuery(question);
   const intent = classifyIntent(question, analysis);
 
-  const ranked = corpus
-    .map((item) => {
-      const score = scoreItem(item, analysis, intent);
-      return {
-        id: item.id,
-        topic: item.topic,
-        claimType: item.claimType,
-        text: item.text,
-        ...(item.employer ? { employer: item.employer } : {}),
-        ...(item.status ? { status: item.status } : {}),
-        ...(item.domain ? { domain: item.domain } : {}),
-        ...(item.narrativeType ? { narrativeType: item.narrativeType } : {}),
-        ...(item.signalIds ? { signalIds: item.signalIds } : {}),
-        score,
-        intent,
-      };
-    })
-    .filter((item) => item.score >= minScore)
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const tie = narrativeTieRank(b, analysis) - narrativeTieRank(a, analysis);
-      if (tie !== 0) return tie;
-      // Current-role: hard prefer employment_current then profile over past
-      if (intent === "current_role") {
-        const rank = (ct) =>
-          ct === "employment_current" ? 0 : ct === "profile" ? 1 : ct === "employment_past" ? 9 : 5;
-        const d = rank(a.claimType) - rank(b.claimType);
-        if (d !== 0) return d;
-      }
-      return a.id.localeCompare(b.id);
-    });
+  const scored = corpus.map((item) => {
+    const score = scoreItem(item, analysis, intent);
+    return {
+      id: item.id,
+      topic: item.topic,
+      claimType: item.claimType,
+      text: item.text,
+      ...(item.employer ? { employer: item.employer } : {}),
+      ...(item.status ? { status: item.status } : {}),
+      ...(item.domain ? { domain: item.domain } : {}),
+      ...(item.narrativeType ? { narrativeType: item.narrativeType } : {}),
+      ...(item.signalIds ? { signalIds: item.signalIds } : {}),
+      score,
+      intent,
+    };
+  });
+
+  const ranked = sortRanked(
+    adjustActivityRanking(scored, analysis, intent).filter((item) => item.score >= minScore),
+    analysis,
+    intent,
+  );
 
   let selected;
   if (isCapabilityReadinessQuestion(intent, analysis)) {
@@ -1354,9 +1699,10 @@ export function retrieveKnowledge(question, options = {}) {
   }
 
   if (asksProfessionalContext(analysis)) {
-    return reserveCurrentEmployment(selected, ranked, limit);
+    selected = reserveCurrentEmployment(selected, ranked, limit);
   }
-  return selected;
+  selected = trimActivityFiller(selected, ranked, analysis, limit);
+  return ensureBoundaryEvidence(selected, ranked, analysis, limit);
 }
 
 export { STOPWORDS, PHRASE_ALIASES, TOKEN_ALIASES };

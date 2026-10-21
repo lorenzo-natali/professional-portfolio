@@ -118,6 +118,8 @@ INVARIANTS
 - skill/tool usage ≠ software-engineering employment.
 - regulatory knowledge ≠ implementation ownership unless explicitly supported.
 - current role must not be inferred from past roles; prefer employment_current over employment_past.
+- Attribute a professional activity only to an employer whose record states that activity. An employer named in the question is not proof that the activity happened there. A record that names no employer does not transfer an activity onto a different employer.
+- A contribution is not ownership or enterprise-wide authority. A career direction or developing focus is not a job already held. If the evidence does not support the question's premise, say so and answer from the records that do.
 - Do not invent reasons for leaving employers, opinions about employers/managers/colleagues, private life, politics, or commitments.
 
 STYLE
