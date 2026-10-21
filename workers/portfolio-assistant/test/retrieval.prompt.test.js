@@ -340,3 +340,71 @@ describe("OpenAI response parsing", () => {
     });
   });
 });
+
+describe("response language consistency", () => {
+  async function captureRequest(question) {
+    /** @type {Record<string, unknown> | null} */
+    let body = null;
+    const result = await createGroundedAnswer({
+      apiKey: "test-key",
+      question,
+      evidence: [
+        {
+          id: "experience-banca-profilo",
+          topic: "experience",
+          claimType: "employment_current",
+          text: "Conducting audit engagements on DORA Pillar I at Banca Profilo.",
+        },
+      ],
+      fetchImpl: async (_url, init) => {
+        body = JSON.parse(String(init?.body || "{}"));
+        return new Response(JSON.stringify({ status: "completed", output_text: "Risposta simulata." }), {
+          status: 200,
+        });
+      },
+    });
+    return { result, body };
+  }
+
+  it("sends a whole-response language rule with the existing grounding rules", async () => {
+    const { result, body } = await captureRequest(
+      "Qual è l'esperienza concreta di Lorenzo nell'ambito del regolamento DORA e quali verifiche ha svolto?",
+    );
+    expect(result.ok).toBe(true);
+    const instructions = String(body?.instructions || "");
+    expect(instructions).toBe(SYSTEM_INSTRUCTIONS);
+    expect(instructions).toMatch(/Write the entire response in that same language/);
+    expect(instructions).toMatch(/every sentence, paragraph, list item, introduction, conclusion, qualification, refusal, and clarification/);
+    expect(instructions).toMatch(/Do not switch languages because PORTFOLIO EVIDENCE is written in English/);
+    expect(instructions).toMatch(/Translate source descriptions faithfully/);
+    expect(instructions).toMatch(/Do not alter or invent facts in order to match the language/);
+    expect(instructions).toMatch(/Preserve proper nouns, official titles, regulatory acronyms, standard identifiers, and established technical terms/);
+    expect(instructions).toMatch(/A standalone English sentence is not an Italian answer/);
+    expect(instructions).toMatch(/Do not paste these English sentences into a response in another language/);
+    expect(instructions).toMatch(/Answer in the language of the visitor's question/);
+    expect(instructions).toMatch(/When that language cannot be determined, answer in English/);
+    expect(instructions).toMatch(/An employer named in the question is not proof/);
+    expect(instructions).toMatch(/A contribution is not ownership/);
+    expect(instructions).toMatch(/credential_in_progress ≠ certified/);
+    expect(body).toMatchObject({ model: "gpt-5.6-luna", store: false, tools: [] });
+  });
+
+  it("keeps the question text unchanged so technical terms do not select the response language", async () => {
+    const questions = [
+      "Qual è l'esperienza di Lorenzo in ICT Outsourcing?",
+      "What experience does Lorenzo have with DORA?",
+      "Mi puoi spiegare il suo lavoro su AI Governance?",
+      "Can you explain Lorenzo's experience with ICT Incident Management?",
+    ];
+    for (const question of questions) {
+      const { body } = await captureRequest(question);
+      const userText = body?.input?.[0]?.content?.[0]?.text;
+      expect(userText).toContain(question);
+      expect(String(body?.instructions || "")).toMatch(
+        /Use the question's main natural language, not the language of embedded technical terminology/,
+      );
+      expect(String(body?.instructions || "")).toMatch(/An Italian question that names ICT Outsourcing, DORA, or AI Governance stays Italian/);
+      expect(String(body?.instructions || "")).toMatch(/An English question that names DORA or ICT Incident Management stays English/);
+    }
+  });
+});
