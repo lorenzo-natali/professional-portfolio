@@ -53,6 +53,7 @@ const ITALIAN_QUESTION_TOKENS = new Set([
   "tua",
   "tuo",
   "buon",
+  "un",
   "persona",
   "nostro",
   "psicologicamente",
@@ -157,9 +158,6 @@ const PSYCHOLOGY_PATTERNS = [
   /\bpersonal motivation\b/i,
   /\bcosa ti motiva personalmente\b/i,
   /\btemperament\b/i,
-  /\bemotional intelligence\b/i,
-  /\bintelligenza emotiva\b/i,
-  /\bemotional\b/i,
   /\bfeel about\b/i,
   /\bdo you like your manager\b/i,
   /\bti piace il (tuo )?manager\b/i,
@@ -173,8 +171,6 @@ const PSYCHOLOGY_PATTERNS = [
   /\bjob offer\b/i,
   /\brisk appetite\b/i,
   /\btrusted with\b/i,
-  /\btrustworth/i,
-  /\baffidabile\b/i,
   /\binformazioni riservate\b/i,
   /\bconfidential information\b/i,
   /\bmental health\b/i,
@@ -199,15 +195,88 @@ function isPsychologicalResilienceQuestion(normalized) {
 }
 
 /**
+ * A judgment of Lorenzo as a leader. Institutional "leadership" (a role,
+ * responsibilities, or a governance function) is not one.
+ * @param {string} normalized
+ */
+function isPersonalLeadershipEvaluation(normalized) {
+  if (/\b(?:good|natural|buon)\s+leader\b/.test(normalized)) return true;
+  if (/\bleadership\s+(?:style|ability|abilities|effectiveness|skills|qualities)\b/.test(normalized)) return true;
+  if (
+    /\b(?:his|your|lorenzo)\s+leadership\b/.test(normalized) &&
+    !/\b(?:his|your|lorenzo)\s+leadership\s+(?:role|roles|responsibilit)/.test(normalized)
+  ) {
+    return true;
+  }
+  if (/\b(?:is|are|was|were)\s+(?:lorenzo|he|she|you)\s+(?:a\s+)?(?:good\s+|natural\s+)?leader\b/.test(normalized)) {
+    return true;
+  }
+  if (/\b(?:lorenzo|he|you)\s+(?:is|are|was|were|e)\s+(?:a\s+|un\s+)?(?:good\s+|natural\s+|buon\s+)?leader\b/.test(normalized)) {
+    return true;
+  }
+  if (/\bsei\s+(?:un\s+)?(?:buon\s+)?leader\b/.test(normalized)) return true;
+  if (/\be\s+lorenzo\s+un\s+(?:buon\s+)?leader\b/.test(normalized)) return true;
+  return false;
+}
+
+/**
+ * Team fit or "a good fit" asked about Lorenzo. A process adapting to a
+ * requirement is not a personal evaluation.
+ * @param {string} normalized
+ */
+function isPersonalFitEvaluation(normalized) {
+  if (/\bfit(?:\s+well)?(?:\s+in)?(?:\s+(?:our|a|the))?\s+team\b|\bteam fit\b/.test(normalized)) return true;
+  if (
+    /\b(?:would|could|will|is|are)\s+(?:lorenzo|he|she|you)\s+(?:(?:be|a|an|good|great|the|right|well)\s+){0,6}fit\b/.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  if (!/\badatterebbe\b/.test(normalized)) return false;
+  const aboutProcess =
+    /\b(?:processo|processi|sistema|sistemi|controllo|controlli|framework|norma|normativa|requisiti|requisito|dora|ict)\b/.test(
+      normalized,
+    );
+  const aboutTeam = /\b(?:nostro\s+team|nel\s+team|al\s+team)\b/.test(normalized);
+  const aboutPerson = /\b(?:lorenzo|lui)\b/.test(normalized);
+  if (aboutTeam && aboutPerson) return true;
+  if (aboutProcess) return false;
+  return aboutPerson || aboutTeam;
+}
+
+/**
+ * Emotional or trust wording counts only when it assesses a person.
+ * The same words can describe a system, a control, or a general concept.
+ * @param {string} normalized
+ */
+function isAttributedSensitiveTrait(normalized) {
+  const aboutPerson = /\b(?:lorenzo|his|her|your|he|she|you|lui|sua|suo|tu)\b/.test(normalized);
+  if (
+    aboutPerson &&
+    /\b(?:emotionally\s+(?:stable|unstable|intelligent)|emotional\s+stability|emotivamente\s+stabile|emotional\s+intelligence|intelligenza\s+emotiva)\b/.test(
+      normalized,
+    )
+  ) {
+    return true;
+  }
+  if (aboutPerson && /\bemotional\b/.test(normalized)) return true;
+  if (/\b(?:lorenzo|lui|he|she|you|tu)\b[^.?]{0,40}\b(?:affidabile|trustworth)/.test(normalized)) return true;
+  if (/\b(?:affidabile|trustworth)\w*[^.?]{0,30}\b(?:lorenzo|lui|he|she|you)\b/.test(normalized)) return true;
+  if (/\baffidabile\s+con\b/.test(normalized)) return true;
+  return false;
+}
+
+/**
  * Non-sensitive personal judgments. Local context only — not an OpenAI assessment.
  * @param {string} normalized
  * @returns {{ answer: string } | null}
  */
 function personalEvaluationLimit(normalized) {
-  if (/\b(good leader|natural leader|leadership|buon leader)\b/.test(normalized)) {
+  if (isPersonalLeadershipEvaluation(normalized)) {
     return { answer: LEADERSHIP_LIMIT_ANSWER };
   }
-  if (/\bfit (well )?(in )?(our |a |the )?team\b|\bteam fit\b|\badatterebbe\b|\bnel nostro team\b|\bnostro team\b/.test(normalized)) {
+  if (isPersonalFitEvaluation(normalized)) {
     return { answer: TEAM_FIT_LIMIT_ANSWER };
   }
   if (/\b(what kind of person|kind of person|che tipo di persona|tipo di persona)\b/.test(normalized)) {
@@ -282,6 +351,14 @@ export function evaluatePrivateOrUnsupportedGate(question) {
       blocked: true,
       answer: limited.answer,
       reason: "personal_evaluation_limited",
+    };
+  }
+
+  if (isAttributedSensitiveTrait(normalized)) {
+    return {
+      blocked: true,
+      answer: PORTFOLIO_GAP_ANSWER,
+      reason: "psychological_inference_blocked",
     };
   }
 
