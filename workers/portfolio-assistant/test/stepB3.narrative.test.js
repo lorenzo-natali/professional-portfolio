@@ -64,20 +64,25 @@ function pipeline(question) {
 }
 
 describe("professional narrative pack", () => {
-  it("includes eight authorized career_direction narrative items from canonical source", () => {
+  it("includes twelve authorized career_direction narrative items from canonical source", () => {
     const narratives = knowledgeItems.filter((i) => i.topic === "professional_narrative");
-    expect(narratives).toHaveLength(8);
+    expect(narratives).toHaveLength(12);
     expect(narratives.every((n) => n.claimType === "career_direction")).toBe(true);
+    expect(new Set(narratives.map((n) => n.id)).size).toBe(12);
     expect(narratives.map((n) => n.narrativeType).sort()).toEqual(
       [
+        "academic_path",
         "ai_governance_rationale",
+        "audit_choice",
         "audit_foundation",
         "common_thread",
         "cross_sector_openness",
         "development_strategy",
         "hybrid_positioning",
+        "learning_approach",
         "long_term_direction",
         "sector_specialization",
+        "technical_practice",
       ].sort(),
     );
   });
@@ -186,7 +191,7 @@ describe("psychological / personal boundary", () => {
   it.each([
     ["What is your personality like?", "psychological_inference_blocked"],
     ["Are you ambitious?", "psychological_inference_blocked"],
-    ["Are you a natural leader?", "psychological_inference_blocked"],
+    ["Are you a natural leader?", "personal_evaluation_limited"],
     ["How do you handle stress?", "psychological_inference_blocked"],
     ["What motivates you personally?", "psychological_inference_blocked"],
     ["Why did you leave Bank of China?", "psychological_inference_blocked"],

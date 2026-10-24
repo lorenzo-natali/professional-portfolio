@@ -325,12 +325,41 @@ const PHRASE_ALIASES = [
   { phrase: "audit informatico", concept: "it_audit" },
   { phrase: "regolamento dora", concept: "dora" },
   { phrase: "certificazione in corso", concept: "certification" },
+  { phrase: "obiettivi professionali", concept: "future_aspirations" },
   { phrase: "future aspirations", concept: "future_aspirations" },
   { phrase: "long-term career", concept: "future_aspirations" },
   { phrase: "long term career", concept: "future_aspirations" },
   { phrase: "career choices", concept: "career_choices" },
   { phrase: "professional motivations", concept: "career_choices" },
   { phrase: "professional motivation", concept: "career_choices" },
+  { phrase: "academic choices", concept: "academic_motivation" },
+  { phrase: "academic path", concept: "academic_motivation" },
+  { phrase: "scelte accademiche", concept: "academic_motivation" },
+  { phrase: "percorso accademico", concept: "academic_motivation" },
+  { phrase: "ha motivato", concept: "academic_motivation" },
+  { phrase: "choose internal audit", concept: "audit_choice" },
+  { phrase: "why did lorenzo choose", concept: "audit_choice" },
+  { phrase: "why did he choose", concept: "audit_choice" },
+  { phrase: "perche ha scelto", concept: "audit_choice" },
+  { phrase: "perche lorenzo ha scelto", concept: "audit_choice" },
+  { phrase: "scelto l internal audit", concept: "audit_choice" },
+  { phrase: "scelto l'internal audit", concept: "audit_choice" },
+  { phrase: "learn a new", concept: "learning_method" },
+  { phrase: "learning approach", concept: "learning_method" },
+  { phrase: "learning method", concept: "learning_method" },
+  { phrase: "come affronta", concept: "learning_method" },
+  { phrase: "apprendimento di una nuova", concept: "learning_method" },
+  { phrase: "metodo di apprendimento", concept: "learning_method" },
+  { phrase: "interested in technology", concept: "technical_interest" },
+  { phrase: "interest in technology", concept: "technical_interest" },
+  { phrase: "interessato alla tecnologia", concept: "technical_interest" },
+  { phrase: "agenti ai", concept: "technical_interest" },
+  { phrase: "esperienza pratica con", concept: "technical_interest" },
+  { phrase: "professional strengths", concept: "skills" },
+  { phrase: "punti di forza", concept: "skills" },
+  { phrase: "ai policy audit", concept: "ai_policy_audit" },
+  { phrase: "audit sulla policy", concept: "ai_policy_audit" },
+  { phrase: "audit of the ai policy", concept: "ai_policy_audit" },
   { phrase: "connections between", concept: "experience_connections" },
   { phrase: "what connects", concept: "experience_connections" },
   { phrase: "different professional experiences", concept: "experience_connections" },
@@ -445,10 +474,16 @@ const TOKEN_ALIASES = {
   differentiates: "career_narrative",
   differentiate: "career_narrative",
   distinctive: "distinctive_profile",
-  motivation: "psychology",
   personality: "psychology",
   ambitious: "psychology",
   stress: "psychology",
+  consulting: "cross_sector",
+  consulenza: "cross_sector",
+  cursor: "technical_interest",
+  cline: "technical_interest",
+  rag: "technical_interest",
+  llm: "technical_interest",
+  llms: "technical_interest",
 };
 
 /** Concept → keyword/token boosts against item keyword+text tokens */
@@ -507,7 +542,12 @@ const CONCEPT_MATCH_TERMS = {
     "obiettivi",
     "percorso",
   ],
-  cross_sector: ["outside banking", "pharma", "pharmaceutical", "big tech", "altri settori", "farmaceutico"],
+  cross_sector: ["outside banking", "pharma", "pharmaceutical", "big tech", "altri settori", "farmaceutico", "consulting", "consulenza"],
+  academic_motivation: ["academic path", "academic choices", "scelte accademiche", "international cooperation", "financial sciences", "sustainability reporting"],
+  audit_choice: ["why internal audit", "choose internal audit", "prelios", "preferred direction"],
+  learning_method: ["learning approach", "learning method", "apprendimento", "prototypes"],
+  technical_interest: ["cursor", "cline", "rag", "personal projects", "codeiak", "local-first"],
+  ai_policy_audit: ["ai policy", "dedicated internal audit", "dedicated audit engagement"],
   ai_gov_why: ["ai governance", "rationale", "intersection", "technology", "risk", "controls"],
   audit_why: ["audit foundation", "controls", "governance", "it audit", "internal audit"],
   development_strategy: ["preparing", "transition", "certification", "cisa", "project", "development strategy"],
@@ -624,10 +664,20 @@ export function analyzeQuery(question) {
     const mapped = TOKEN_ALIASES[token];
     if (mapped) concepts.add(mapped);
   }
-  // "professional motivation(s)" asks about documented career direction.
-  // Bare "motivation" stays a psychological concept for other questions.
-  if (concepts.has("career_choices") && /\bprofessional motivations?\b/.test(normalized)) {
-    concepts.delete("psychology");
+  // Documented academic or professional motivation is career context.
+  // "Personally", without that subject, stays a psychological concept.
+  const motivationAsk = /\b(motivation|motivations|motivated|motivates|motiva|motivato|motivata)\b/.test(normalized);
+  const documentedMotivation =
+    /\b(academic|academ|stud|career|professional|professionale|audit|percorso|scelte|internal|technology|tecnolog|learn|apprendimento)\b/.test(
+      normalized,
+    );
+  const privateMotivation = /\b(personally|personalmente)\b/.test(normalized) && !documentedMotivation;
+  if (motivationAsk) {
+    if (privateMotivation) concepts.add("psychology");
+    else {
+      concepts.add("career_choices");
+      concepts.delete("psychology");
+    }
   }
   return { tokens, concepts: [...concepts], phrases, normalized };
 }
@@ -657,6 +707,9 @@ export function classifyIntent(question, analysis = analyzeQuery(question)) {
     c.has("development_strategy") ||
     c.has("future_aspirations") ||
     c.has("career_choices") ||
+    c.has("academic_motivation") ||
+    c.has("audit_choice") ||
+    c.has("learning_method") ||
     c.has("experience_connections") ||
     c.has("distinctive_profile") ||
     /\b(career (direction|heading|goals?|path|trajectory)|long[- ]term|professional goals?|next step|common thread|hybrid profile|outside banking|other industr|other sector|why (ai )?governance|why audit|interested in ai|useful for ai|preparing for|logical next|banking professional|technology[- ]risk professional|traditional it auditor|direzione professionale|obiettivi|filo conduttore|profilo (ibrido|professionale)|altri settori|settore bancario|perche|dove vuoi arrivare|come definiresti|vuoi rimanere|ti interessano|ti interessa)\b/.test(
@@ -870,6 +923,29 @@ function scoreItem(item, analysis, intent) {
   if (concepts.includes("experience_connections") && item.id === "narrative-common-thread") score += 10;
   if (concepts.includes("distinctive_profile") && item.id === "narrative-hybrid-positioning") score += 10;
   if (concepts.includes("future_aspirations") && item.id === "narrative-long-term-direction") score += 10;
+  if (concepts.includes("academic_motivation") && item.id === "narrative-academic-path") score += 10;
+  if (concepts.includes("audit_choice") && item.id === "narrative-audit-choice") score += 10;
+  if (concepts.includes("learning_method") && item.id === "narrative-learning-approach") score += 10;
+  if (concepts.includes("technical_interest") && item.id === "narrative-technical-practice") score += 8;
+  if (concepts.includes("ai_policy_audit") && item.id === "narrative-ai-governance-rationale") score += 8;
+  if (
+    BIOGRAPHICAL_NARRATIVE.has(item.narrativeType) &&
+    intent === "unknown" &&
+    !concepts.includes("learning_method") &&
+    !concepts.includes("academic_motivation") &&
+    !concepts.includes("audit_choice") &&
+    !concepts.includes("technical_interest") &&
+    !concepts.includes("career_choices")
+  ) {
+    score -= 6;
+  }
+  if (
+    concepts.includes("technical_interest") &&
+    (claimType === "employment_current" || claimType === "employment_past") &&
+    !/\b(banca profilo|bank of china|employer|at work|al lavoro)\b/.test(analysis.normalized || "")
+  ) {
+    score -= 8;
+  }
   if (concepts.includes("development_strategy") && item.id === "narrative-development-strategy") score += 6;
   if (
     concepts.includes("career_choices") &&
@@ -919,8 +995,24 @@ function scoreItem(item, analysis, intent) {
  * @param {string} claimType
  * @param {object} item
  */
+const BIOGRAPHICAL_NARRATIVE = new Set([
+  "academic_path",
+  "audit_choice",
+  "learning_approach",
+  "technical_practice",
+]);
+
 function intentClaimBoost(intent, claimType, item) {
   let boost = 0;
+  if (
+    BIOGRAPHICAL_NARRATIVE.has(item.narrativeType) &&
+    (intent === "current_role" ||
+      intent === "regulatory" ||
+      intent === "past_experience" ||
+      intent === "professional_experience")
+  ) {
+    boost -= 9;
+  }
   switch (intent) {
     case "current_role":
       if (claimType === "employment_current") boost += 10;
@@ -953,11 +1045,13 @@ function intentClaimBoost(intent, claimType, item) {
     case "project":
       if (claimType === "project_personal") boost += 10;
       else if (claimType === "employment_current" || claimType === "employment_past") boost -= 6;
+      else if (item.narrativeType === "technical_practice") boost += 4;
       else if (claimType === "skill") boost += 1;
       break;
     case "education":
       if (claimType === "education") boost += 8;
       else if (claimType === "training") boost += 3;
+      else if (item.narrativeType === "academic_path") boost += 6;
       break;
     case "mobility":
       if (claimType === "mobility") boost += 10;
@@ -1620,6 +1714,15 @@ function boundaryPinIds(analysis) {
       /\b(technology risk|ict risk|rischio tecnologico)\b/.test(n));
   if (directionContrast) {
     ids.push("narrative-long-term-direction", "experience-banca-profilo");
+  }
+  const policyAudit =
+    (/\b(ai policy|policy ai|politica ai)\b/.test(n) && /\b(audit|engagement|partecip)\b/.test(n)) ||
+    (analysis.concepts || []).includes("ai_policy_audit");
+  if (policyAudit) {
+    ids.push("narrative-ai-governance-rationale", "experience-banca-profilo");
+  }
+  if (/\bai governance\b/.test(n) && /\b(experience|esperienza|personal projects|only from)\b/.test(n)) {
+    ids.push("experience-banca-profilo");
   }
   return ids;
 }

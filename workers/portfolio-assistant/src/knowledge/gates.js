@@ -18,6 +18,16 @@ export const PRIVATE_INFO_ANSWER = "The public portfolio does not provide that i
 export const IDENTITY_ANSWER =
   "I am an AI Portfolio Assistant using information and professional narrative made available through Lorenzo Natali's public portfolio. You are not communicating directly with Lorenzo.";
 
+/** Limited context for a personal judgment the portfolio cannot establish. No contact details. */
+export const LEADERSHIP_LIMIT_ANSWER =
+  "The portfolio does not establish Lorenzo's leadership style or leadership effectiveness. It documents his professional experience in internal audit, IT audit and technology risk, and his stated interests in governance. A direct conversation with Lorenzo is the reliable way to assess how he works with other people.";
+
+export const TEAM_FIT_LIMIT_ANSWER =
+  "Lorenzo's documented profile combines banking and internal-audit experience, IT audit and technology-risk work, and personal experimentation with AI tools. Whether he would fit a particular team depends on that team's needs and on direct interaction. The portfolio cannot make that judgment.";
+
+export const PERSON_KIND_LIMIT_ANSWER =
+  "The portfolio describes Lorenzo's professional background, stated interests and learning approach. It does not establish a personality type or a general judgment of what kind of person he is. A conversation with him is the appropriate way to form that view.";
+
 const ITALIAN_QUESTION_TOKENS = new Set([
   "quali",
   "quale",
@@ -42,6 +52,20 @@ const ITALIAN_QUESTION_TOKENS = new Set([
   "motiva",
   "tua",
   "tuo",
+  "buon",
+  "persona",
+  "nostro",
+  "psicologicamente",
+  "affidabile",
+  "emotiva",
+  "gestisce",
+  "adatterebbe",
+  "interessato",
+  "apprendimento",
+  "accademiche",
+  "obiettivi",
+  "resilienza",
+  "operativa",
 ]);
 
 const ITALIAN_LOCAL_ANSWERS = new Map([
@@ -57,6 +81,18 @@ const ITALIAN_LOCAL_ANSWERS = new Map([
   [
     IDENTITY_ANSWER,
     "Sono un assistente AI del portfolio e uso le informazioni e la narrazione professionale disponibili nel portfolio pubblico di Lorenzo Natali. Non stai comunicando direttamente con Lorenzo.",
+  ],
+  [
+    LEADERSHIP_LIMIT_ANSWER,
+    "Il portfolio non stabilisce lo stile di leadership di Lorenzo né la sua efficacia come leader. Documenta la sua esperienza in internal audit, IT audit e technology risk, e i suoi interessi dichiarati per la governance. Un confronto diretto con Lorenzo è il modo affidabile per valutare come lavora con le altre persone.",
+  ],
+  [
+    TEAM_FIT_LIMIT_ANSWER,
+    "Il profilo documentato di Lorenzo unisce esperienza bancaria e di internal audit, lavoro di IT audit e technology risk, e sperimentazione personale con strumenti di AI. L'adeguatezza a un team dipende dalle esigenze di quel team e dal confronto diretto. Il portfolio non può formulare quel giudizio.",
+  ],
+  [
+    PERSON_KIND_LIMIT_ANSWER,
+    "Il portfolio descrive il percorso professionale di Lorenzo, i suoi interessi dichiarati e il suo metodo di apprendimento. Non stabilisce un tipo di personalità né un giudizio generale su che persona sia. Un confronto con lui è il modo appropriato per formarsi quell'idea.",
   ],
 ]);
 
@@ -106,20 +142,23 @@ const PRIVATE_PATTERNS = [
 ];
 
 const PSYCHOLOGY_PATTERNS = [
+  /\bpersonality type\b/i,
   /\bpersonality\b/i,
   /\bpersonalita\b/i,
   /\bpersonalit[aà]\b/i,
   /\bambitious\b/i,
   /\bambizioso\b/i,
-  /\bnatural leader\b/i,
-  /\bleader(ship)?\s+style\b/i,
   /\bhandle stress\b/i,
   /\bunder pressure\b/i,
-  /\bstress\b/i,
+  /\bgestisce lo stress\b/i,
+  /\bgestire lo stress\b/i,
+  /\bsotto pressione\b/i,
   /\bmotivates you personally\b/i,
   /\bpersonal motivation\b/i,
-  /\bcosa ti motiva\b/i,
+  /\bcosa ti motiva personalmente\b/i,
   /\btemperament\b/i,
+  /\bemotional intelligence\b/i,
+  /\bintelligenza emotiva\b/i,
   /\bemotional\b/i,
   /\bfeel about\b/i,
   /\bdo you like your manager\b/i,
@@ -132,9 +171,50 @@ const PSYCHOLOGY_PATTERNS = [
   /\bwould you accept\b/i,
   /\baccepteresti\b/i,
   /\bjob offer\b/i,
-  /\bresilience\b/i,
   /\brisk appetite\b/i,
+  /\btrusted with\b/i,
+  /\btrustworth/i,
+  /\baffidabile\b/i,
+  /\binformazioni riservate\b/i,
+  /\bconfidential information\b/i,
+  /\bmental health\b/i,
+  /\bsalute mentale\b/i,
 ];
+
+const DOCUMENTED_MOTIVATION =
+  /\b(academic|academ|stud|career|professional|professionale|audit|percorso|scelte|internal|technology|tecnolog|learn|apprendimento)\b/i;
+
+const PROFESSIONAL_RESILIENCE =
+  /\b(operational|digital|dora|ict|business|cyber|operativa|digitale|organizzativa|continuity|continuita)\b/i;
+
+/**
+ * Personal resilience is blocked. Operational, digital, DORA and ICT resilience is not.
+ * @param {string} normalized
+ */
+function isPsychologicalResilienceQuestion(normalized) {
+  if (!/\bresilien/.test(normalized)) return false;
+  if (/\b(psycholog|psicolog|emotional|emotionale|mental|mentale)\b/.test(normalized)) return true;
+  if (PROFESSIONAL_RESILIENCE.test(normalized)) return false;
+  return /\b(resilient|resiliente)\b/.test(normalized) || /\b(how|quanto)\b/.test(normalized);
+}
+
+/**
+ * Non-sensitive personal judgments. Local context only — not an OpenAI assessment.
+ * @param {string} normalized
+ * @returns {{ answer: string } | null}
+ */
+function personalEvaluationLimit(normalized) {
+  if (/\b(good leader|natural leader|leadership|buon leader)\b/.test(normalized)) {
+    return { answer: LEADERSHIP_LIMIT_ANSWER };
+  }
+  if (/\bfit (well )?(in )?(our |a |the )?team\b|\bteam fit\b|\badatterebbe\b|\bnel nostro team\b|\bnostro team\b/.test(normalized)) {
+    return { answer: TEAM_FIT_LIMIT_ANSWER };
+  }
+  if (/\b(what kind of person|kind of person|che tipo di persona|tipo di persona)\b/.test(normalized)) {
+    return { answer: PERSON_KIND_LIMIT_ANSWER };
+  }
+  return null;
+}
 
 const IDENTITY_PATTERNS = [
   /\bare you lorenzo\b/i,
@@ -188,14 +268,36 @@ export function evaluatePrivateOrUnsupportedGate(question) {
     return { blocked: true, answer: PRIVATE_INFO_ANSWER, reason: "private_information_bait" };
   }
 
+  if (isPsychologicalResilienceQuestion(normalized)) {
+    return {
+      blocked: true,
+      answer: PORTFOLIO_GAP_ANSWER,
+      reason: "psychological_inference_blocked",
+    };
+  }
+
+  const limited = personalEvaluationLimit(normalized);
+  if (limited) {
+    return {
+      blocked: true,
+      answer: limited.answer,
+      reason: "personal_evaluation_limited",
+    };
+  }
+
   for (const re of PSYCHOLOGY_PATTERNS) {
-    if (re.test(q) || re.test(normalized)) {
-      return {
-        blocked: true,
-        answer: PORTFOLIO_GAP_ANSWER,
-        reason: "psychological_inference_blocked",
-      };
+    if (!re.test(q) && !re.test(normalized)) continue;
+    if (
+      (re.source.includes("motivat") || re.source.includes("motiva")) &&
+      DOCUMENTED_MOTIVATION.test(normalized)
+    ) {
+      continue;
     }
+    return {
+      blocked: true,
+      answer: PORTFOLIO_GAP_ANSWER,
+      reason: "psychological_inference_blocked",
+    };
   }
 
   for (const re of UNSUPPORTED_EMPLOYER_PATTERNS) {
