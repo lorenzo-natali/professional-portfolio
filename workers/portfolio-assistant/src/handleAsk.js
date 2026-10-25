@@ -7,7 +7,7 @@ import {
   localizeWorkerAnswer,
   toPublicEvidence,
 } from "./knowledge/gates.js";
-import { retrieveKnowledge } from "./knowledge/retrieve.js";
+import { analyzeQuery, retrieveKnowledge } from "./knowledge/retrieve.js";
 import {
   createGroundedAnswer,
   hasOpenAiApiKey,
@@ -32,17 +32,44 @@ function jsonError(status, allowOrigin, payload) {
 }
 
 /**
+ * Sufficiency failures that are safety refusals, not missing portfolio evidence.
+ * An eligible personal-interest question may invite Beyond CV only for the latter.
+ */
+const EVIDENCE_REASONS_WITHOUT_BEYOND_CV = new Set([
+  "private_information",
+  "injection_probe",
+]);
+
+/**
+ * Beyond CV may accompany a missing-evidence answer only after privacy and
+ * safety gates have passed. Instruction probes stay refusals without an invite.
+ * @param {string} question
+ * @param {string} [reason]
+ */
+function mayInviteBeyondCv(question, reason) {
+  if (!isBeyondCvEligible(question)) return false;
+  if (reason && EVIDENCE_REASONS_WITHOUT_BEYOND_CV.has(reason)) return false;
+  if (analyzeQuery(question).concepts.includes("injection")) return false;
+  return true;
+}
+
+/**
  * @param {string | null} allowOrigin
  * @param {string} question
  * @param {string} answer
+ * @param {{ beyondCv?: boolean }} [options]
  */
-function localAnswer(allowOrigin, question, answer) {
+function localAnswer(allowOrigin, question, answer, options = {}) {
+  const payload = {
+    ok: true,
+    answer: localizeWorkerAnswer(question, answer),
+    evidence: [],
+  };
+  if (options.beyondCv) {
+    payload.action = BEYOND_CV_ACTION;
+  }
   return new Response(
-    JSON.stringify({
-      ok: true,
-      answer: localizeWorkerAnswer(question, answer),
-      evidence: [],
-    }),
+    JSON.stringify(payload),
     {
       status: 200,
       headers: corsHeaders(allowOrigin, {
@@ -106,7 +133,9 @@ export async function handleAskPost(request, allowOrigin, env, deps = {}) {
 
   const retrieved = retrieveKnowledge(result.question);
   if (retrieved.length === 0) {
-    return localAnswer(allowOrigin, result.question, INSUFFICIENT_EVIDENCE_ANSWER);
+    return localAnswer(allowOrigin, result.question, INSUFFICIENT_EVIDENCE_ANSWER, {
+      beyondCv: mayInviteBeyondCv(result.question, "no_evidence"),
+    });
   }
 
   const sufficiency = evaluateEvidenceSufficiency({
@@ -114,7 +143,9 @@ export async function handleAskPost(request, allowOrigin, env, deps = {}) {
     evidence: retrieved,
   });
   if (!sufficiency.ok) {
-    return localAnswer(allowOrigin, result.question, sufficiency.answer);
+    return localAnswer(allowOrigin, result.question, sufficiency.answer, {
+      beyondCv: mayInviteBeyondCv(result.question, sufficiency.reason),
+    });
   }
 
   const quota = await consumeAskQuota({ request, env });

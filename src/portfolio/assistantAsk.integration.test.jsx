@@ -767,6 +767,24 @@ describe("Beyond CV Easter egg", () => {
     expect(screen.queryByRole("button", { name: "Mostrami" })).toBeNull();
   });
 
+  it("shows the Italian invitation beside an insufficient-evidence answer", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({
+      ask: askResponse({
+        ok: true,
+        answer: "Non è un aspetto che il portfolio pubblico di Lorenzo copre nel dettaglio.",
+        evidence: [],
+        action: "beyond-cv",
+      }),
+    });
+    await openReadyChat();
+    send("Cosa piace fare a Lorenzo nel tempo libero?");
+    expect(await screen.findByRole("button", { name: "Mostrami" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Magari più tardi" })).toBeTruthy();
+    expect(screen.getByText(/portfolio pubblico/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show me" })).toBeNull();
+  });
+
   it("shows the Italian invitation from an Italian question", async () => {
     vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
     mockWorker({ ask: eligibleAsk("Gli piace la storia.") });
