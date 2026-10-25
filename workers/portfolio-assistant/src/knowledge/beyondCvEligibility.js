@@ -13,7 +13,8 @@ function normalize(question) {
   return String(question || "")
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "'");
 }
 
 /** Personal life outside work. Bare "interests" is not enough. */
@@ -35,6 +36,15 @@ const OUTSIDE_FRAME = [
   /\boltre (?:alla |la )?(?:sua )?carriera\b/,
   /\boltre (?:al |il )?(?:suo )?lavoro\b/,
   /\boltre (?:alla |la )?vita professionale\b/,
+  /\bbeyond (?:his |the |lorenzo's )?(?:cv|curriculum vitae|curriculum|resume)\b/,
+  /\boutside (?:of )?(?:his |the |lorenzo's )?(?:cv|curriculum vitae|curriculum)\b/,
+  /\bal di la (?:della |dalla |del |di )?(?:sua |suo )?(?:carriera|vita professionale|curriculum|lavoro)\b/,
+  /\bal di fuori (?:del |della |dal |dalla |di )?(?:suo |sua )?(?:curriculum|cv|lavoro|carriera|vita professionale)\b/,
+  /\b(?:his |lorenzo's |personal )passions?\b/,
+  /\binteressi e (?:le )?passioni\b/,
+  /\bpassioni personali\b/,
+  /\b(?:sue |le sue )passioni\b/,
+  /\bpassioni di lorenzo\b/,
 ];
 
 /** Requests for a hidden feature, or a professional topic wearing a hobby word. */
@@ -55,6 +65,8 @@ const VETO = [
   /\bcareer interests?\b/,
   /\binteressi professionali\b/,
   /\binteressi di carriera\b/,
+  /\bpassioni professionali\b/,
+  /\bprofessional passions?\b/,
   /\bcareer aspirations?\b/,
   /\baspirazioni professionali\b/,
   /\b(?:internal audit|it audit|technology risk|ai governance|information security|cisa|crisc|dora|certification|technical projects?)\b/,

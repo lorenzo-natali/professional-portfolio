@@ -37,7 +37,7 @@ export const BEYOND_CV_COPY = Object.freeze({
   }),
 });
 
-const ITALIAN_QUESTION = /\b(quali|quale|cosa|fuori|interessi|piace|carriera|tempo|libero|sono|oltre|degli|della|nel|alla|sua|gli)\b/gi;
+const ITALIAN_QUESTION = /\b(quali|quale|cosa|fuori|interessi|passioni|passione|piace|carriera|tempo|libero|sono|oltre|degli|della|nel|alla|sua|suo|gli|puoi|qualcosa|raccontami|curriculum)\b/gi;
 const ENGLISH_QUESTION = /\b(what|who|how|does|are|his|beyond|outside|hobbies|hobby|interests|interest|free|enjoy|like|doing)\b/gi;
 
 /**

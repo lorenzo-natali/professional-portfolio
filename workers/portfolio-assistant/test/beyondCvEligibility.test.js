@@ -52,6 +52,12 @@ describe("Beyond CV eligibility", () => {
     "Cosa piace fare a Lorenzo fuori dal lavoro?",
     "Quali sono gli hobby di Lorenzo?",
     "Cosa interessa a Lorenzo oltre alla sua carriera?",
+    "What are Lorenzo's personal interests and passions?",
+    "What does Lorenzo like doing outside of work?",
+    "Can you tell me something about Lorenzo beyond his CV?",
+    "Al di là della sua carriera professionale, quali sono gli interessi e le passioni di Lorenzo?",
+    "Cosa piace fare a Lorenzo nel tempo libero?",
+    "Puoi raccontarmi qualcosa di Lorenzo al di fuori del suo curriculum?",
   ])("allows %s", (question) => {
     expect(isBeyondCvEligible(question)).toBe(true);
   });
@@ -75,6 +81,10 @@ describe("Beyond CV eligibility", () => {
     "What are Lorenzo's hobbies in AI governance?",
     "Does his interest extend beyond banking?",
     "What are Lorenzo's interests?",
+    "What is Lorenzo's current role at Banca Profilo?",
+    "Qual è il ruolo attuale di Lorenzo in Banca Profilo?",
+    "Quali sono le passioni professionali di Lorenzo?",
+    "Che personalità ha Lorenzo?",
   ])("rejects %s", (question) => {
     expect(isBeyondCvEligible(question)).toBe(false);
   });
@@ -138,6 +148,35 @@ describe("Beyond CV eligibility", () => {
   it("does not attach the token to a professional answer", async () => {
     const result = await ask("What is Lorenzo's experience in internal audit?");
     expect(result.body.action).toBeUndefined();
+  });
+
+  it("attaches the token for equivalent English and Italian questions that already have evidence", async () => {
+    for (const question of [
+      "Can you tell me something about Lorenzo beyond his CV?",
+      "Al di là della sua carriera professionale, quali sono gli interessi e le passioni di Lorenzo?",
+    ]) {
+      const result = await ask(question);
+      expect(result.status).toBe(200);
+      expect(result.body.action).toBe(BEYOND_CV_ACTION);
+      expect(result.createAnswer).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("keeps an eligible question local when evidence is still insufficient", async () => {
+    const result = await ask("Cosa piace fare a Lorenzo nel tempo libero?");
+    expect(isBeyondCvEligible("Cosa piace fare a Lorenzo nel tempo libero?")).toBe(true);
+    expect(result.body.action).toBeUndefined();
+    expect(result.body.answer).toMatch(/portfolio pubblico/i);
+    expect(result.body.answer).not.toMatch(/public portfolio covers/i);
+    expect(result.createAnswer).not.toHaveBeenCalled();
+  });
+
+  it("does not attach the token to an Italian professional answer", async () => {
+    const result = await ask("Qual è il ruolo attuale di Lorenzo in Banca Profilo?");
+    expect(result.status).toBe(200);
+    expect(result.body.action).toBeUndefined();
+    expect(result.body.evidence.length).toBeGreaterThan(0);
+    expect(result.createAnswer).toHaveBeenCalledOnce();
   });
 
   it("still consumes only the existing quota unit", async () => {

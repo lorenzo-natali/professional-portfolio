@@ -758,6 +758,15 @@ describe("Beyond CV Easter egg", () => {
     expect(asks).toHaveLength(2);
   });
 
+  it("uses the question language for equivalent Beyond CV phrasings", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({ ask: eligibleAsk("Grounded answer.") });
+    await openReadyChat();
+    send("Can you tell me something about Lorenzo beyond his CV?");
+    expect(await screen.findByRole("button", { name: "Show me" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Mostrami" })).toBeNull();
+  });
+
   it("shows the Italian invitation from an Italian question", async () => {
     vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
     mockWorker({ ask: eligibleAsk("Gli piace la storia.") });

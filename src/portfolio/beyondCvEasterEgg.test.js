@@ -28,7 +28,15 @@ describe("Beyond CV invitation session", () => {
   it("detects Italian from the question and English otherwise", () => {
     expect(detectInvitationLanguage("Quali sono gli hobby di Lorenzo?")).toBe("it");
     expect(detectInvitationLanguage("Cosa piace fare a Lorenzo fuori dal lavoro?")).toBe("it");
+    expect(detectInvitationLanguage("Al di là della sua carriera professionale, quali sono gli interessi e le passioni di Lorenzo?")).toBe("it");
+    expect(detectInvitationLanguage("Cosa piace fare a Lorenzo nel tempo libero?")).toBe("it");
+    expect(detectInvitationLanguage("Puoi raccontarmi qualcosa di Lorenzo al di fuori del suo curriculum?")).toBe("it");
     expect(detectInvitationLanguage("What are Lorenzo's hobbies?")).toBe("en");
+    expect(detectInvitationLanguage("What does Lorenzo enjoy beyond his professional life?")).toBe("en");
+    expect(detectInvitationLanguage("What are Lorenzo's personal interests and passions?")).toBe("en");
+    expect(detectInvitationLanguage("What does Lorenzo like doing outside of work?")).toBe("en");
+    expect(detectInvitationLanguage("Can you tell me something about Lorenzo beyond his CV?")).toBe("en");
+    expect(detectInvitationLanguage("Al di là della sua carriera professionale, quali sono gli interessi e le passioni di Lorenzo?", "He enjoys history.")).toBe("it");
     expect(detectInvitationLanguage("???")).toBe("en");
     expect(detectInvitationLanguage("???", "Gli interessi personali sono documentati.")).toBe("it");
   });
