@@ -631,7 +631,7 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
         </div>
 
         <p className="assistant-muted w-full text-center text-sm font-medium leading-6 sm:mx-auto sm:max-w-[30ch] sm:text-xs sm:leading-5 lg:hidden">
-          Ask about my professional background, expertise, and projects.
+          Explore my background, experience, and interests through my AI Assistant.
         </p>
 
         <div ref={previewRootRef} data-assistant-preview-root className="hidden lg:block">

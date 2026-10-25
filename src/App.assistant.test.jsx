@@ -61,9 +61,14 @@ describe("Portfolio Assistant guided modal", () => {
 
     expect(screen.getByRole("img", { name: "Lorenzo Natali" })).toBeTruthy();
     const description = screen.getByText(
-      "Ask about my professional background, expertise, and projects."
+      "Explore my background, experience, and interests through my AI Assistant."
     );
-    expect(description).toHaveClass("w-full", "text-center", "sm:max-w-[30ch]", "sm:mx-auto");
+    expect(description).toHaveClass("w-full", "text-center", "sm:max-w-[30ch]", "sm:mx-auto", "lg:hidden");
+    expect(
+      screen.getByText(
+        "I built this AI Assistant to share insights beyond my portfolio and make it easier to explore my background and connect with me.",
+      ),
+    ).toBeTruthy();
     expect(description.closest("aside")).toHaveClass("assistant-theme", "assistant-surface");
     expect(description.parentElement?.firstElementChild).toHaveClass("max-sm:justify-center");
     expect(screen.queryByText("Suggested question")).toBeNull();
@@ -706,7 +711,9 @@ describe("Portfolio Assistant desktop preview rotation", () => {
     );
     expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(0);
     expect(document.querySelector("[data-assistant-preview-root]")).toHaveClass("hidden", "lg:block");
-    expect(screen.getByText("Ask about my professional background, expertise, and projects.")).toBeTruthy();
+    expect(
+      screen.getByText("Explore my background, experience, and interests through my AI Assistant."),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: /Chat/ }).querySelector("span.lg\\:hidden")?.textContent).toBe(
       "Chat",
     );
