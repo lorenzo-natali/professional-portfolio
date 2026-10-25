@@ -94,7 +94,7 @@ function initialArScreen(isMobile, flags) {
   return "intro";
 }
 
-function ARGovernanceExperience({ isMobile, onClose }) {
+function ARGovernanceExperience({ isMobile, onClose, returnToChat = false }) {
   const flags = getArRuntimeFlags();
   const allowCameraPath =
     isMobile ||
@@ -151,6 +151,7 @@ function ARGovernanceExperience({ isMobile, onClose }) {
       {screen === "intro" && introTarget !== "pending" && (
         <ARGovernanceIntro
           targetAvailable={introTarget === "available"}
+          returnToChat={returnToChat}
           previousExitReason={
             flags.arCrashDiag ? getDisplayedArExitReason() : null
           }
@@ -201,7 +202,7 @@ function ARGovernanceExperience({ isMobile, onClose }) {
   );
 }
 
-export default function ARGovernanceView({ open, onClose }) {
+export default function ARGovernanceView({ open, onClose, returnToChat = false }) {
   const isMobile = useIsMobileDevice();
   const shellRef = useRef(null);
   /** Tracks latest open for cleanup: intentional close only when open → false. */
@@ -290,7 +291,7 @@ export default function ARGovernanceView({ open, onClose }) {
       aria-modal="true"
       aria-label="AR Governance View"
     >
-      <ARGovernanceExperience isMobile={isMobile} onClose={onClose} />
+      <ARGovernanceExperience isMobile={isMobile} onClose={onClose} returnToChat={returnToChat} />
     </div>,
     portalHost,
   );

@@ -40,7 +40,7 @@ function scrollTranscriptToEnd(element) {
  *   unavailableMessage?: string,
  *   errorMessage?: string,
  *   composerRef?: import("react").Ref<HTMLTextAreaElement>,
- *   beyondCv?: { messageId: string, lang: "en" | "it", state: "offered" | "unlocked", mobile: boolean } | null,
+ *   beyondCv?: { messageId: string, lang: "en" | "it", state: "offered" | "unlocked", mobile: boolean, entrance?: boolean } | null,
  *   onBeyondCvAccept?: () => void,
  *   onBeyondCvDismiss?: () => void,
  *   onBeyondCvLaunch?: () => void,
@@ -173,6 +173,7 @@ export function AssistantConversation({
                   lang={beyondCv.lang}
                   state={beyondCv.state}
                   mobile={beyondCv.mobile}
+                  entrance={beyondCv.entrance === true}
                   onAccept={() => onBeyondCvAccept?.()}
                   onDismiss={() => onBeyondCvDismiss?.()}
                   onLaunch={() => onBeyondCvLaunch?.()}

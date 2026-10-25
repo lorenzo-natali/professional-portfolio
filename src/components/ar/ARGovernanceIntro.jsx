@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { recordArExitTrace } from "./createArExitTrace";
 
 /**
@@ -12,6 +12,7 @@ import { recordArExitTrace } from "./createArExitTrace";
  *   onBack: () => void,
  *   previousExitReason?: string | null,
  *   targetAvailable: boolean,
+ *   returnToChat?: boolean,
  * }} props
  */
 export default function ARGovernanceIntro({
@@ -19,6 +20,7 @@ export default function ARGovernanceIntro({
   onBack,
   previousExitReason = null,
   targetAvailable,
+  returnToChat = false,
 }) {
   useEffect(() => {
     return () => {
@@ -30,30 +32,28 @@ export default function ARGovernanceIntro({
     };
   }, []);
 
+  const backLabel = returnToChat ? "Back to Chat" : "Back to Portfolio";
+
   return (
-    <div className="flex h-full items-center justify-center bg-slate-950 px-5 py-8 text-slate-100">
-      <div
-        className="w-full max-w-md rounded-xl border border-cyan-400/75 bg-slate-950/90 px-7 py-8 shadow-xl sm:px-8 sm:py-10"
-        style={{
-          boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
-        }}
-      >
-        <h2 className="text-center text-xl font-semibold tracking-[0.14em] text-slate-50 uppercase">
-          Beyond the CV
+    <div className="flex h-full items-center justify-center bg-slate-950 px-4 py-6 text-[#f5f2ea]">
+      <div className="beyond-cv-card w-full max-w-md px-4 py-4">
+        <h2 className="flex items-center gap-2 text-[11px] font-medium uppercase leading-none tracking-[0.2em] text-cyan-300">
+          <BeyondCvMark />
+          BEYOND THE CV
         </h2>
 
-        <p className="mx-auto mt-6 max-w-sm text-center text-sm leading-6 text-slate-300">
-          Point your camera at the first page of my CV to unlock an interactive experience.
+        <p className="pt-3 text-sm leading-6 text-[#f5f2ea]">
+          Your next discovery begins with the first page of my CV. Point your camera at it to bring the experience to life.
         </p>
 
-        <p className="mx-auto mt-4 max-w-xs text-center text-[11px] leading-5 text-slate-500">
+        <p className="pt-2 text-[11px] leading-5 text-slate-400">
           Camera processing happens entirely on your device.
         </p>
 
         {previousExitReason ? (
           <p
             data-ar-exit-trace-banner="true"
-            className="mx-auto mt-5 max-w-sm rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-center text-[11px] leading-5 text-amber-100"
+            className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] leading-5 text-amber-100"
             role="status"
           >
             Previous camera session ended: {previousExitReason}
@@ -64,30 +64,32 @@ export default function ARGovernanceIntro({
           <button
             type="button"
             onClick={onActivateCamera}
-            className="mt-8 w-full rounded-md border border-cyan-400/75 bg-cyan-400/10 px-4 py-2.5 text-sm font-medium text-cyan-100 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
-            style={{
-              boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
-            }}
+            className="beyond-cv-primary mt-4 w-full"
           >
             Activate Camera
           </button>
         ) : (
-          <p className="mt-8 text-center text-[11px] leading-5 text-slate-500">
+          <p className="mt-4 text-sm leading-6 text-slate-400">
             The AR recognition experience is not currently available on this device.
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={onBack}
-          className="mt-3 w-full rounded-md border border-cyan-400/75 bg-transparent px-4 py-2.5 text-sm font-medium text-slate-300 outline-none transition-[border-color,box-shadow] hover:border-cyan-300 focus-visible:border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-400/35"
-          style={{
-            boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
-          }}
-        >
-          Back to Portfolio
+        <button type="button" onClick={onBack} className="beyond-cv-secondary mt-2 w-full">
+          {backLabel}
         </button>
       </div>
     </div>
+  );
+}
+
+function BeyondCvMark() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0" fill="none" aria-hidden="true">
+      <path d="M3 6V4.2A1.2 1.2 0 0 1 4.2 3H6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M10 3h1.8A1.2 1.2 0 0 1 13 4.2V6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M13 10v1.8a1.2 1.2 0 0 1-1.2 1.2H10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M6 13H4.2A1.2 1.2 0 0 1 3 11.8V10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="8" cy="8" r="1.05" fill="currentColor" />
+    </svg>
   );
 }

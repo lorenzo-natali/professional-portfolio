@@ -132,7 +132,7 @@ describe("ARGovernanceView entry flow", () => {
     expect(host.style.maxWidth).toBe("none");
 
     const scope = portalScope();
-    const introTitle = await scope.findByRole("heading", { name: "Beyond the CV" });
+    const introTitle = await scope.findByRole("heading", { name: "BEYOND THE CV" });
     expect(shell.contains(introTitle)).toBe(true);
     expect(await scope.findByRole("button", { name: "Back to Portfolio" })).toBeTruthy();
   });
@@ -221,6 +221,25 @@ describe("ARGovernanceView entry flow", () => {
     ).toBe(true);
   });
 
+  it("labels the intro return for a chat launch without opening the camera", async () => {
+    await prewarmArTargetAvailable();
+    const onClose = vi.fn();
+    const getUserMedia = vi.fn();
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      mediaDevices: { getUserMedia },
+    });
+
+    render(<ARGovernanceView open returnToChat onClose={onClose} />);
+    const scope = portalScope();
+    expect(scope.getByRole("button", { name: "Back to Chat" })).toBeTruthy();
+    expect(scope.queryByRole("button", { name: "Back to Portfolio" })).toBeNull();
+    await userEvent.click(scope.getByRole("button", { name: "Back to Chat" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(scope.queryByTestId("ar-camera-view")).toBeNull();
+  });
+
   it("on supported mobile with a warm target probe paints Activate Camera and Back on first intro paint", async () => {
     await prewarmArTargetAvailable();
 
@@ -230,7 +249,7 @@ describe("ARGovernanceView entry flow", () => {
     // Synchronous first intro paint — no waitFor for Activate Camera.
     expect(scope.getByRole("button", { name: "Activate Camera" })).toBeTruthy();
     expect(scope.getByRole("button", { name: "Back to Portfolio" })).toBeTruthy();
-    expect(scope.getByRole("heading", { name: "Beyond the CV" })).toBeTruthy();
+    expect(scope.getByRole("heading", { name: "BEYOND THE CV" })).toBeTruthy();
     expect(scope.queryByTestId("ar-camera-view")).toBeNull();
   });
 

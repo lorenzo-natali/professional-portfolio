@@ -19,10 +19,12 @@ describe("ARGovernanceIntro entry CTA", () => {
 
     expect(screen.getByRole("button", { name: "Activate Camera" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Beyond the CV" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "BEYOND THE CV" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Activate Camera" })).toHaveClass("beyond-cv-primary");
+    expect(screen.getByRole("button", { name: "Back to Portfolio" })).toHaveClass("beyond-cv-secondary");
     expect(
       screen.getByText(
-        "Point your camera at the first page of my CV to unlock an interactive experience.",
+        "Your next discovery begins with the first page of my CV. Point your camera at it to bring the experience to life.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -31,6 +33,32 @@ describe("ARGovernanceIntro entry CTA", () => {
     expect(
       screen.queryByRole("button", { name: "Explore 2D Governance Brief" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("returns to chat only when the experience was opened from the assistant", async () => {
+    const onBack = vi.fn();
+    const { rerender } = render(
+      <ARGovernanceIntro
+        targetAvailable
+        returnToChat
+        onActivateCamera={vi.fn()}
+        onBack={onBack}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Back to Chat" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Back to Portfolio" })).not.toBeInTheDocument();
+
+    rerender(
+      <ARGovernanceIntro
+        targetAvailable
+        returnToChat={false}
+        onActivateCamera={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Back to Portfolio" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back to Chat" })).not.toBeInTheDocument();
   });
 
   it("shows Activate Camera when the .mind target is available", async () => {

@@ -14,26 +14,33 @@ export const BEYOND_CV_DESTINATION =
 
 export const BEYOND_CV_SESSION_KEY = "portfolio-assistant-beyond-cv-v1";
 
+/** Same public profile used by the homepage “Request CV” LinkedIn action. */
+export const BEYOND_CV_LINKEDIN_URL = "https://www.linkedin.com/in/natalilorenzo/";
+
 export const BEYOND_CV_COPY = Object.freeze({
   en: Object.freeze({
-    title: "There's a little more to this portfolio than meets the eye.",
-    body: "Would you like to take a closer look?",
+    invite:
+      "You asked about the person behind the professional profile. There's a more personal side to discover, beyond the CV. Would you like to explore it?",
     accept: "Show me",
     dismiss: "Maybe later",
-    qr: "Have Lorenzo's CV nearby? Scan this QR code with your phone and see what happens.",
-    launchText: "Have Lorenzo's CV nearby? Open the experience and point your camera at its first page.",
-    launch: "Launch Beyond CV",
-    qrAlt: "QR code to open the Beyond CV experience on a smartphone.",
+    unlocked:
+      "Discover five objects that reveal some of my interests and passions beyond work. You'll need the first page of my CV to bring them to life. Don't have a copy? You can request one directly from me.",
+    qr: "Discover five objects that reveal some of my interests and passions beyond work. Scan the QR code with your phone to explore the experience. You'll need the first page of my CV. Don't have a copy? You can request one directly from me.",
+    requestLink: "request one directly from me",
+    launch: "Explore Beyond the CV",
+    qrAlt: "QR code to open Beyond the CV on a smartphone.",
   }),
   it: Object.freeze({
-    title: "Questo portfolio nasconde qualcosa in più di ciò che si vede.",
-    body: "Ti va di dare un'occhiata più da vicino?",
+    invite:
+      "La tua domanda va oltre il profilo professionale. C'è un lato più personale da scoprire, oltre il CV. Ti va di esplorarlo?",
     accept: "Mostrami",
     dismiss: "Magari più tardi",
-    qr: "Hai il CV di Lorenzo a portata di mano? Scansiona questo QR code con il telefono e scopri cosa succede.",
-    launchText: "Hai il CV di Lorenzo a portata di mano? Apri l'esperienza e inquadra la prima pagina con la fotocamera.",
-    launch: "Avvia Beyond CV",
-    qrAlt: "Codice QR per aprire l'esperienza Beyond CV su uno smartphone.",
+    unlocked:
+      "Scopri cinque oggetti che raccontano alcuni dei miei interessi e delle mie passioni al di fuori del lavoro. Ti servirà la prima pagina del mio CV per dar loro vita. Non ne hai una copia? Puoi richiedermela direttamente.",
+    qr: "Scopri cinque oggetti che raccontano alcuni dei miei interessi e delle mie passioni al di fuori del lavoro. Scansiona il QR code con il telefono per esplorare l'esperienza. Ti servirà la prima pagina del mio CV. Non ne hai una copia? Puoi richiedermela direttamente.",
+    requestLink: "richiedermela direttamente",
+    launch: "Esplora Beyond the CV",
+    qrAlt: "Codice QR per aprire Beyond the CV su uno smartphone.",
   }),
 });
 

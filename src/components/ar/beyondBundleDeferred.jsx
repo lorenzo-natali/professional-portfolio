@@ -8,7 +8,7 @@ import { shouldLaunchBeyondCvFromLocation } from "./beyondCvDeepLink.js";
  */
 const ARGovernanceViewLazy = lazy(() => import("./ARGovernanceView.jsx"));
 
-function ARGovernanceViewDeferred({ open, onClose }) {
+function ARGovernanceViewDeferred({ open, onClose, returnToChat = false }) {
   const [allowHeavy, setAllowHeavy] = useState(false);
 
   useEffect(() => {
@@ -19,7 +19,7 @@ function ARGovernanceViewDeferred({ open, onClose }) {
 
   return (
     <Suspense fallback={null}>
-      <ARGovernanceViewLazy open={open} onClose={onClose} />
+      <ARGovernanceViewLazy open={open} onClose={onClose} returnToChat={returnToChat} />
     </Suspense>
   );
 }

@@ -59,7 +59,7 @@ import "./index.css";
 /**
  * @typedef {{
  *   ARGovernanceCard?: import("react").ComponentType<{ onLaunch: () => void }>,
- *   ARGovernanceView?: import("react").ComponentType<{ open: boolean, onClose: () => void }>,
+ *   ARGovernanceView?: import("react").ComponentType<{ open: boolean, onClose: () => void, returnToChat?: boolean }>,
  *   shouldLaunchBeyondCvFromLocation?: (loc?: Location | { search?: string, hash?: string, href?: string }) => boolean,
  * }} BeyondModules
  */
@@ -143,14 +143,19 @@ function AssistantSelectionCard({ variant, selected, onClick, children }) {
   );
 }
 
-function PortfolioAssistant({ onLaunchBeyondCv }) {
+function PortfolioAssistant({ onLaunchBeyondCv, resumeChat = 0 }) {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  useEffect(() => {
+    if (resumeChat > 0) setIsDrawerOpen(true);
+  }, [resumeChat]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [panel, setPanel] = useState("chat");
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState(() => loadAssistantConversation());
   const [beyondCv, setBeyondCv] = useState(() => loadBeyondCvSession());
+  const beyondCvStateRef = useRef(beyondCv.state);
+  const [beyondCvEntrance, setBeyondCvEntrance] = useState(false);
   const beyondCvMobile = useIsMobileDevice();
   const [reply, setReply] = useState(
     /** @type {{ phase: "idle" | "loading" | "unavailable" | "error", text: string }} */ ({
@@ -202,6 +207,18 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
   useEffect(() => {
     saveBeyondCvSession(beyondCv);
   }, [beyondCv]);
+
+  useEffect(() => {
+    const previous = beyondCvStateRef.current;
+    beyondCvStateRef.current = beyondCv.state;
+    if (previous === "not_offered" && beyondCv.state !== "not_offered") {
+      setBeyondCvEntrance(true);
+    }
+  }, [beyondCv.state]);
+
+  useEffect(() => {
+    if (!isDrawerOpen) setBeyondCvEntrance(false);
+  }, [isDrawerOpen]);
 
   const clearAskDeadline = useCallback(() => {
     if (askDeadlineRef.current != null) {
@@ -768,6 +785,7 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
                               lang: beyondCv.lang === "it" ? "it" : "en",
                               state: beyondCv.state,
                               mobile: beyondCvMobile,
+                              entrance: beyondCvEntrance,
                             }
                           : null
                       }
@@ -1102,6 +1120,8 @@ function App({
   const [expandedExperiences, setExpandedExperiences] = useState({});
   // QR / shared deep link: ?beyond=1 opens Beyond the CV on first paint.
   const [arOpen, setArOpen] = useState(() => launchBeyond());
+  const [arReturnToChat, setArReturnToChat] = useState(false);
+  const [assistantResume, setAssistantResume] = useState(0);
   const beyondDeeplinkTrackedRef = useRef(false);
   const [showIntro, setShowIntro] = useState(() => {
     if (!features.intro) return false;
@@ -1122,6 +1142,7 @@ function App({
     // even if something reset arOpen before first paint.
     if (!beyondEnabled) return;
     if (launchBeyond()) {
+      setArReturnToChat(false);
       setArOpen(true);
       setShowIntro(false);
       if (!beyondDeeplinkTrackedRef.current) {
@@ -1157,8 +1178,10 @@ function App({
 
   const sidebarSlot = features.assistant ? (
     <PortfolioAssistant
+      resumeChat={assistantResume}
       onLaunchBeyondCv={() => {
         trackPortfolioEvent("beyond_cv_open", { source: "assistant" });
+        setArReturnToChat(true);
         setArOpen(true);
       }}
     />
@@ -1192,7 +1215,15 @@ function App({
       />
 
       {BeyondView ? (
-        <BeyondView open={arOpen} onClose={() => setArOpen(false)} />
+        <BeyondView
+          open={arOpen}
+          returnToChat={arReturnToChat}
+          onClose={() => {
+            const returnToChat = arReturnToChat;
+            setArOpen(false);
+            if (returnToChat) setAssistantResume((current) => current + 1);
+          }}
+        />
       ) : null}
     </main>
     <AnimatePresence>

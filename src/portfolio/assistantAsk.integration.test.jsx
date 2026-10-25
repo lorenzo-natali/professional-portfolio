@@ -747,9 +747,24 @@ describe("Beyond CV Easter egg", () => {
     send("What are Lorenzo's hobbies?");
     expect(await screen.findByRole("button", { name: "Show me" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Maybe later" })).toBeTruthy();
-    expect(screen.getByText("There's a little more to this portfolio than meets the eye.")).toBeTruthy();
-    expect(screen.getByText("Would you like to take a closer look?")).toBeTruthy();
+    expect(screen.getByText("BEYOND THE CV")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "You asked about the person behind the professional profile. There's a more personal side to discover, beyond the CV. Would you like to explore it?",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText("First answer.")).toBeTruthy();
+    const invitation = document.querySelector("[data-beyond-cv-easter-egg='offered']");
+    expect(invitation).toBeTruthy();
+    expect(invitation).toHaveClass("beyond-cv-card", "w-full");
+    await waitFor(() =>
+      expect(document.querySelector("[data-beyond-cv-easter-egg='offered']")).toHaveClass(
+        "beyond-cv-card-enter",
+      ),
+    );
+    expect(invitation).not.toHaveClass("assistant-bubble-ai");
+    expect(screen.getByRole("button", { name: "Show me" })).not.toHaveClass("assistant-cta");
+    expect(screen.getByRole("button", { name: "Show me" })).toHaveClass("beyond-cv-primary");
     expect(document.querySelectorAll("[data-beyond-cv-easter-egg]")).toHaveLength(1);
 
     send("What does he enjoy outside work?");
@@ -792,8 +807,12 @@ describe("Beyond CV Easter egg", () => {
     send("Quali sono gli hobby di Lorenzo?");
     expect(await screen.findByRole("button", { name: "Mostrami" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Magari più tardi" })).toBeTruthy();
-    expect(screen.getByText("Questo portfolio nasconde qualcosa in più di ciò che si vede.")).toBeTruthy();
-    expect(screen.getByText("Ti va di dare un'occhiata più da vicino?")).toBeTruthy();
+    expect(screen.getByText("BEYOND THE CV")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "La tua domanda va oltre il profilo professionale. C'è un lato più personale da scoprire, oltre il CV. Ti va di esplorarlo?",
+      ),
+    ).toBeTruthy();
   });
 
   it("dismisses without another request and does not offer again", async () => {
@@ -818,10 +837,20 @@ describe("Beyond CV Easter egg", () => {
     await openReadyChat();
     send("What are Lorenzo's hobbies?");
     fireEvent.click(await screen.findByRole("button", { name: "Show me" }));
-    const qr = await screen.findByRole("img", { name: "QR code to open the Beyond CV experience on a smartphone." });
+    const qr = await screen.findByRole("img", { name: "QR code to open Beyond the CV on a smartphone." });
     expect(qr.getAttribute("src")).toBeTruthy();
-    expect(screen.getByText("Have Lorenzo's CV nearby? Scan this QR code with your phone and see what happens.")).toBeTruthy();
-    expect(screen.getByText("https://lorenzo-natali.github.io/professional-portfolio/?beyond=1")).toBeTruthy();
+    expect(qr).toHaveAttribute("width", "180");
+    expect(qr).toHaveAttribute("height", "180");
+    expect(qr.parentElement).toHaveStyle({ background: "#f5f2ea" });
+    const unlocked = document.querySelector("[data-beyond-cv-easter-egg='unlocked']");
+    expect(unlocked?.textContent).toContain(
+      "Discover five objects that reveal some of my interests and passions beyond work. Scan the QR code with your phone to explore the experience. You'll need the first page of my CV. Don't have a copy? You can request one directly from me.",
+    );
+    const request = screen.getByRole("link", { name: "request one directly from me" });
+    expect(request).toHaveAttribute("href", "https://www.linkedin.com/in/natalilorenzo/");
+    expect(request).toHaveAttribute("target", "_blank");
+    expect(screen.queryByText("https://lorenzo-natali.github.io/professional-portfolio/?beyond=1")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Explore Beyond the CV" })).toBeNull();
     expect(screen.queryByRole("link", { name: /beyond/i })).toBeNull();
     expect(asks).toHaveLength(1);
     expect(openSpy).not.toHaveBeenCalled();
@@ -857,7 +886,9 @@ describe("Beyond CV Easter egg", () => {
     expect(await screen.findByRole("img", { name: /QR code/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     openChat();
-    expect(document.querySelectorAll("[data-beyond-cv-easter-egg='unlocked']")).toHaveLength(1);
+    const restored = document.querySelector("[data-beyond-cv-easter-egg='unlocked']");
+    expect(restored).toBeTruthy();
+    expect(restored).not.toHaveClass("beyond-cv-card-enter");
 
     view.unmount();
     mockWorker({ ask: eligibleAsk("Should not be requested.") });
@@ -878,7 +909,15 @@ describe("Beyond CV Easter egg", () => {
         features={{ assistant: true, beyond: true, intro: false, preload: false }}
         beyondModules={{
           ARGovernanceCard: () => <button type="button">Beyond CV</button>,
-          ARGovernanceView: ({ open }) => (open ? <div>AR experience</div> : null),
+          ARGovernanceView: ({ open, returnToChat, onClose }) =>
+            open ? (
+              <div>
+                <div>AR experience</div>
+                <button type="button" onClick={onClose}>
+                  {returnToChat ? "Back to Chat" : "Back to Portfolio"}
+                </button>
+              </div>
+            ) : null,
           shouldLaunchBeyondCvFromLocation: () => false,
         }}
         eagerSectionModules={{ hero: HeroHarness }}
@@ -888,12 +927,51 @@ describe("Beyond CV Easter egg", () => {
     await waitFor(() => expect(availabilityDot()).toHaveAttribute("data-assistant-availability", "available"));
     send("What are Lorenzo's hobbies?");
     fireEvent.click(await screen.findByRole("button", { name: "Show me" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Launch Beyond CV" }));
-    expect(screen.getByText("Have Lorenzo's CV nearby? Open the experience and point your camera at its first page.")).toBeTruthy();
+    expect(document.querySelector("[data-beyond-cv-easter-egg='unlocked']")?.textContent).toContain(
+      "Discover five objects that reveal some of my interests and passions beyond work. You'll need the first page of my CV to bring them to life. Don't have a copy? You can request one directly from me.",
+    );
+    expect(screen.getByRole("link", { name: "request one directly from me" })).toHaveAttribute(
+      "href",
+      "https://www.linkedin.com/in/natalilorenzo/",
+    );
+    expect(screen.queryByRole("img", { name: /QR code/ })).toBeNull();
+    expect(screen.queryByText("https://lorenzo-natali.github.io/professional-portfolio/?beyond=1")).toBeNull();
+    fireEvent.click(await screen.findByRole("button", { name: "Explore Beyond the CV" }));
     expect(screen.getByText("AR experience")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back to Chat", hidden: true }));
+    expect(screen.queryByText("AR experience")).toBeNull();
+    expect(screen.getByText("What are Lorenzo's hobbies?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Explore Beyond the CV" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Beyond CV" })).toBeNull();
     expect(asks).toHaveLength(1);
     expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
+  it("uses Back to Portfolio for a direct AR entry and does not invent a chat", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({ ask: eligibleAsk("Should not be requested.") });
+    render(
+      <App
+        features={{ assistant: true, beyond: true, intro: false, preload: false }}
+        beyondModules={{
+          ARGovernanceCard: () => null,
+          ARGovernanceView: ({ open, returnToChat, onClose }) =>
+            open ? (
+              <button type="button" onClick={onClose}>
+                {returnToChat ? "Back to Chat" : "Back to Portfolio"}
+              </button>
+            ) : null,
+          shouldLaunchBeyondCvFromLocation: () => true,
+        }}
+        eagerSectionModules={{ hero: HeroHarness }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back to Portfolio", hidden: true }));
+    expect(screen.queryByRole("button", { name: "Back to Chat", hidden: true })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Ask the Assistant" })).toBeTruthy();
+    expect(asks).toHaveLength(0);
   });
 
   it("does not show an invitation for an ordinary or untrusted action", async () => {
