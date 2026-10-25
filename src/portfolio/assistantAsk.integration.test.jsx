@@ -37,7 +37,7 @@ function renderAssistant() {
 }
 
 function openChat() {
-  fireEvent.click(screen.getByRole("button", { name: /Chat/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Ask the Assistant" }));
 }
 
 function availabilityDot() {

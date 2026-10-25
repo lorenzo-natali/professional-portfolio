@@ -113,7 +113,7 @@ describe("Phase C App interaction instrumentation", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Chat/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask the Assistant" }));
     expect(trackMock).toHaveBeenCalledWith("assistant_open");
     expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
     const payload = JSON.stringify(trackMock.mock.calls);

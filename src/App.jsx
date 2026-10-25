@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Info, MessageSquare, X } from "lucide-react";
+import { ArrowRight, Info, X } from "lucide-react";
 import {
   DEFAULT_APP_FEATURES,
   resolveAppFeatures,
@@ -612,12 +612,12 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
 
   return (
     <>
-      <aside className="assistant-theme assistant-surface w-full rounded-2xl p-6 sm:p-5 lg:px-7 lg:py-10">
-        <div className="mb-4 flex items-center gap-4 border-b assistant-divider pb-4 max-sm:justify-center sm:gap-3 lg:justify-center">
+      <aside className="assistant-theme assistant-surface w-full rounded-2xl p-5 lg:px-7 lg:py-10">
+        <div className="mb-4 flex items-center justify-center gap-3 border-b assistant-divider pb-4">
           <img
             src={publicAsset("profile.png")}
             alt="Lorenzo Natali"
-            className="assistant-avatar-ring h-16 w-16 shrink-0 rounded-full border object-cover sm:h-11 sm:w-11"
+            className="assistant-avatar-ring h-12 w-12 shrink-0 rounded-full border object-cover sm:h-11 sm:w-11"
           />
           <div className="min-w-0">
             <p className="assistant-text text-base font-semibold leading-tight tracking-tight sm:text-sm lg:text-[0.9375rem]">
@@ -630,16 +630,12 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
           </div>
         </div>
 
-        <p className="assistant-muted w-full text-center text-sm font-medium leading-6 sm:mx-auto sm:max-w-[30ch] sm:text-xs sm:leading-5 lg:hidden">
-          Explore my background, experience, and interests through my AI Assistant.
-        </p>
-
-        <div ref={previewRootRef} data-assistant-preview-root className="hidden lg:block">
+        <div ref={previewRootRef} data-assistant-preview-root>
           <p className="assistant-muted text-sm leading-6">
             I built this AI Assistant to share insights beyond my portfolio and make it easier to explore my background and connect with me.
           </p>
-          <div className="mt-8">
-            <p className="assistant-accent text-[11px] font-medium uppercase leading-none tracking-[0.18em]">
+          <div className="mt-5 lg:mt-8">
+            <p className="assistant-accent text-[11px] font-medium uppercase leading-none tracking-[0.14em] lg:tracking-[0.18em]">
               YOU CAN ASK ME...
             </p>
             <div className="mt-3 grid">
@@ -650,7 +646,7 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
                     key={question}
                     data-assistant-preview-question={active ? "true" : "false"}
                     aria-hidden={active ? undefined : true}
-                    className={`assistant-preview-quote assistant-text col-start-1 row-start-1 min-w-0 break-words text-base italic leading-6 ${
+                    className={`assistant-preview-quote assistant-text col-start-1 row-start-1 min-w-0 break-words text-sm italic leading-5 lg:text-base lg:leading-6 ${
                       active
                         ? previewMotion && previewAnimate
                           ? "assistant-preview-question-in"
@@ -670,12 +666,10 @@ function PortfolioAssistant({ onLaunchBeyondCv }) {
           ref={openButtonRef}
           type="button"
           onClick={() => openAssistant()}
-          className="assistant-cta mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-4 text-base font-semibold transition focus-visible:outline-none sm:py-3 sm:text-sm lg:mt-8"
+          className="assistant-cta mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold transition focus-visible:outline-none lg:mt-8 lg:min-h-0"
         >
-          <MessageSquare className="h-4 w-4 shrink-0 lg:hidden" aria-hidden="true" />
-          <span className="lg:hidden">Chat</span>
-          <span className="hidden lg:inline">Ask the Assistant</span>
-          <ArrowRight className="hidden h-4 w-4 shrink-0 lg:block" aria-hidden="true" />
+          Ask the Assistant
+          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
         </button>
       </aside>
 

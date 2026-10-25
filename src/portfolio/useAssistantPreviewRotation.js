@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-/** Desktop homepage preview only. Not the deterministic assistantPrompts catalog. */
+/** Homepage preview only. Not the deterministic assistantPrompts catalog. */
 export const ASSISTANT_PREVIEW_QUESTIONS = Object.freeze([
   "How do the different parts of your profile fit together?",
   "What is your exposure to AI Governance?",
@@ -11,7 +11,6 @@ export const ASSISTANT_PREVIEW_QUESTIONS = Object.freeze([
 
 export const ASSISTANT_PREVIEW_INTERVAL_MS = 5000;
 
-const DESKTOP_PREVIEW_QUERY = "(min-width: 1024px)";
 const REDUCE_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 /**
@@ -45,8 +44,8 @@ function subscribe(query, listener) {
 }
 
 /**
- * Rotates the desktop preview question while the preview is on screen.
- * No timer without IntersectionObserver, a desktop viewport, and motion allowed.
+ * Rotates the shared preview question while the preview is on screen.
+ * One timer for every viewport. No timer without IntersectionObserver and motion allowed.
  * @param {import("react").RefObject<Element | null>} rootRef
  */
 export function useAssistantPreviewRotation(rootRef) {
@@ -57,14 +56,12 @@ export function useAssistantPreviewRotation(rootRef) {
   const [animateQuestion, setAnimateQuestion] = useState(false);
 
   useEffect(() => {
-    const desktopQuery = mediaQuery(DESKTOP_PREVIEW_QUERY);
     const reduceQuery = mediaQuery(REDUCE_MOTION_QUERY);
     const session = {
       cancelled: false,
       timerId: 0,
       inViewport: false,
       documentVisible: document.visibilityState !== "hidden",
-      desktop: Boolean(desktopQuery?.matches),
       reduced: Boolean(reduceQuery?.matches),
       /** @type {IntersectionObserver | null} */
       observer: null,
@@ -97,7 +94,6 @@ export function useAssistantPreviewRotation(rootRef) {
     const syncTimer = () => {
       if (session.cancelled) return;
       const shouldRun =
-        session.desktop &&
         !session.reduced &&
         session.inViewport &&
         session.documentVisible;
@@ -118,7 +114,7 @@ export function useAssistantPreviewRotation(rootRef) {
       disconnectObserver();
       unbindVisibility();
       session.inViewport = false;
-      if (session.cancelled || !session.desktop || session.reduced) return;
+      if (session.cancelled || session.reduced) return;
       if (typeof IntersectionObserver !== "function") return;
       const root = rootRef.current;
       if (!root) return;
@@ -139,10 +135,6 @@ export function useAssistantPreviewRotation(rootRef) {
       session.observer.observe(root);
     };
 
-    const unsubDesktop = subscribe(desktopQuery, () => {
-      session.desktop = Boolean(desktopQuery?.matches);
-      applyMode();
-    });
     const unsubReduce = subscribe(reduceQuery, () => {
       const reduced = Boolean(reduceQuery?.matches);
       session.reduced = reduced;
@@ -164,7 +156,6 @@ export function useAssistantPreviewRotation(rootRef) {
       clearTimer();
       disconnectObserver();
       unbindVisibility();
-      unsubDesktop();
       unsubReduce();
     };
   }, [rootRef]);
