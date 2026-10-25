@@ -107,6 +107,185 @@ code {
   display: none;
 }
 
+/* Assistant-only identity. These tokens do not feed the portfolio theme. */
+.assistant-theme {
+  --assistant-bg: #101827;
+  --assistant-accent: #d6b46a;
+  --assistant-accent-hover: #e4c78a;
+  --assistant-text: #f5f2ea;
+  --assistant-muted: #b8c2d1;
+  --assistant-user-message: #1d3446;
+  --assistant-ai-message: #172133;
+  --assistant-surface: #141f30;
+  --assistant-border: #344154;
+  --assistant-shadow:
+    0 16px 36px rgba(6, 10, 18, 0.42),
+    0 0 0 1px rgba(214, 180, 106, 0.14);
+}
+
+.assistant-theme.assistant-surface {
+  background-color: var(--assistant-bg);
+  border: 1.5px solid var(--assistant-accent);
+  box-shadow: var(--assistant-shadow);
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-text {
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-muted {
+  color: var(--assistant-muted);
+}
+
+.assistant-theme .assistant-accent {
+  color: var(--assistant-accent);
+}
+
+.assistant-theme .assistant-divider {
+  border-color: color-mix(in srgb, var(--assistant-accent) 38%, transparent);
+}
+
+.assistant-theme .assistant-avatar-ring {
+  border-color: color-mix(in srgb, var(--assistant-accent) 58%, transparent);
+}
+
+.assistant-theme .assistant-bubble-user,
+.assistant-theme .assistant-bubble-ai {
+  border: 1px solid var(--assistant-border);
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-bubble-user {
+  background-color: var(--assistant-user-message);
+}
+
+@keyframes assistant-preview-question-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.assistant-theme .assistant-preview-question-in {
+  animation: assistant-preview-question-in 300ms ease-out;
+}
+
+.assistant-theme .assistant-preview-quote::before {
+  content: "\201C";
+}
+
+.assistant-theme .assistant-preview-quote::after {
+  content: "\201D";
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-theme .assistant-preview-question-in {
+    animation: none;
+  }
+}
+
+.assistant-theme .assistant-bubble-ai {
+  background-color: var(--assistant-ai-message);
+}
+
+.assistant-theme .assistant-panel {
+  background-color: var(--assistant-surface);
+  border: 1px solid var(--assistant-border);
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-scrim {
+  background-color: color-mix(in srgb, var(--assistant-bg) 82%, transparent);
+}
+
+.assistant-theme .assistant-cta,
+.assistant-theme .assistant-send {
+  background-color: var(--assistant-accent);
+  border-color: var(--assistant-accent);
+  color: var(--assistant-bg);
+}
+
+.assistant-theme .assistant-cta:hover,
+.assistant-theme .assistant-send:hover:not(:disabled) {
+  background-color: var(--assistant-accent-hover);
+  border-color: var(--assistant-accent-hover);
+}
+
+.assistant-theme .assistant-cta:focus-visible,
+.assistant-theme .assistant-send:focus-visible,
+.assistant-theme .assistant-icon-button:focus-visible,
+.assistant-theme .assistant-choice:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--assistant-bg), 0 0 0 4px var(--assistant-accent);
+}
+
+.assistant-theme .assistant-send:disabled {
+  background-color: transparent;
+  border-color: transparent;
+  color: #7d8ba0;
+  cursor: not-allowed;
+}
+
+.assistant-theme .assistant-icon-button {
+  border-color: var(--assistant-border);
+  color: var(--assistant-muted);
+}
+
+.assistant-theme .assistant-icon-button:hover {
+  border-color: #b59a62;
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-composer {
+  background-color: var(--assistant-surface);
+  border-color: var(--assistant-border);
+}
+
+.assistant-theme .assistant-composer:focus-within {
+  border-color: var(--assistant-accent);
+  box-shadow: 0 0 0 2px rgba(214, 180, 106, 0.4);
+}
+
+.assistant-theme .assistant-composer textarea {
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-composer textarea::placeholder {
+  color: var(--assistant-muted);
+}
+
+.assistant-theme a.assistant-link {
+  color: var(--assistant-accent);
+  text-decoration-color: color-mix(in srgb, var(--assistant-accent) 50%, transparent);
+}
+
+.assistant-theme a.assistant-link:hover {
+  color: var(--assistant-accent-hover);
+  text-decoration-color: var(--assistant-accent-hover);
+}
+
+.assistant-theme .assistant-choice {
+  border-color: var(--assistant-border);
+  background-color: var(--assistant-bg);
+  color: var(--assistant-muted);
+}
+
+.assistant-theme .assistant-choice:hover {
+  border-color: var(--assistant-accent);
+  color: var(--assistant-text);
+}
+
+.assistant-theme .assistant-choice[aria-pressed="true"] {
+  border-color: var(--assistant-accent);
+  background-color: var(--assistant-surface);
+  color: var(--assistant-text);
+}
+
+.assistant-theme code {
+  background: var(--assistant-surface);
+  color: var(--assistant-text);
+  border: 1px solid var(--assistant-border);
+}
+
 /*
  * Role Lens card glows are box-shadows; overflow-x clips them at the scrollport edge.
  * Match Section horizontal padding with equal -mx / padding-inline so:

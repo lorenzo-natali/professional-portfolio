@@ -53,7 +53,7 @@ describe("assistant answer markdown", () => {
     const link = screen.getByRole("link", { name: "the portfolio" });
     expect(link).toHaveAttribute("href", "https://lorenzo-natali.github.io/professional-portfolio/");
     expect(link).toHaveAttribute("rel", "noreferrer noopener");
-    expect(link).toHaveClass("font-medium", "text-cyan-200/80", "underline-offset-4");
+    expect(link).toHaveClass("font-medium", "assistant-link", "underline-offset-4");
     expect(container.querySelectorAll("a")).toHaveLength(1);
     expect(container.innerHTML).not.toMatch(/javascript:|data:text/);
     expect(container.textContent).toContain("this");

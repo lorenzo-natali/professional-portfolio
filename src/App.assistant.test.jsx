@@ -1,5 +1,7 @@
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -12,13 +14,14 @@ import {
   ASSISTANT_ABOUT_TEXT,
   ASSISTANT_WELCOME_MESSAGE,
 } from "./portfolio/assistantChatModel.js";
+import { ASSISTANT_PREVIEW_QUESTIONS } from "./portfolio/useAssistantPreviewRotation.js";
 
 function HeroHarness({ sidebarSlot }) {
   return <section id="hero">{sidebarSlot}</section>;
 }
 
-function renderAssistant() {
-  return render(
+function renderAssistant({ strict = false } = {}) {
+  const app = (
     <App
       features={{
         assistant: true,
@@ -29,10 +32,11 @@ function renderAssistant() {
       eagerSectionModules={{ hero: HeroHarness }}
     />
   );
+  return render(strict ? <StrictMode>{app}</StrictMode> : app);
 }
 
 function openChat() {
-  fireEvent.click(screen.getByRole("button", { name: "Chat" }));
+  fireEvent.click(screen.getByRole("button", { name: /Chat/ }));
 }
 
 describe("Portfolio Assistant guided modal", () => {
@@ -60,11 +64,14 @@ describe("Portfolio Assistant guided modal", () => {
       "Ask about my professional background, expertise, and projects."
     );
     expect(description).toHaveClass("w-full", "text-center", "sm:max-w-[30ch]", "sm:mx-auto");
+    expect(description.closest("aside")).toHaveClass("assistant-theme", "assistant-surface");
     expect(description.parentElement?.firstElementChild).toHaveClass("max-sm:justify-center");
     expect(screen.queryByText("Suggested question")).toBeNull();
     expect(screen.queryByRole("button", { name: /Use example question/ })).toBeNull();
-    expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
-    expect(document.querySelector("[data-assistant-preview-question]")).toBeNull();
+    expect(document.querySelector("[data-assistant-preview-root]")).toHaveClass("hidden", "lg:block");
+    expect(document.querySelector("[data-assistant-preview-question='true']")).toHaveTextContent(
+      ASSISTANT_PREVIEW_QUESTIONS[0],
+    );
     expect(screen.queryByText("Status unknown")).toBeNull();
     expect(screen.queryByText("Available")).toBeNull();
     expect(screen.queryByText("Unavailable")).toBeNull();
@@ -76,7 +83,7 @@ describe("Portfolio Assistant guided modal", () => {
       "font-semibold",
       "leading-tight",
       "tracking-tight",
-      "text-slate-50",
+      "assistant-text",
       "sm:text-sm"
     );
     expect(title?.textContent?.replace(/\s+/g, " ").trim().startsWith("AI Portfolio Assistant")).toBe(true);
@@ -89,9 +96,11 @@ describe("Portfolio Assistant guided modal", () => {
     expect(dot).toHaveClass("ml-2", "bg-slate-500", "inline-block");
     expect(dot.tagName).not.toBe("BUTTON");
 
-    const chatButton = screen.getByRole("button", { name: "Chat" });
+    const chatButton = screen.getByRole("button", { name: /Chat/ });
     expect(chatButton.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-    expect(chatButton.textContent?.replace(/\s+/g, " ").trim()).toBe("Chat");
+    expect(chatButton.textContent?.replace(/\s+/g, " ").trim()).toBe("ChatAsk the Assistant");
+    expect(chatButton.querySelector("span.lg\\:hidden")?.textContent).toBe("Chat");
+    expect(chatButton.querySelector("span.hidden")?.textContent).toBe("Ask the Assistant");
     expect(document.querySelector("[data-assistant-availability]")).toHaveAttribute(
       "data-assistant-availability",
       "unknown"
@@ -102,7 +111,7 @@ describe("Portfolio Assistant guided modal", () => {
     vi.spyOn(window, "scrollY", "get").mockReturnValue(480);
     renderAssistant();
 
-    const openButton = screen.getByRole("button", { name: "Chat" });
+    const openButton = screen.getByRole("button", { name: /Chat/ });
     fireEvent.click(openButton);
 
     expect(document.getElementById("portfolio-assistant-modal-description")).toHaveClass("sr-only");
@@ -131,7 +140,7 @@ describe("Portfolio Assistant guided modal", () => {
     const transcript = dialog.querySelector("[data-assistant-transcript]");
     expect(overlay).toHaveClass("fixed", "inset-0", "overflow-hidden");
     expect(overlay).not.toHaveClass("absolute", "overflow-y-auto");
-    expect(dialog).toHaveClass("overflow-hidden", "rounded-2xl", "min-h-0", "sm:max-h-[80vh]", "sm:h-[78vh]");
+    expect(dialog).toHaveClass("assistant-theme", "assistant-surface", "overflow-hidden", "rounded-2xl", "min-h-0", "sm:max-h-[80vh]", "sm:h-[78vh]");
     expect(dialog).not.toHaveClass("rounded-none", "h-[100dvh]");
     expect(dialog.parentElement).toHaveClass("flex", "h-dvh", "min-h-0", "sm:h-[100dvh]");
     expect(modalContent).not.toHaveClass("overflow-y-auto", "overflow-y-scroll");
@@ -196,7 +205,7 @@ describe("Portfolio Assistant guided modal", () => {
       writable: true,
     });
 
-    const openButton = screen.getByRole("button", { name: "Chat" });
+    const openButton = screen.getByRole("button", { name: /Chat/ });
     fireEvent.click(openButton);
 
     expect(applicationRoot.inert).toBe(true);
@@ -223,7 +232,7 @@ describe("Portfolio Assistant guided modal", () => {
     const applicationRoot = document.querySelector("main");
     expect("inert" in applicationRoot).toBe(false);
 
-    const openButton = screen.getByRole("button", { name: "Chat" });
+    const openButton = screen.getByRole("button", { name: /Chat/ });
     fireEvent.click(openButton);
     expect(applicationRoot).toHaveAttribute("inert");
     expect(applicationRoot).toHaveAttribute("aria-hidden", "true");
@@ -395,24 +404,317 @@ describe("Portfolio Assistant guided modal", () => {
   });
 });
 
-describe("Portfolio Assistant preview without question rotation", () => {
-  afterEach(() => {
-    cleanup();
-    vi.restoreAllMocks();
+const APPROVED_PREVIEW_QUESTIONS = [
+  "How do the different parts of your profile fit together?",
+  "What is your exposure to AI Governance?",
+  "What is Cognitive Behavior Intelligence?",
+  "How did your studies lead you into audit?",
+  "What interests you beyond your professional work?",
+];
+
+describe("Portfolio Assistant desktop preview rotation", () => {
+  /** @type {Array<{ cb: Function, el?: Element, disconnected: boolean }>} */
+  let ioInstances = [];
+  /** @type {typeof window.matchMedia | undefined} */
+  let originalMatchMedia;
+  /** @type {PropertyDescriptor | undefined} */
+  let originalHidden;
+  /** @type {PropertyDescriptor | undefined} */
+  let originalVisibility;
+
+  function installMedia({ desktop = true, reduced = false } = {}) {
+    window.matchMedia = (query) => ({
+      matches: String(query).includes("prefers-reduced-motion")
+        ? reduced
+        : String(query).includes("min-width: 1024px")
+          ? desktop
+          : false,
+      media: String(query),
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    });
+  }
+
+  function installObserver({ visibleOnObserve = true } = {}) {
+    ioInstances = [];
+    class MockIO {
+      constructor(cb) {
+        this.cb = cb;
+        this.disconnected = false;
+        ioInstances.push(this);
+      }
+      observe(el) {
+        this.el = el;
+        if (!visibleOnObserve) return;
+        this.cb([
+          { isIntersecting: true, intersectionRatio: 1, target: el },
+        ]);
+      }
+      unobserve() {}
+      disconnect() {
+        this.disconnected = true;
+      }
+    }
+    vi.stubGlobal("IntersectionObserver", MockIO);
+  }
+
+  function firePreviewVisibility(visible) {
+    for (const instance of ioInstances) {
+      instance.cb([
+        {
+          isIntersecting: visible,
+          intersectionRatio: visible ? 1 : 0,
+          target: instance.el,
+        },
+      ]);
+    }
+  }
+
+  function activeQuestion() {
+    return document.querySelector("[data-assistant-preview-question='true']")?.textContent ?? "";
+  }
+
+  function setDocumentHidden(hidden) {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => (hidden ? "hidden" : "visible"),
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    originalHidden = Object.getOwnPropertyDescriptor(document, "hidden");
+    originalVisibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
+    vi.useFakeTimers();
   });
 
-  it("does not render suggested questions or start a preview timer", () => {
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.matchMedia = originalMatchMedia;
+    if (originalHidden) Object.defineProperty(document, "hidden", originalHidden);
+    if (originalVisibility) Object.defineProperty(document, "visibilityState", originalVisibility);
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+    document.body.style.paddingRight = "";
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.width = "";
+  });
+
+  it("shows the approved questions one at a time and wraps after 5000ms", () => {
+    installMedia({ desktop: true });
+    installObserver();
+    renderAssistant();
+
+    expect(ASSISTANT_PREVIEW_QUESTIONS).toEqual(APPROVED_PREVIEW_QUESTIONS);
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+    expect(document.querySelectorAll("[data-assistant-preview-question='true']")).toHaveLength(1);
+    expect(document.querySelector("[data-assistant-preview-question='true']")).not.toHaveClass(
+      "assistant-preview-question-in",
+    );
+    expect(screen.queryByText("What connects your audit experience with AI?")).toBeNull();
+    expect(screen.queryByText("A shared focus on technology, risk and responsible governance.")).toBeNull();
+    expect(screen.queryByText("Example question")).toBeNull();
+    expect(screen.queryByText("Suggested question")).toBeNull();
+    expect(screen.queryByText("Conversation preview")).toBeNull();
+    expect(screen.queryByText(/The common thread is understanding/)).toBeNull();
+
+    for (let step = 1; step <= APPROVED_PREVIEW_QUESTIONS.length; step += 1) {
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      const expected = APPROVED_PREVIEW_QUESTIONS[step % APPROVED_PREVIEW_QUESTIONS.length];
+      expect(activeQuestion()).toBe(expected);
+      expect(document.querySelectorAll("[data-assistant-preview-question='true']")).toHaveLength(1);
+      for (const question of APPROVED_PREVIEW_QUESTIONS) {
+        const node = [...document.querySelectorAll("[data-assistant-preview-question]")].find(
+          (item) => item.textContent === question,
+        );
+        expect(node?.getAttribute("aria-hidden")).toBe(question === expected ? null : "true");
+        expect(node?.classList.contains("invisible")).toBe(question !== expected);
+      }
+    }
+  });
+
+  it("pauses offscreen, resumes on the same question, and waits a full interval", () => {
+    installMedia({ desktop: true });
+    installObserver();
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    renderAssistant();
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+    expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(1);
+
+    act(() => {
+      firePreviewVisibility(true);
+    });
+    expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(1);
+
+    act(() => {
+      firePreviewVisibility(false);
+    });
+    act(() => {
+      vi.advanceTimersByTime(5000 * 4);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+
+    act(() => {
+      firePreviewVisibility(true);
+    });
+    act(() => {
+      vi.advanceTimersByTime(4999);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[1]);
+  });
+
+  it("pauses while the tab is hidden and resumes only when the preview is intersecting", () => {
+    installMedia({ desktop: true });
+    installObserver();
     const setIntervalSpy = vi.spyOn(window, "setInterval");
     renderAssistant();
 
-    expect(screen.queryByText("Suggested question")).toBeNull();
-    expect(screen.queryByRole("button", { name: /Use example question/ })).toBeNull();
-    expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
-    expect(setIntervalSpy.mock.calls.map((call) => call[1])).not.toContain(3600);
+    act(() => {
+      setDocumentHidden(true);
+    });
+    act(() => {
+      vi.advanceTimersByTime(5000 * 3);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
 
-    openChat();
+    act(() => {
+      firePreviewVisibility(false);
+      setDocumentHidden(false);
+    });
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+
+    const intervalsWhileOffscreen = setIntervalSpy.mock.calls.filter((call) => call[1] === 5000).length;
+    act(() => {
+      firePreviewVisibility(true);
+    });
+    expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000).length).toBe(
+      intervalsWhileOffscreen + 1,
+    );
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[1]);
+  });
+
+  it("does not rotate when reduced motion is requested", () => {
+    installMedia({ desktop: true, reduced: true });
+    installObserver();
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    renderAssistant();
+
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+    expect(ioInstances.some((instance) => instance.el?.hasAttribute("data-assistant-preview-root"))).toBe(
+      false,
+    );
+    expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(0);
+    act(() => {
+      vi.advanceTimersByTime(5000 * 4);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+    expect(document.querySelector("[data-assistant-preview-question='true']")).not.toHaveClass(
+      "assistant-preview-question-in",
+    );
+  });
+
+  it("does not rotate when IntersectionObserver is unavailable", () => {
+    installMedia({ desktop: true });
+    vi.stubGlobal("IntersectionObserver", undefined);
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    renderAssistant();
+
+    act(() => {
+      vi.advanceTimersByTime(5000 * 4);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+    expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(0);
+  });
+
+  it("clears the timer and observer on unmount, including under Strict Mode", () => {
+    installMedia({ desktop: true });
+    installObserver();
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const { unmount } = renderAssistant({ strict: true });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
+
+    unmount();
+    expect(clearSpy).toHaveBeenCalled();
+    expect(ioInstances.some((instance) => instance.disconnected)).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(5000 * 3);
+    });
+    expect(document.querySelector("[data-assistant-preview-root]")).toBeNull();
+    expect(activeQuestion()).toBe("");
+  });
+
+  it("keeps one interval when Strict Mode remounts the preview", () => {
+    installMedia({ desktop: true });
+    installObserver();
+    renderAssistant({ strict: true });
+
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[1]);
+  });
+
+  it("opens the chat from the desktop control without sending the preview question", () => {
+    installMedia({ desktop: true });
+    installObserver();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    renderAssistant();
+
+    fireEvent.click(screen.getByRole("button", { name: /Chat/ }));
     expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Your question" })).toHaveValue("");
+    expect(document.querySelector("[data-assistant-transcript] [role='log']")?.textContent?.trim()).toBe("");
+    expect(screen.getByText(ASSISTANT_WELCOME_MESSAGE)).toBeTruthy();
+    expect(fetchSpy).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
-    expect(screen.queryByText("Suggested question")).toBeNull();
+    expect(screen.queryByText("Suggested questions")).toBeNull();
+  });
+
+  it("leaves the mobile preview free of a rotation timer", () => {
+    installMedia({ desktop: false });
+    installObserver();
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
+    renderAssistant();
+
+    expect(ioInstances.some((instance) => instance.el?.hasAttribute("data-assistant-preview-root"))).toBe(
+      false,
+    );
+    expect(setIntervalSpy.mock.calls.filter((call) => call[1] === 5000)).toHaveLength(0);
+    expect(document.querySelector("[data-assistant-preview-root]")).toHaveClass("hidden", "lg:block");
+    expect(screen.getByText("Ask about my professional background, expertise, and projects.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Chat/ }).querySelector("span.lg\\:hidden")?.textContent).toBe(
+      "Chat",
+    );
+    expect(screen.queryByText("What connects your audit experience with AI?")).toBeNull();
+    expect(screen.queryByText("A shared focus on technology, risk and responsible governance.")).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(5000 * 3);
+    });
+    expect(activeQuestion()).toBe(APPROVED_PREVIEW_QUESTIONS[0]);
   });
 });

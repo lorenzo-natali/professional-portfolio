@@ -5,15 +5,20 @@ import LanguageFlag from "../../components/LanguageFlag.jsx";
 import { languageItems, stackStreams } from "../portfolioData.js";
 import TickerStream from "../TickerStream.jsx";
 
-export default function HeroSection({ selectedLens = "Overview", sidebarSlot = null }) {
+export default function HeroSection({
+  selectedLens = "Overview",
+  sidebarSlot = null,
+  beyondSlot = null,
+}) {
   return (
     <section id="hero" className="relative overflow-x-hidden bg-slate-950 px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.035)_1px,transparent_1px)] bg-[size:44px_44px]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(15,23,42,0.9),transparent_42%)]" />
         <div className="absolute inset-0 bg-slate-950/60" />
 
-        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
+        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,48rem)_minmax(320px,1fr)] lg:items-start">
+          <div className="min-w-0 lg:contents">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
             <motion.p
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -86,8 +91,9 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                 </div>
               ))}
             </div>
+            </div>
 
-            <div className="mt-11 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="mt-11 flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:col-span-2 lg:row-start-2 lg:mt-1 lg:flex-nowrap lg:items-center">
               <a
                 href="https://www.linkedin.com/in/natalilorenzo/"
                 target="_blank"
@@ -125,11 +131,18 @@ export default function HeroSection({ selectedLens = "Overview", sidebarSlot = n
                   <span className="mt-1 text-xs font-normal text-slate-400">View projects and code</span>
                 </span>
               </a>
+              {beyondSlot ? (
+                <div className="hero-beyond w-full max-lg:mb-4 max-lg:mt-7 sm:basis-full lg:mb-0 lg:mt-0 lg:w-80 lg:max-w-80 lg:shrink-0 lg:basis-80">
+                  {beyondSlot}
+                </div>
+              ) : null}
             </div>
           </div>
-          <div className="flex w-full flex-col gap-14 lg:w-[320px]">
-            {sidebarSlot}
-          </div>
+          {sidebarSlot ? (
+            <div className="flex w-full flex-col gap-14 lg:col-start-2 lg:row-start-1 lg:h-full lg:w-full lg:items-center lg:justify-center lg:self-stretch">
+              {sidebarSlot}
+            </div>
+          ) : null}
         </div>
       </section>
   );

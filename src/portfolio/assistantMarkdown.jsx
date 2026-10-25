@@ -62,7 +62,7 @@ function parseInline(source, keys) {
             key={keys.next()}
             href={href}
             rel="noreferrer noopener"
-            className="font-medium text-cyan-200/80 underline decoration-cyan-400/25 underline-offset-4"
+            className="assistant-link font-medium underline underline-offset-4"
           >
             {label}
           </a>,

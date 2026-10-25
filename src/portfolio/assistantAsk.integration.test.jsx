@@ -37,7 +37,7 @@ function renderAssistant() {
 }
 
 function openChat() {
-  fireEvent.click(screen.getByRole("button", { name: "Chat" }));
+  fireEvent.click(screen.getByRole("button", { name: /Chat/ }));
 }
 
 function availabilityDot() {
@@ -712,3 +712,178 @@ describe("assistant chat POST /ask", () => {
     expect(screen.queryByText("Preparing a response…")).toBeNull();
   });
 });
+
+describe("Beyond CV Easter egg", () => {
+  afterEach(() => {
+    cleanup();
+    sessionStorage.clear();
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function eligibleAsk(answer = "He enjoys history, reading and travel.") {
+    return askResponse({
+      ok: true,
+      answer,
+      evidence: [],
+      action: "beyond-cv",
+    });
+  }
+
+  async function openReadyChat() {
+    const view = renderAssistant();
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveAttribute("data-assistant-availability", "available"));
+    return view;
+  }
+
+  it("shows the English invitation once and ignores a later token", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({
+      ask: (call) => eligibleAsk(call === 1 ? "First answer." : "Second answer."),
+    });
+    await openReadyChat();
+    send("What are Lorenzo's hobbies?");
+    expect(await screen.findByRole("button", { name: "Show me" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Maybe later" })).toBeTruthy();
+    expect(screen.getByText("There's a little more to this portfolio than meets the eye.")).toBeTruthy();
+    expect(screen.getByText("Would you like to take a closer look?")).toBeTruthy();
+    expect(screen.getByText("First answer.")).toBeTruthy();
+    expect(document.querySelectorAll("[data-beyond-cv-easter-egg]")).toHaveLength(1);
+
+    send("What does he enjoy outside work?");
+    expect(await screen.findByText("Second answer.")).toBeTruthy();
+    expect(document.querySelectorAll("[data-beyond-cv-easter-egg]")).toHaveLength(1);
+    expect(asks).toHaveLength(2);
+  });
+
+  it("shows the Italian invitation from an Italian question", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({ ask: eligibleAsk("Gli piace la storia.") });
+    await openReadyChat();
+    send("Quali sono gli hobby di Lorenzo?");
+    expect(await screen.findByRole("button", { name: "Mostrami" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Magari più tardi" })).toBeTruthy();
+    expect(screen.getByText("Questo portfolio nasconde qualcosa in più di ciò che si vede.")).toBeTruthy();
+    expect(screen.getByText("Ti va di dare un'occhiata più da vicino?")).toBeTruthy();
+  });
+
+  it("dismisses without another request and does not offer again", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({ ask: eligibleAsk() });
+    await openReadyChat();
+    send("What are Lorenzo's hobbies?");
+    fireEvent.click(await screen.findByRole("button", { name: "Maybe later" }));
+    expect(screen.queryByRole("button", { name: "Show me" })).toBeNull();
+    expect(asks).toHaveLength(1);
+
+    send("What are Lorenzo's personal interests?");
+    await waitFor(() => expect(asks).toHaveLength(2));
+    expect(screen.queryByRole("button", { name: "Show me" })).toBeNull();
+    expect(document.querySelector("[data-beyond-cv-easter-egg]")).toBeNull();
+  });
+
+  it("unlocks a desktop QR without calling /ask or navigating", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({ ask: eligibleAsk() });
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    await openReadyChat();
+    send("What are Lorenzo's hobbies?");
+    fireEvent.click(await screen.findByRole("button", { name: "Show me" }));
+    const qr = await screen.findByRole("img", { name: "QR code to open the Beyond CV experience on a smartphone." });
+    expect(qr.getAttribute("src")).toBeTruthy();
+    expect(screen.getByText("Have Lorenzo's CV nearby? Scan this QR code with your phone and see what happens.")).toBeTruthy();
+    expect(screen.getByText("https://lorenzo-natali.github.io/professional-portfolio/?beyond=1")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /beyond/i })).toBeNull();
+    expect(asks).toHaveLength(1);
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps the invitation usable after the question quota is exhausted", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({
+      availability: (askCount) => (askCount >= 1 ? "visitor_limit_reached" : "available"),
+      ask: eligibleAsk(),
+    });
+    await openReadyChat();
+    send("What are Lorenzo's hobbies?");
+    expect(await screen.findByRole("button", { name: "Show me" })).toBeTruthy();
+    await waitFor(() =>
+      expect(availabilityDot()).toHaveAttribute("data-assistant-availability", "visitor_limit"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show me" }));
+    expect(await screen.findByRole("img", { name: /QR code/ })).toBeTruthy();
+    expect(asks).toHaveLength(1);
+    send("What else can you tell me?");
+    expect(screen.getByText(ASSISTANT_VISITOR_LIMIT_MESSAGE)).toBeTruthy();
+    expect(asks).toHaveLength(1);
+    expect(screen.getByRole("img", { name: /QR code/ })).toBeTruthy();
+  });
+
+  it("restores one unlocked card after the chat closes and the page remounts", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({ ask: eligibleAsk() });
+    const view = await openReadyChat();
+    send("What are Lorenzo's hobbies?");
+    fireEvent.click(await screen.findByRole("button", { name: "Show me" }));
+    expect(await screen.findByRole("img", { name: /QR code/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    openChat();
+    expect(document.querySelectorAll("[data-beyond-cv-easter-egg='unlocked']")).toHaveLength(1);
+
+    view.unmount();
+    mockWorker({ ask: eligibleAsk("Should not be requested.") });
+    renderAssistant();
+    openChat();
+    expect(await screen.findByRole("img", { name: /QR code/ })).toBeTruthy();
+    expect(document.querySelectorAll("[data-beyond-cv-easter-egg]")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Show me" })).toBeNull();
+  });
+
+  it("launches the existing AR view from a phone without requesting the camera", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    const { asks } = mockWorker({ ask: eligibleAsk() });
+    const getUserMedia = vi.fn();
+    vi.stubGlobal("navigator", { ...navigator, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148", mediaDevices: { getUserMedia } });
+    render(
+      <App
+        features={{ assistant: true, beyond: true, intro: false, preload: false }}
+        beyondModules={{
+          ARGovernanceCard: () => <button type="button">Beyond CV</button>,
+          ARGovernanceView: ({ open }) => (open ? <div>AR experience</div> : null),
+          shouldLaunchBeyondCvFromLocation: () => false,
+        }}
+        eagerSectionModules={{ hero: HeroHarness }}
+      />,
+    );
+    openChat();
+    await waitFor(() => expect(availabilityDot()).toHaveAttribute("data-assistant-availability", "available"));
+    send("What are Lorenzo's hobbies?");
+    fireEvent.click(await screen.findByRole("button", { name: "Show me" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Launch Beyond CV" }));
+    expect(screen.getByText("Have Lorenzo's CV nearby? Open the experience and point your camera at its first page.")).toBeTruthy();
+    expect(screen.getByText("AR experience")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Beyond CV" })).toBeNull();
+    expect(asks).toHaveLength(1);
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
+  it("does not show an invitation for an ordinary or untrusted action", async () => {
+    vi.stubEnv("VITE_PORTFOLIO_ASSISTANT_ENDPOINT", ENDPOINT);
+    mockWorker({
+      ask: askResponse({
+        ok: true,
+        answer: "Lorenzo works in internal audit.",
+        evidence: [],
+        action: "https://evil.example/?beyond=1",
+      }),
+    });
+    await openReadyChat();
+    send("What is Lorenzo's audit background?");
+    expect(await screen.findByText("Lorenzo works in internal audit.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Show me" })).toBeNull();
+    expect(screen.queryByText("evil.example")).toBeNull();
+  });
+});
+

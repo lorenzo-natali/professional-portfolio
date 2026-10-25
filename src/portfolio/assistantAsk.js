@@ -1,3 +1,5 @@
+import { BEYOND_CV_ACTION } from "./beyondCvEasterEgg.js";
+
 const PROVIDER_ERRORS = new Set([
   "openai_timeout",
   "openai_unavailable",
@@ -33,7 +35,7 @@ export function signalIdsFromEvidence(evidence) {
  * Classify one POST /ask result. Does not retry or infer a quota color from HTTP 429 alone.
  * @param {number} httpStatus
  * @param {unknown} body
- * @returns {{ type: "answer", answer: string, signalIds: string[] } | { type: "quota" } | { type: "provider" } | { type: "invalid" }}
+ * @returns {{ type: "answer", answer: string, signalIds: string[], action?: string } | { type: "quota" } | { type: "provider" } | { type: "invalid" }}
  */
 export function interpretAskResult(httpStatus, body) {
   if (httpStatus === 429 && isRecord(body) && body.ok === false && body.error === "quota_exceeded") {
@@ -50,11 +52,13 @@ export function interpretAskResult(httpStatus, body) {
     body.answer.trim() &&
     Array.isArray(body.evidence)
   ) {
-    return {
+    const result = {
       type: "answer",
       answer: body.answer,
       signalIds: signalIdsFromEvidence(body.evidence),
     };
+    if (body.action === BEYOND_CV_ACTION) result.action = BEYOND_CV_ACTION;
+    return result;
   }
   return { type: "invalid" };
 }

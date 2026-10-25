@@ -15,7 +15,7 @@ export const PORTFOLIO_SECTION_TITLES = Object.freeze({
   hero: "Lorenzo Natali",
   "role-lens": "Role Lens",
   capabilities: "Expertise",
-  credentials: "Certifications",
+  credentials: "Certifications & Roadmap",
   experience: "Experience",
   projects: "Projects",
   education: "Education",
@@ -48,7 +48,7 @@ export const NAVIGATOR_SECTIONS = Object.freeze([
   }),
   Object.freeze({
     id: "credentials",
-    label: PORTFOLIO_SECTION_TITLES.credentials,
+    label: "Certifications",
     scrollTargetId: "credentials",
   }),
   Object.freeze({

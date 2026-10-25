@@ -29,6 +29,7 @@ const SECTION_LOADERS = Object.freeze({
  *   expandedExperiences: Record<string, boolean>,
  *   toggleExperienceDetails: (id: string) => void,
  *   sidebarSlot?: import("react").ReactNode,
+ *   beyondSlot?: import("react").ReactNode,
  *   sectionModules?: Record<string, import("react").ComponentType<any>> | null,
  * }} props
  */
@@ -39,6 +40,7 @@ export default function PortfolioCore({
   expandedExperiences,
   toggleExperienceDetails,
   sidebarSlot = null,
+  beyondSlot = null,
   sectionModules = null,
 }) {
   const orderedIds = PORTFOLIO_SECTION_IDS.filter((id) =>
@@ -115,6 +117,7 @@ export default function PortfolioCore({
           expandedExperiences,
           toggleExperienceDetails,
           sidebarSlot: id === "hero" ? sidebarSlot : undefined,
+          beyondSlot: id === "hero" ? beyondSlot : undefined,
         };
 
         return (

@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef } from "react";
+import { Fragment, useLayoutEffect, useRef } from "react";
 import { Send } from "lucide-react";
 import { AssistantAnswerBody } from "./assistantMarkdown.jsx";
+import { BeyondCvEasterEggCard } from "./BeyondCvEasterEggCard.jsx";
 import {
   ASSISTANT_COUNTER_REVEAL_AT,
   ASSISTANT_ERROR_MESSAGE,
@@ -39,6 +40,10 @@ function scrollTranscriptToEnd(element) {
  *   unavailableMessage?: string,
  *   errorMessage?: string,
  *   composerRef?: import("react").Ref<HTMLTextAreaElement>,
+ *   beyondCv?: { messageId: string, lang: "en" | "it", state: "offered" | "unlocked", mobile: boolean } | null,
+ *   onBeyondCvAccept?: () => void,
+ *   onBeyondCvDismiss?: () => void,
+ *   onBeyondCvLaunch?: () => void,
  * }} props
  */
 export function AssistantConversation({
@@ -52,6 +57,10 @@ export function AssistantConversation({
   unavailableMessage = "",
   errorMessage = ASSISTANT_ERROR_MESSAGE,
   composerRef,
+  beyondCv = null,
+  onBeyondCvAccept,
+  onBeyondCvDismiss,
+  onBeyondCvLaunch,
 }) {
   const transcriptRef = useRef(null);
   const stickRef = useRef(true);
@@ -103,7 +112,7 @@ export function AssistantConversation({
         className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5"
       >
         <div data-assistant-welcome className="mb-4 max-w-[42rem]">
-          <p className="text-sm leading-6 text-cyan-300">{ASSISTANT_WELCOME_MESSAGE}</p>
+          <p className="assistant-text text-sm leading-6">{ASSISTANT_WELCOME_MESSAGE}</p>
         </div>
 
         <div
@@ -120,17 +129,17 @@ export function AssistantConversation({
                 : [];
             const isUser = message.role === "user";
             return (
+              <Fragment key={message.id}>
               <article
-                key={message.id}
                 data-assistant-message-role={message.role}
-                className={`w-fit max-w-[min(85%,42rem)] break-words rounded-lg border px-3 py-2.5 text-sm leading-6 ${
+                className={`w-fit max-w-[min(85%,42rem)] break-words rounded-lg px-3 py-2.5 text-sm leading-6 ${
                   isUser
-                    ? "ml-auto border-slate-700 bg-slate-900/50 text-slate-200"
-                    : "mr-auto border-cyan-400/15 bg-slate-900/25 text-slate-300"
+                    ? "assistant-bubble-user ml-auto"
+                    : "assistant-bubble-ai mr-auto"
                 }`}
               >
                 {message.developmentOnly ? (
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  <p className="assistant-muted mb-2 text-[11px] font-semibold uppercase tracking-[0.16em]">
                     {DEVELOPMENT_PREVIEW_LABEL}
                   </p>
                 ) : null}
@@ -140,8 +149,8 @@ export function AssistantConversation({
                   <AssistantAnswerBody text={message.text} />
                 )}
                 {related.length > 0 ? (
-                  <div className="mt-2.5 border-t border-slate-800/70 pt-2.5">
-                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                  <div className="assistant-divider mt-2.5 border-t pt-2.5">
+                    <p className="assistant-muted mb-1.5 text-[11px] font-semibold uppercase tracking-[0.2em]">
                       Explore related portfolio content
                     </p>
                     <div className="flex flex-wrap gap-x-3 gap-y-2">
@@ -150,7 +159,7 @@ export function AssistantConversation({
                           key={signal.id}
                           href={signal.href}
                           onClick={(event) => onSignalClick?.(event, signal)}
-                          className="text-xs font-medium text-cyan-200/80 underline decoration-cyan-400/25 underline-offset-4 transition hover:text-cyan-100 hover:decoration-cyan-300/60"
+                          className="assistant-link text-xs font-medium underline underline-offset-4 transition"
                         >
                           {signal.label}
                         </a>
@@ -159,23 +168,34 @@ export function AssistantConversation({
                   </div>
                 ) : null}
               </article>
+              {beyondCv && beyondCv.messageId === message.id ? (
+                <BeyondCvEasterEggCard
+                  lang={beyondCv.lang}
+                  state={beyondCv.state}
+                  mobile={beyondCv.mobile}
+                  onAccept={() => onBeyondCvAccept?.()}
+                  onDismiss={() => onBeyondCvDismiss?.()}
+                  onLaunch={() => onBeyondCvLaunch?.()}
+                />
+              ) : null}
+              </Fragment>
             );
           })}
 
           {status === "loading" ? (
-            <p role="status" className="text-sm leading-6 text-slate-400">
+            <p role="status" className="assistant-muted text-sm leading-6">
               Preparing a response…
             </p>
           ) : null}
 
           {status === "unavailable" ? (
-            <p role="status" className="max-w-xl text-sm leading-6 text-slate-300">
+            <p role="status" className="assistant-text max-w-xl text-sm leading-6">
               {unavailableMessage || ASSISTANT_UNAVAILABLE_MESSAGE}
             </p>
           ) : null}
 
           {status === "error" ? (
-            <p role="alert" className="max-w-xl text-sm leading-6 text-slate-300">
+            <p role="alert" className="assistant-text max-w-xl text-sm leading-6">
               {errorMessage}
             </p>
           ) : null}
@@ -186,7 +206,7 @@ export function AssistantConversation({
         <label htmlFor="assistant-question" className="sr-only">
           Your question
         </label>
-        <div className="flex items-end gap-1 rounded-xl border border-slate-800 bg-slate-950/35 py-1 pl-1 pr-1 focus-within:border-cyan-300/50 focus-within:ring-2 focus-within:ring-cyan-400/30">
+        <div className="assistant-composer flex items-end gap-1 rounded-xl border py-1 pl-1 pr-1">
           <textarea
             ref={composerRef}
             id="assistant-question"
@@ -200,7 +220,7 @@ export function AssistantConversation({
             aria-describedby="assistant-question-count"
             onChange={(event) => onDraftChange(clampAssistantQuestion(event.target.value))}
             onKeyDown={onComposerKeyDown}
-            className="max-h-32 min-h-12 w-full min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-[16px] leading-6 text-slate-200 placeholder:text-slate-500 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+            className="max-h-32 min-h-12 w-full min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-[16px] leading-6 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
           />
           <button
             type="button"
@@ -208,14 +228,14 @@ export function AssistantConversation({
             disabled={!sendable}
             aria-label="Send"
             data-assistant-send
-            className="mb-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-cyan-400/35 bg-cyan-400/10 text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-slate-600"
+            className="assistant-send mb-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border focus-visible:outline-none"
           >
             <Send className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
         <p
           id="assistant-question-count"
-          className={showCounter ? "mt-1.5 text-right text-[11px] leading-4 text-slate-300" : "sr-only"}
+          className={showCounter ? "assistant-muted mt-1.5 text-right text-[11px] leading-4" : "sr-only"}
         >
           {draft.length}/{ASSISTANT_QUESTION_MAX_LENGTH}
         </p>

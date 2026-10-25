@@ -28,8 +28,13 @@ vi.mock("framer-motion", () => ({
 
 import App from "./App.jsx";
 
-function HeroHarness({ sidebarSlot }) {
-  return <section id="hero">{sidebarSlot}</section>;
+function HeroHarness({ sidebarSlot, beyondSlot }) {
+  return (
+    <section id="hero">
+      {beyondSlot}
+      {sidebarSlot}
+    </section>
+  );
 }
 
 function ExperienceProbe({
@@ -108,22 +113,14 @@ describe("Phase C App interaction instrumentation", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Chat" }));
+    fireEvent.click(screen.getByRole("button", { name: /Chat/ }));
     expect(trackMock).toHaveBeenCalledWith("assistant_open");
     expect(screen.queryByRole("button", { name: "Explore curated questions" })).toBeNull();
     const payload = JSON.stringify(trackMock.mock.calls);
     expect(payload).not.toMatch(/What kind of roles/);
   });
 
-  it("Beyond CV card emits source:card", () => {
-    function BeyondCard({ onLaunch }) {
-      return (
-        <button type="button" onClick={onLaunch}>
-          Beyond CV
-        </button>
-      );
-    }
-
+  it("does not render the homepage Beyond CV button", () => {
     render(
       <App
         features={{
@@ -133,17 +130,16 @@ describe("Phase C App interaction instrumentation", () => {
           preload: false,
         }}
         beyondModules={{
-          ARGovernanceCard: BeyondCard,
+          ARGovernanceCard: () => <button type="button">Beyond CV</button>,
+          ARGovernanceView: ({ open }) => (open ? <div>AR experience</div> : null),
           shouldLaunchBeyondCvFromLocation: () => false,
         }}
         eagerSectionModules={{ hero: HeroHarness }}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Beyond CV" }));
-    expect(trackMock).toHaveBeenCalledWith("beyond_cv_open", {
-      source: "card",
-    });
+    expect(screen.queryByRole("button", { name: "Beyond CV" })).toBeNull();
+    expect(screen.queryByText("AR experience")).toBeNull();
   });
 
   it("Beyond CV deeplink emits source:deeplink once", () => {
@@ -156,8 +152,8 @@ describe("Phase C App interaction instrumentation", () => {
           preload: false,
         }}
         beyondModules={{
-          ARGovernanceCard: () => null,
-          ARGovernanceView: () => null,
+          ARGovernanceCard: () => <button type="button">Beyond CV</button>,
+          ARGovernanceView: ({ open }) => (open ? <div>AR experience</div> : null),
           shouldLaunchBeyondCvFromLocation: () => true,
         }}
         eagerSectionModules={{ hero: HeroHarness }}
@@ -169,5 +165,7 @@ describe("Phase C App interaction instrumentation", () => {
         name === "beyond_cv_open" && props?.source === "deeplink"
     );
     expect(deeplinkCalls).toHaveLength(1);
+    expect(screen.getByText("AR experience")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Beyond CV" })).toBeNull();
   });
 });

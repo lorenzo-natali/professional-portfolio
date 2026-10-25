@@ -120,7 +120,7 @@ describe("assistant chat presentation", () => {
     expect(assistant.querySelector("li").textContent).toContain("Risk-based IT audits");
     expect(welcome.className).toContain("max-w-[42rem]");
     expect(welcome.className).not.toContain("min(85%");
-    expect(welcome.querySelector("p").className).toContain("text-cyan-300");
+    expect(welcome.querySelector("p").className).toContain("assistant-text");
   });
 
   it("keeps an unboxed welcome first and does not show starter boxes", () => {

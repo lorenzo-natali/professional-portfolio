@@ -22,7 +22,7 @@ describe("sectionCatalog titles and navigation", () => {
       "Lorenzo Natali",
       "Role Lens",
       "Expertise",
-      "Certifications",
+      "Certifications & Roadmap",
       "Experience",
       "Projects",
       "Education",

@@ -1,4 +1,5 @@
 import { corsHeaders } from "./cors.js";
+import { BEYOND_CV_ACTION, isBeyondCvEligible } from "./knowledge/beyondCvEligibility.js";
 import {
   evaluateEvidenceSufficiency,
   evaluatePrivateOrUnsupportedGate,
@@ -145,12 +146,15 @@ export async function handleAskPost(request, allowOrigin, env, deps = {}) {
     });
   }
 
+  const payload = {
+    ok: true,
+    answer: ai.answer,
+    evidence: toPublicEvidence(retrieved),
+  };
+  if (isBeyondCvEligible(result.question)) payload.action = BEYOND_CV_ACTION;
+
   return new Response(
-    JSON.stringify({
-      ok: true,
-      answer: ai.answer,
-      evidence: toPublicEvidence(retrieved),
-    }),
+    JSON.stringify(payload),
     {
       status: 200,
       headers: corsHeaders(allowOrigin, {

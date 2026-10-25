@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Info, MessageSquare, X } from "lucide-react";
+import { ArrowRight, Info, MessageSquare, X } from "lucide-react";
 import {
   DEFAULT_APP_FEATURES,
   resolveAppFeatures,
@@ -25,10 +25,24 @@ import { interpretAskResult } from "./portfolio/assistantAsk.js";
 import { resolveAssistantEndpoint, useAssistantAvailability } from "./portfolio/useAssistantAvailability.js";
 import { AssistantConversation } from "./portfolio/AssistantConversation.jsx";
 import {
+  ASSISTANT_PREVIEW_QUESTIONS,
+  useAssistantPreviewRotation,
+} from "./portfolio/useAssistantPreviewRotation.js";
+import {
   highestAssistantMessageSeq,
   loadAssistantConversation,
   saveAssistantConversation,
 } from "./portfolio/assistantConversationStore.js";
+import {
+  beyondCvAnchorId,
+  dismissBeyondCv,
+  loadBeyondCvSession,
+  offerBeyondCv,
+  saveBeyondCvSession,
+  unlockBeyondCv,
+  BEYOND_CV_ACTION,
+} from "./portfolio/beyondCvEasterEgg.js";
+import { useIsMobileDevice } from "./components/ar/useIsMobileDevice.js";
 import {
   ASSISTANT_ASK_TIMEOUT_MS,
   ASSISTANT_BURST_MESSAGE,
@@ -93,18 +107,9 @@ function highlightSignalTarget(target) {
 const assistantSelectionCardVariants = {
   topic: {
     layout: "min-h-[3.75rem] min-w-[12rem] max-w-[15rem] px-3 py-2.5",
-    selected: "border-violet-300/50 bg-violet-400/10 text-violet-50",
-    idle:
-      "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-violet-300/35 hover:text-slate-100",
-    focus: "focus-visible:ring-violet-400/35",
   },
   question: {
     layout: "min-w-[13rem] max-w-[16rem] px-3 py-2.5 sm:min-w-[15rem]",
-    selected:
-      "border-cyan-300/50 bg-cyan-400/10 text-cyan-50 shadow-[0_0_20px_rgba(34,211,238,0.12)]",
-    idle:
-      "border-slate-800 bg-slate-900/35 text-slate-400 hover:border-cyan-300/30 hover:text-slate-100",
-    focus: "focus-visible:ring-cyan-400/35",
   },
 };
 
@@ -131,22 +136,22 @@ function AssistantSelectionCard({ variant, selected, onClick, children }) {
       aria-pressed={selected}
       data-assistant-card-variant={variant}
       onClick={onClick}
-      className={`shrink-0 rounded-lg border text-left text-xs font-medium leading-5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset ${styles.layout} ${styles.focus} ${
-        selected ? styles.selected : styles.idle
-      }`}
+      className={`assistant-choice shrink-0 rounded-lg border text-left text-xs font-medium leading-5 transition focus-visible:outline-none ${styles.layout}`}
     >
       {children}
     </button>
   );
 }
 
-function PortfolioAssistant() {
+function PortfolioAssistant({ onLaunchBeyondCv }) {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [panel, setPanel] = useState("chat");
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState(() => loadAssistantConversation());
+  const [beyondCv, setBeyondCv] = useState(() => loadBeyondCvSession());
+  const beyondCvMobile = useIsMobileDevice();
   const [reply, setReply] = useState(
     /** @type {{ phase: "idle" | "loading" | "unavailable" | "error", text: string }} */ ({
       phase: "idle",
@@ -164,7 +169,10 @@ function PortfolioAssistant() {
   const dialogRef = useRef(null);
   const assistantFrameRef = useRef(null);
   const questionRailRef = useRef(null);
+  const previewRootRef = useRef(null);
   const savedScrollYRef = useRef(0);
+  const { index: previewIndex, motionEnabled: previewMotion, animateQuestion: previewAnimate } =
+    useAssistantPreviewRotation(previewRootRef);
   const restoreFocusOnCloseRef = useRef(false);
   const askSeqRef = useRef(highestAssistantMessageSeq(messages));
   const askAbortRef = useRef(/** @type {AbortController | null} */ (null));
@@ -190,6 +198,10 @@ function PortfolioAssistant() {
   useEffect(() => {
     persistSettledMessages(messages);
   }, [messages, persistSettledMessages]);
+
+  useEffect(() => {
+    saveBeyondCvSession(beyondCv);
+  }, [beyondCv]);
 
   const clearAskDeadline = useCallback(() => {
     if (askDeadlineRef.current != null) {
@@ -326,6 +338,15 @@ function PortfolioAssistant() {
               signalIds: outcome.signalIds,
             },
           ]);
+          if (outcome.action === BEYOND_CV_ACTION) {
+            setBeyondCv((current) =>
+              offerBeyondCv(current, {
+                question: text,
+                answer: outcome.answer,
+                anchorId: `assistant-${seq}`,
+              }),
+            );
+          }
           applyReply({ phase: "idle", text: "" });
           void refreshAvailability();
         } else if (outcome.type === "quota") {
@@ -591,15 +612,15 @@ function PortfolioAssistant() {
 
   return (
     <>
-      <aside className="w-full rounded-2xl border border-slate-800/80 bg-slate-900/50 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur sm:p-5">
-        <div className="mb-4 flex items-center gap-4 border-b border-slate-800 pb-4 max-sm:justify-center sm:gap-3">
+      <aside className="assistant-theme assistant-surface w-full rounded-2xl p-6 sm:p-5 lg:px-7 lg:py-10">
+        <div className="mb-4 flex items-center gap-4 border-b assistant-divider pb-4 max-sm:justify-center sm:gap-3 lg:justify-center">
           <img
             src={publicAsset("profile.png")}
             alt="Lorenzo Natali"
-            className="h-16 w-16 shrink-0 rounded-full border border-cyan-400/30 object-cover sm:h-11 sm:w-11"
+            className="assistant-avatar-ring h-16 w-16 shrink-0 rounded-full border object-cover sm:h-11 sm:w-11"
           />
           <div className="min-w-0">
-            <p className="text-base font-semibold leading-tight tracking-tight text-slate-50 sm:text-sm">
+            <p className="assistant-text text-base font-semibold leading-tight tracking-tight sm:text-sm lg:text-[0.9375rem]">
               AI Portfolio{" "}
               <span className="whitespace-nowrap">
                 Assistant
@@ -609,18 +630,52 @@ function PortfolioAssistant() {
           </div>
         </div>
 
-        <p className="w-full text-center text-sm font-medium leading-6 text-slate-400 sm:mx-auto sm:max-w-[30ch] sm:text-xs sm:leading-5 sm:text-slate-500">
+        <p className="assistant-muted w-full text-center text-sm font-medium leading-6 sm:mx-auto sm:max-w-[30ch] sm:text-xs sm:leading-5 lg:hidden">
           Ask about my professional background, expertise, and projects.
         </p>
+
+        <div ref={previewRootRef} data-assistant-preview-root className="hidden lg:block">
+          <p className="assistant-muted text-sm leading-6">
+            I built this AI Assistant to share insights beyond my portfolio and make it easier to explore my background and connect with me.
+          </p>
+          <div className="mt-8">
+            <p className="assistant-accent text-[11px] font-medium uppercase leading-none tracking-[0.18em]">
+              YOU CAN ASK ME...
+            </p>
+            <div className="mt-3 grid">
+              {ASSISTANT_PREVIEW_QUESTIONS.map((question, questionIndex) => {
+                const active = questionIndex === previewIndex;
+                return (
+                  <p
+                    key={question}
+                    data-assistant-preview-question={active ? "true" : "false"}
+                    aria-hidden={active ? undefined : true}
+                    className={`assistant-preview-quote assistant-text col-start-1 row-start-1 min-w-0 break-words text-base italic leading-6 ${
+                      active
+                        ? previewMotion && previewAnimate
+                          ? "assistant-preview-question-in"
+                          : ""
+                        : "invisible"
+                    }`}
+                  >
+                    {question}
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         <button
           ref={openButtonRef}
           type="button"
           onClick={() => openAssistant()}
-          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-cyan-400/35 bg-cyan-400/10 px-4 py-4 text-base font-semibold text-cyan-100 transition hover:border-cyan-300/60 hover:bg-cyan-400/15 sm:py-3 sm:text-sm"
+          className="assistant-cta mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg border px-4 py-4 text-base font-semibold transition focus-visible:outline-none sm:py-3 sm:text-sm lg:mt-8"
         >
-          <MessageSquare className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Chat
+          <MessageSquare className="h-4 w-4 shrink-0 lg:hidden" aria-hidden="true" />
+          <span className="lg:hidden">Chat</span>
+          <span className="hidden lg:inline">Ask the Assistant</span>
+          <ArrowRight className="hidden h-4 w-4 shrink-0 lg:block" aria-hidden="true" />
         </button>
       </aside>
 
@@ -648,10 +703,7 @@ function PortfolioAssistant() {
                       aria-labelledby="portfolio-assistant-modal-title"
                       aria-describedby="portfolio-assistant-modal-description"
                       data-assistant-motion={reduceMotion ? "reduced" : "animated"}
-                      className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-400/75 bg-slate-950 sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:flex-none"
-                      style={{
-                        boxShadow: "0 0 0 1px rgba(34,211,238,0.08), 0 0 18px rgba(34,211,238,0.16)",
-                      }}
+                      className="assistant-theme assistant-surface relative flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl sm:h-[78vh] sm:max-h-[80vh] sm:max-w-4xl sm:flex-none"
                       initial={reduceMotion ? false : { y: 18, scale: 0.98 }}
                       animate={{ y: 0, scale: 1 }}
                       exit={reduceMotion ? { opacity: 1 } : { y: 18, scale: 0.98 }}
@@ -663,15 +715,15 @@ function PortfolioAssistant() {
                 </p>
                 <div
                   data-assistant-header
-                  className="relative z-20 flex min-h-14 shrink-0 items-center gap-2 border-b border-cyan-400/40 px-3 sm:px-4"
+                  className="relative z-20 flex min-h-14 shrink-0 items-center gap-2 border-b assistant-divider px-3 sm:px-4"
                 >
                   <img
                     src={publicAsset("profile.png")}
                     alt=""
-                    className="h-10 w-10 shrink-0 rounded-full border border-cyan-400/30 object-cover"
+                    className="assistant-avatar-ring h-10 w-10 shrink-0 rounded-full border object-cover"
                   />
                   <div className="flex min-w-0 flex-1 items-center">
-                    <p id="portfolio-assistant-modal-title" className="min-w-0 truncate text-sm font-semibold text-slate-50">
+                    <p id="portfolio-assistant-modal-title" className="assistant-text min-w-0 truncate text-sm font-semibold">
                       AI Portfolio Assistant
                     </p>
                     <AssistantAvailabilityIndicator
@@ -687,7 +739,7 @@ function PortfolioAssistant() {
                     aria-expanded={disclaimerOpen}
                     aria-controls="assistant-disclaimer"
                     onClick={() => setDisclaimerOpen(true)}
-                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                    className="assistant-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition focus-visible:outline-none"
                   >
                     <Info className="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -696,7 +748,7 @@ function PortfolioAssistant() {
                     type="button"
                     aria-label="Close"
                     onClick={() => closeAssistant(true)}
-                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                    className="assistant-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition focus-visible:outline-none"
                   >
                     <X className="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -715,6 +767,19 @@ function PortfolioAssistant() {
                       unavailableMessage={reply.text}
                       errorMessage={reply.text || ASSISTANT_ERROR_MESSAGE}
                       composerRef={composerRef}
+                      beyondCv={
+                        beyondCvAnchorId(messages, beyondCv)
+                          ? {
+                              messageId: beyondCvAnchorId(messages, beyondCv),
+                              lang: beyondCv.lang === "it" ? "it" : "en",
+                              state: beyondCv.state,
+                              mobile: beyondCvMobile,
+                            }
+                          : null
+                      }
+                      onBeyondCvAccept={() => setBeyondCv((current) => unlockBeyondCv(current))}
+                      onBeyondCvDismiss={() => setBeyondCv((current) => dismissBeyondCv(current))}
+                      onBeyondCvLaunch={() => onLaunchBeyondCv?.()}
                     />
                   ) : (
                     <div
@@ -724,13 +789,13 @@ function PortfolioAssistant() {
                   <button
                     type="button"
                     onClick={() => setPanel("chat")}
-                    className="mb-4 text-xs font-medium text-slate-500 underline decoration-slate-700 underline-offset-4 transition hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/35"
+                    className="assistant-muted mb-4 text-xs font-medium underline decoration-[color:var(--assistant-border)] underline-offset-4 transition hover:text-[var(--assistant-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--assistant-accent)]"
                   >
                     Back to AI Assistant
                   </button>
                   <p
                     id="assistant-topic-rail-label"
-                    className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
+                    className="assistant-muted text-[11px] font-semibold uppercase tracking-[0.2em]"
                   >
                     Explore by topic
                   </p>
@@ -767,7 +832,7 @@ function PortfolioAssistant() {
                     <div className="mt-6">
                       <p
                         id="assistant-question-rail-label"
-                        className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500"
+                        className="assistant-muted mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]"
                       >
                         Suggested questions
                       </p>
@@ -803,7 +868,7 @@ function PortfolioAssistant() {
                   ) : null}
 
                   {selectedPrompt ? (
-                    <div className="mt-5 rounded-xl border border-slate-800/80 bg-slate-900/25 p-5 sm:p-6">
+                    <div className="assistant-panel mt-5 rounded-xl p-5 sm:p-6">
                       <AnimatePresence mode="wait">
                         <motion.div
                           key={selectedPrompt.question}
@@ -812,18 +877,18 @@ function PortfolioAssistant() {
                           exit={{ opacity: 0, y: -8 }}
                           transition={{ duration: 0.25, ease: "easeOut" }}
                         >
-                          <h2 className="break-words text-base font-semibold leading-6 text-slate-100 sm:text-lg sm:leading-7">
+                          <h2 className="assistant-text break-words text-base font-semibold leading-6 sm:text-lg sm:leading-7">
                             {selectedPrompt.question}
                           </h2>
 
                           <div className="mt-4">
-                            <p className="max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                            <p className="assistant-text max-w-3xl text-sm leading-7 sm:text-base">
                               {selectedPrompt.answer}
                             </p>
                           </div>
 
-                          <div className="mt-5 border-t border-slate-800/70 pt-4">
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Continue exploring</p>
+                          <div className="assistant-divider mt-5 border-t pt-4">
+                            <p className="assistant-muted mb-2 text-[11px] font-semibold uppercase tracking-[0.2em]">Continue exploring</p>
                             <div className="flex flex-wrap gap-x-3 gap-y-2">
                               {getAssistantSignals(selectedPrompt).map((signal) => (
                                 <a
@@ -833,8 +898,8 @@ function PortfolioAssistant() {
                                   onClick={(event) => handleAssistantSignalClick(event, signal)}
                                   className={`text-xs font-medium underline underline-offset-4 transition ${
                                     signal.missing
-                                      ? "cursor-not-allowed text-slate-600 decoration-slate-700"
-                                      : "text-cyan-200/80 decoration-cyan-400/25 hover:text-cyan-100 hover:decoration-cyan-300/60"
+                                      ? "cursor-not-allowed text-[color:color-mix(in_srgb,var(--assistant-muted)_45%,transparent)] decoration-[color:var(--assistant-border)]"
+                                      : "assistant-link"
                                   }`}
                                 >
                                   {signal.label}
@@ -853,18 +918,18 @@ function PortfolioAssistant() {
                   <div
                     id="assistant-disclaimer"
                     data-assistant-disclaimer
-                    className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 px-4"
+                    className="assistant-scrim absolute inset-0 z-30 flex items-center justify-center px-4"
                     onClick={closeDisclaimer}
                   >
                     <div
                       role="dialog"
                       aria-modal="true"
                       aria-labelledby="assistant-disclaimer-title"
-                      className="flex max-h-[85%] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-cyan-400/40 bg-slate-950"
+                      className="assistant-panel flex max-h-[85%] w-full max-w-lg flex-col overflow-hidden rounded-2xl"
                       onClick={(event) => event.stopPropagation()}
                     >
                       <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3">
-                        <h2 id="assistant-disclaimer-title" className="min-w-0 text-base font-semibold text-slate-100">
+                        <h2 id="assistant-disclaimer-title" className="assistant-text min-w-0 text-base font-semibold">
                           About this assistant
                         </h2>
                         <button
@@ -872,15 +937,26 @@ function PortfolioAssistant() {
                           type="button"
                           aria-label="Close"
                           onClick={closeDisclaimer}
-                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-slate-700 text-slate-300 transition hover:border-cyan-300/50 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+                          className="assistant-icon-button inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border transition focus-visible:outline-none"
                         >
                           <X className="h-5 w-5" aria-hidden="true" />
                         </button>
                       </div>
                       <div className="min-h-0 overflow-y-auto px-5 pb-5">
-                        <div className="space-y-3 text-sm leading-6 text-slate-300">
-                          {ASSISTANT_ABOUT_PARAGRAPHS.map((paragraph) => (
-                            <p key={paragraph}>{paragraph}</p>
+                        <div className="assistant-text space-y-3 text-sm leading-6">
+                          {ASSISTANT_ABOUT_PARAGRAPHS.map((paragraph, index) => (
+                            <p
+                              key={paragraph}
+                              className={
+                                index === ASSISTANT_ABOUT_PARAGRAPHS.length - 1
+                                  ? "pt-3 font-bold"
+                                  : index === 0
+                                    ? undefined
+                                    : "pt-3"
+                              }
+                            >
+                              {paragraph}
+                            </p>
                           ))}
                         </div>
                       </div>
@@ -1010,7 +1086,6 @@ function App({
       ? () => beyondModules.shouldLaunchBeyondCvFromLocation()
       : () => false;
 
-  const BeyondCard = beyondEnabled ? beyondModules.ARGovernanceCard : null;
   const BeyondView = beyondEnabled ? beyondModules.ARGovernanceView : null;
 
   /** @type {string[] | null | undefined} */
@@ -1082,19 +1157,18 @@ function App({
     setExpandedExperiences({ [experienceId]: true });
   };
 
-  const sidebarSlot = (
-    <>
-      {BeyondCard ? (
-        <BeyondCard
-          onLaunch={() => {
-            trackPortfolioEvent("beyond_cv_open", { source: "card" });
-            setArOpen(true);
-          }}
-        />
-      ) : null}
-      {features.assistant ? <PortfolioAssistant /> : null}
-    </>
-  );
+  // Homepage entry stays hidden. The assistant invitation and ?beyond=1
+  // still open the same ARGovernanceView.
+  const beyondSlot = null;
+
+  const sidebarSlot = features.assistant ? (
+    <PortfolioAssistant
+      onLaunchBeyondCv={() => {
+        trackPortfolioEvent("beyond_cv_open", { source: "assistant" });
+        setArOpen(true);
+      }}
+    />
+  ) : null;
 
   // Explicit features.sections → PortfolioCore dynamic-imports only those modules.
   // Production passes eagerSectionModules from bootProduction (static graph).
@@ -1112,6 +1186,7 @@ function App({
         expandedExperiences={expandedExperiences}
         toggleExperienceDetails={toggleExperienceDetails}
         sidebarSlot={sidebarSlot}
+        beyondSlot={beyondSlot}
         sectionModules={sectionModules}
       />
 
